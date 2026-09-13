@@ -5,3 +5,6 @@
 .DS_Store
 **/.svelte-kit/
 **/node_modules/
+/apps/desktop/.agents
+/apps/desktop/.claude
+/apps/desktop/build

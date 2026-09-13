@@ -17,17 +17,22 @@
   let sidebarFloating = $state(false);
   let sidebarOpen = $state(true);
   let sidebarResizing = $state(false);
+  let isLinux = $state(false);
   let sidebarWidth = $state(192);
   const sidebarDefaultWidth = 192;
   const sidebarMinimumWidth = 192;
+  const sidebarMaximumWidth = sidebarDefaultWidth * 2;
   type ViewTransitionDocument = Document & {
     startViewTransition?: (update: () => void) => unknown;
   };
 
   onMount(() => {
+    void invoke<string>("os_detection").then((platform) => (isLinux = platform === "linux"));
     sidebarFloating = localStorage.getItem("sidebar-floating") === "true";
     const savedWidth = Number(localStorage.getItem("sidebar-width"));
-    if (savedWidth >= sidebarMinimumWidth) sidebarWidth = savedWidth;
+    if (savedWidth >= sidebarMinimumWidth) {
+      sidebarWidth = Math.min(savedWidth, sidebarMaximumWidth);
+    }
     void invoke("set_sidebar_floating", { floating: sidebarFloating });
     const unlisten = listen<boolean>("sidebar-floating", ({ payload }) => {
       sidebarFloating = payload;
@@ -39,7 +44,7 @@
   function resizeSidebar(width: number) {
     sidebarWidth = Math.max(
       sidebarMinimumWidth,
-      Math.min(width, window.innerWidth - sidebarMinimumWidth),
+      Math.min(sidebarMaximumWidth, width, window.innerWidth - sidebarMinimumWidth),
     );
     sidebarOpen = true;
     localStorage.setItem("sidebar-width", String(sidebarWidth));
@@ -74,7 +79,7 @@
 <Sidebar.Provider
   bind:open={sidebarOpen}
   style={`--sidebar-width: ${sidebarWidth}px;`}
-  class={`finder-window${sidebarFloating ? " sidebar-floating" : ""}${sidebarResizing ? " sidebar-resizing" : ""}${sidebarOpen ? "" : " sidebar-collapsed"}`}>
+  class={`finder-window${isLinux ? " platform-linux" : ""}${sidebarFloating ? " sidebar-floating" : ""}${sidebarResizing ? " sidebar-resizing" : ""}${sidebarOpen ? "" : " sidebar-collapsed"}`}>
   <AppSidebar
     bind:selected
     open={sidebarOpen}
@@ -84,17 +89,28 @@
     onResizeEnd={() => (sidebarResizing = false)}
     onToggle={toggleSidebar}
     variant={sidebarFloating ? "floating" : "sidebar"} />
-  <button
-    class="sidebar-trigger"
-    class:sidebar-trigger-open={sidebarOpen}
-    aria-label="Toggle sidebar"
-    title="Toggle sidebar"
-    onclick={toggleSidebar}><PanelLeftIcon /></button>
+  {#if !isLinux}
+    <button
+      class="sidebar-trigger"
+      class:sidebar-trigger-open={sidebarOpen}
+      aria-label="Toggle sidebar"
+      title="Toggle sidebar"
+      onclick={toggleSidebar}><PanelLeftIcon /></button>
+  {/if}
   <Sidebar.Inset class="finder-content">
     <header class="finder-toolbar" data-tauri-drag-region>
-      <div class="toolbar-controls">
-        <button aria-label="Back"><ArrowLeftIcon /></button>
-        <button aria-label="Forward" disabled><ArrowRightIcon /></button>
+      <div class="toolbar-leading">
+        {#if isLinux}
+          <button
+            class="sidebar-trigger sidebar-trigger-linux"
+            aria-label="Toggle sidebar"
+            title="Toggle sidebar"
+            onclick={toggleSidebar}><PanelLeftIcon /></button>
+        {/if}
+        <div class="toolbar-controls">
+          <button aria-label="Back"><ArrowLeftIcon /></button>
+          <button aria-label="Forward" disabled><ArrowRightIcon /></button>
+        </div>
       </div>
       <button class="location-title" aria-label="Current location"
         >{selected}<ChevronDownIcon /></button>
