@@ -3,6 +3,9 @@
 export TAURI_SIGNING_PRIVATE_KEY := env_var_or_default("TAURI_SIGNING_PRIVATE_KEY", justfile_directory() / ".." / ".." / "keys" / "liteexplorer.key")
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD := env_var_or_default("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "")
 
+# On Windows just defaults to `sh`, which is often missing. Use cmd.exe instead.
+set windows-shell := ["cmd.exe", "/C"]
+
 # Show available commands.
 default:
     @just --list
@@ -61,7 +64,7 @@ release-linux:
 release-windows:
     bun install --frozen-lockfile
     bun run tauri build --bundles nsis
-    @ls -1 src-tauri/target/release/bundle/nsis/*.exe
+    @dir /b src-tauri\target\release\bundle\nsis\*.exe
 
 # Format JavaScript, Svelte, JSON, TOML, and Rust sources.
 fmt:
@@ -80,4 +83,9 @@ clean:
 # Remove generated dependencies and build artifacts (Windows).
 [windows]
 clean:
-    cmd /c "rmdir /s /q node_modules build .svelte-kit package src-tauri\target src-tauri\gen\schemas"
+    if exist node_modules rmdir /s /q node_modules
+    if exist build rmdir /s /q build
+    if exist .svelte-kit rmdir /s /q .svelte-kit
+    if exist package rmdir /s /q package
+    if exist src-tauri\target rmdir /s /q src-tauri\target
+    if exist src-tauri\gen\schemas rmdir /s /q src-tauri\gen\schemas
