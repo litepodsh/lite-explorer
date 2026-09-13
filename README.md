@@ -1,7 +1,33 @@
-# Tauri + SvelteKit + TypeScript
+<div align="center">
 
-This template should help get you started developing with Tauri, SvelteKit and TypeScript in Vite.
+# Lite Explorer
 
-## Recommended IDE Setup
+### A calm, native-feeling file explorer for your desktop.
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
+Built with Tauri, SvelteKit, and TypeScript.
+
+![Lite Explorer preview](docs/lite-explorer-preview.png)
+
+</div>
+
+## Less chrome. More room for your files.
+
+Lite Explorer is an experimental desktop file-browser interface with a familiar
+macOS-inspired layout: quick navigation, a focused toolbar, and a roomy content
+area.
+
+- Collapsible, resizable sidebar
+- Floating-sidebar preference that persists locally
+- Dark, keyboard-friendly interface
+
+## Development
+
+```bash
+cd apps/desktop
+npm install
+npm run tauri dev
+```
+
+## Stack
+
+Tauri 2 · SvelteKit · TypeScript

@@ -2,5 +2,6 @@
 /.claude
 /.crush
 /.pi
-/.svelte-kit
-/node_modules
+.DS_Store
+**/.svelte-kit/
+**/node_modules/
