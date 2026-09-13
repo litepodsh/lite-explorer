@@ -1,6 +1,6 @@
-# Updater signing key for release builds. Generated with `bun tauri signer generate`; keep it
+# Updater signing key for release builds, in the repo's keys folder (ignored by git). Keep it
 # private and copy it to every machine that builds releases.
-export TAURI_SIGNING_PRIVATE_KEY := env_var_or_default("TAURI_SIGNING_PRIVATE_KEY", home_directory() / ".tauri" / "liteexplorer.key")
+export TAURI_SIGNING_PRIVATE_KEY := env_var_or_default("TAURI_SIGNING_PRIVATE_KEY", justfile_directory() / ".." / ".." / "keys" / "liteexplorer.key")
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD := env_var_or_default("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "")
 
 # Show available commands.
