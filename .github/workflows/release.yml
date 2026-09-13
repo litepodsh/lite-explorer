@@ -60,10 +60,13 @@ jobs:
 
       - name: Create or reuse the draft release
         id: release
+        env:
+          DRAFT: ${{ github.event_name == 'push' && 'false' || inputs.draft }}
         uses: actions/github-script@v7
         with:
           script: |
             const tag = process.env.TAG;
+            const draft = process.env.DRAFT === "true";
             const { owner, repo } = context.repo;
             // Drafts aren't returned by getReleaseByTag, so look through the list.
             const releases = await github.paginate(github.rest.repos.listReleases, { owner, repo });
@@ -75,7 +78,7 @@ jobs:
               tag_name: tag,
               target_commitish: context.sha,
               name: `Lite Explorer ${tag}`,
-              draft: true,
+              draft,
               prerelease: tag.includes("-"),
               generate_release_notes: true,
             });
