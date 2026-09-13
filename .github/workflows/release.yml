@@ -1,0 +1,180 @@
+# Builds the desktop app on macOS, Linux and Windows and publishes the installers to a
+# GitHub release:
+#   macOS    universal .dmg (Apple Silicon and Intel)
+#   Linux    .deb, .rpm and .AppImage (x86_64)
+#   Windows  .exe setup (NSIS) and .msi (x86_64)
+#
+# Run it by pushing a tag (`git tag v0.2.0 && git push origin v0.2.0`), or from the Actions
+# tab with a version. The tag's version is written into tauri.conf.json before building, so
+# file names match the release. MSI needs a plain `major.minor.patch` version.
+#
+# Each release also uploads latest.json and signed update packages. The app checks
+# https://github.com/litepodsh/lite-explorer/releases/latest/download/latest.json, so drafts
+# and pre-releases never reach users. Set the TAURI_SIGNING_PRIVATE_KEY secret first.
+#
+# Installers aren't code signed: macOS shows the "unidentified developer" prompt and Windows
+# shows SmartScreen. That needs Apple and Windows certificates added as secrets.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag, like v0.2.0"
+        required: true
+        type: string
+      draft:
+        description: "Keep the release as a draft"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+  APP_DIR: apps/desktop
+
+jobs:
+  create-release:
+    name: Create draft release
+    runs-on: ubuntu-latest
+    outputs:
+      release-id: ${{ steps.release.outputs.result }}
+    steps:
+      - name: Check the version
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag '$TAG' must look like v1.2.3"
+            exit 1
+          fi
+
+      - name: Create or reuse the draft release
+        id: release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = process.env.TAG;
+            const { owner, repo } = context.repo;
+            // Drafts aren't returned by getReleaseByTag, so look through the list.
+            const releases = await github.paginate(github.rest.repos.listReleases, { owner, repo });
+            const existing = releases.find((release) => release.tag_name === tag);
+            if (existing) return existing.id;
+            const { data } = await github.rest.repos.createRelease({
+              owner,
+              repo,
+              tag_name: tag,
+              target_commitish: context.sha,
+              name: `Lite Explorer ${tag}`,
+              draft: true,
+              prerelease: tag.includes("-"),
+              generate_release_notes: true,
+            });
+            return data.id;
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (universal)
+            runner: macos-latest
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            args: --target universal-apple-darwin --bundles app,dmg
+          - name: Linux (x86_64)
+            runner: ubuntu-22.04
+            rust-targets: ""
+            args: --bundles deb,rpm,appimage
+          - name: Windows (x86_64)
+            runner: windows-latest
+            rust-targets: ""
+            args: --bundles nsis,msi
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential curl file patchelf \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+
+      - name: Install NASM for aws-lc
+        if: runner.os == 'Windows'
+        uses: ilammy/setup-nasm@v1
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          key: ${{ matrix.runner }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install JavaScript dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: bun install --frozen-lockfile
+
+      - name: Set the app version from the tag
+        working-directory: ${{ env.APP_DIR }}
+        shell: bash
+        run: |
+          VERSION="${TAG#v}" bun -e '
+            const path = "src-tauri/tauri.conf.json";
+            const config = JSON.parse(await Bun.file(path).text());
+            config.version = process.env.VERSION;
+            await Bun.write(path, JSON.stringify(config, null, 2) + "\n");
+          '
+          grep '"version"' src-tauri/tauri.conf.json
+
+      - name: Build and upload installers
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the update packages the in-app updater downloads. The public key is in
+          # tauri.conf.json. The password secret can stay unset for a key without one.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: ${{ env.APP_DIR }}
+          tauriScript: bun run tauri
+          args: ${{ matrix.args }}
+          releaseId: ${{ needs.create-release.outputs.release-id }}
+          # latest.json, read by the updater, points Windows at the .exe setup.
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
+
+  publish-release:
+    name: Publish release
+    needs: [create-release, build]
+    if: github.event_name == 'push' || !inputs.draft
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.create-release.outputs.release-id }}
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              ...context.repo,
+              release_id: Number(process.env.RELEASE_ID),
+              draft: false,
+            });

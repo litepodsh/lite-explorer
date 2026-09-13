@@ -1,0 +1,436 @@
+/* Shared primitives for the add-location wizard and location dialogs. Prefix loc- = location. */
+
+.loc {
+  --loc-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --loc-surface: #2b2927;
+  --loc-surface-2: #33302e;
+  --loc-field: #201e1d;
+  --loc-line: rgb(255 255 255 / 0.07);
+  --loc-line-strong: rgb(255 255 255 / 0.12);
+  --loc-text: #eceae8;
+  --loc-muted: #a8a4a1;
+  --loc-faint: #7d7976;
+  --loc-accent: #0a9bff;
+  --loc-ok: #3ecf8e;
+  --loc-error: #ff6b5e;
+  color: var(--loc-text);
+  font-size: 13px;
+}
+
+.loc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgb(14 13 12 / 0.45);
+}
+
+.loc-shell {
+  padding: 5px;
+  border-radius: 16px;
+  background: #1f1d1c;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.08),
+    0 24px 64px -12px rgb(10 8 6 / 0.65);
+}
+
+.loc-core {
+  border-radius: 11px;
+  background: var(--loc-surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+.loc-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--loc-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.loc-label small {
+  margin-left: 4px;
+  color: var(--loc-faint);
+  font-weight: 400;
+}
+
+.loc-help {
+  margin-top: 5px;
+  color: var(--loc-faint);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.loc-input {
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  outline: none;
+  background: var(--loc-field);
+  box-shadow: inset 0 0 0 1px var(--loc-line);
+  color: var(--loc-text);
+  font: inherit;
+  font-size: 13px;
+  transition:
+    box-shadow 180ms var(--loc-ease),
+    background-color 180ms var(--loc-ease);
+}
+
+.loc-input::placeholder {
+  color: #8a8683;
+}
+
+.loc-input:focus {
+  background: #252321;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.24);
+}
+
+select.loc-input {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #a8a4a1 50%),
+    linear-gradient(135deg, #a8a4a1 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 13px,
+    calc(100% - 10px) 13px;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
+}
+
+.loc-secret {
+  position: relative;
+}
+
+.loc-secret .loc-input {
+  padding-right: 34px;
+}
+
+.loc-secret button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--loc-faint);
+}
+
+.loc-secret button:hover {
+  color: var(--loc-text);
+  background: rgb(255 255 255 / 0.06);
+}
+
+.loc-secret svg {
+  width: 14px;
+  height: 14px;
+}
+
+.loc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--loc-surface-2);
+  box-shadow: inset 0 0 0 1px var(--loc-line-strong);
+  color: var(--loc-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    transform 160ms var(--loc-ease),
+    background-color 160ms var(--loc-ease),
+    opacity 160ms var(--loc-ease);
+}
+
+.loc-btn:hover {
+  background: #3b3836;
+}
+
+.loc-btn:active {
+  transform: scale(0.97);
+}
+
+.loc-btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.loc-btn.primary {
+  background: var(--loc-accent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22);
+  color: #fff;
+}
+
+.loc-btn.primary:hover {
+  background: #2aa8ff;
+}
+
+.loc-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.loc-btn.testing {
+  position: relative;
+  overflow: hidden;
+}
+
+.loc-btn.testing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.12), transparent);
+  transform: translateX(-100%);
+  animation: loc-shimmer 1s var(--loc-ease) infinite;
+}
+
+@keyframes loc-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.loc-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  animation: loc-rise 220ms var(--loc-ease);
+}
+
+.loc-status svg {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  margin-top: 1px;
+}
+
+.loc-status.ok {
+  color: var(--loc-ok);
+}
+
+.loc-status.error {
+  color: var(--loc-error);
+}
+
+.loc-mark {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.loc-mark svg {
+  width: 14px;
+  height: 14px;
+}
+
+.loc-mark.aws {
+  background: #232f3e;
+  box-shadow: inset 0 0 0 1px rgb(255 153 0 / 0.35);
+  color: #ff9900;
+}
+
+.loc-mark.r2 {
+  background: #3a2413;
+  box-shadow: inset 0 0 0 1px rgb(246 130 31 / 0.35);
+  color: #f6821f;
+}
+
+.loc-mark.custom {
+  background: #2a3138;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
+  color: #b9c3cc;
+}
+
+.loc-mark.smb {
+  background: #16304a;
+  box-shadow: inset 0 0 0 1px rgb(80 170 255 / 0.35);
+  color: #7cc0ff;
+}
+
+.loc-mark.nfs {
+  background: #1d3a2c;
+  box-shadow: inset 0 0 0 1px rgb(62 207 142 / 0.35);
+  color: #6fe0ad;
+}
+
+.loc-mark.webdav {
+  background: #3a2a44;
+  box-shadow: inset 0 0 0 1px rgb(196 140 255 / 0.3);
+  color: #d3aaff;
+}
+
+.loc-mark.sftp {
+  background: #2b2f36;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+  color: #e4e8ee;
+}
+
+.loc-mark.ftp {
+  background: #3d3218;
+  box-shadow: inset 0 0 0 1px rgb(240 190 70 / 0.32);
+  color: #f2c75c;
+}
+
+.loc-input.invalid,
+.loc-input.invalid:focus {
+  box-shadow: inset 0 0 0 1px rgb(255 107 94 / 0.7);
+}
+
+.loc-field-error {
+  margin-top: 5px;
+  color: var(--loc-error);
+  font-size: 11px;
+}
+
+.loc-section-label {
+  margin: 0 0 6px;
+  color: var(--loc-faint);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.loc-url {
+  overflow: hidden;
+  margin: 0;
+  color: var(--loc-faint);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loc-segment {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--loc-field);
+  box-shadow: inset 0 0 0 1px var(--loc-line);
+}
+
+.loc-segment button {
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--loc-muted);
+  font: inherit;
+  font-size: 12px;
+  transition:
+    background-color 180ms var(--loc-ease),
+    color 180ms var(--loc-ease);
+}
+
+.loc-segment button[aria-checked="true"] {
+  background: var(--loc-surface-2);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 1px 2px rgb(0 0 0 / 0.3);
+  color: var(--loc-text);
+}
+
+.loc-note {
+  display: flex;
+  gap: 7px;
+  margin: 0;
+  padding: 7px 9px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.loc-note svg {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  margin-top: 1px;
+}
+
+.loc-note.warn {
+  background: rgb(240 170 60 / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(240 170 60 / 0.22);
+  color: #f0b45a;
+}
+
+.loc-note.info {
+  background: rgb(255 255 255 / 0.04);
+  box-shadow: inset 0 0 0 1px var(--loc-line);
+  color: var(--loc-muted);
+}
+
+.loc-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--loc-muted);
+  font-size: 12px;
+}
+
+.loc-toggle input {
+  appearance: none;
+  position: relative;
+  width: 28px;
+  height: 16px;
+  margin: 0;
+  border-radius: 999px;
+  background: #474341;
+  transition: background-color 180ms var(--loc-ease);
+}
+
+.loc-toggle input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #f2f1f0;
+  transition: transform 220ms var(--loc-ease);
+}
+
+.loc-toggle input:checked {
+  background: var(--loc-accent);
+}
+
+.loc-toggle input:checked::after {
+  transform: translateX(12px);
+}
+
+@keyframes loc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loc *,
+  .loc *::before,
+  .loc *::after,
+  .loc-overlay {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

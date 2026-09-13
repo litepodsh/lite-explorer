@@ -1,6 +1,16 @@
+# Updater signing key for release builds. Generated with `bun tauri signer generate`; keep it
+# private and copy it to every machine that builds releases.
+export TAURI_SIGNING_PRIVATE_KEY := env_var_or_default("TAURI_SIGNING_PRIVATE_KEY", home_directory() / ".tauri" / "liteexplorer.key")
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD := env_var_or_default("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "")
+
 # Show available commands.
 default:
     @just --list
+
+# Set the app version in tauri.conf.json, package.json and Cargo.toml, like `just bump 0.2.0`.
+bump version:
+    bun scripts/bump-version.ts {{version}}
+    cargo update --workspace --manifest-path src-tauri/Cargo.toml --offline
 
 # Install JavaScript dependencies.
 i:
@@ -13,6 +23,35 @@ dev:
 # Create a production Tauri build.
 build:
     bun run tauri build
+
+# Build a macOS .dmg installer (output: src-tauri/target/release/bundle/dmg).
+build-dmg:
+    bun i && bun run tauri build --bundles dmg
+    @ls -1 src-tauri/target/release/bundle/dmg/*.dmg
+
+# Run on a Mac. Output: src-tauri/target/universal-apple-darwin/release/bundle/{macos,dmg}.
+# Release build for macOS: universal .app and .dmg (Apple Silicon and Intel).
+release-mac:
+    bun install --frozen-lockfile
+    rustup target add aarch64-apple-darwin x86_64-apple-darwin
+    bun run tauri build --target universal-apple-darwin --bundles app,dmg
+    @ls -1 src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+
+# Run on Linux with libwebkit2gtk-4.1-dev, libayatana-appindicator3-dev, librsvg2-dev, patchelf.
+# Output: src-tauri/target/release/bundle/{deb,rpm,appimage}.
+# Release build for Linux: .deb, .rpm and .AppImage.
+release-linux:
+    bun install --frozen-lockfile
+    bun run tauri build --bundles deb,rpm,appimage
+    @ls -1 src-tauri/target/release/bundle/deb/*.deb src-tauri/target/release/bundle/rpm/*.rpm src-tauri/target/release/bundle/appimage/*.AppImage
+
+# Run on Windows from Git Bash with the MSVC build tools installed.
+# Output: src-tauri/target/release/bundle/{nsis,msi}.
+# Release build for Windows: .exe setup (NSIS) and .msi.
+release-windows:
+    bun install --frozen-lockfile
+    bun run tauri build --bundles nsis,msi
+    @ls -1 src-tauri/target/release/bundle/nsis/*.exe src-tauri/target/release/bundle/msi/*.msi
 
 # Format JavaScript, Svelte, JSON, TOML, and Rust sources.
 fmt:

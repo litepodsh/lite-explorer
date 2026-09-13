@@ -19,7 +19,7 @@
   data-slot="context-menu-sub-trigger"
   data-inset={inset}
   class={cn(
-    "focus:bg-accent focus:text-accent-foreground data-open:bg-accent data-open:text-accent-foreground min-h-7 rounded-xl px-2 py-1.5 text-sm data-inset:pl-7 [&_svg:not([class*='size-'])]:size-4 flex cursor-default items-center outline-hidden select-none [&_svg]:pointer-events-none [&_svg]:shrink-0",
+    "focus:bg-[#0a84ff] focus:text-white data-open:bg-[#0a84ff] data-open:text-white gap-2 min-h-[22px] rounded-md px-3 py-1 text-[13px] data-inset:pl-7 [&_svg:not([class*='size-'])]:size-4 flex cursor-default items-center outline-hidden select-none [&_svg]:pointer-events-none [&_svg]:shrink-0",
     className,
   )}
   {...restProps}>

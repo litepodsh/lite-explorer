@@ -13,13 +13,16 @@
     "windows": [
       {
         "title": "liteexplorer",
-        "width": 800,
-        "height": 600,
+        "width": 1400,
+        "height": 750,
+        "center": true,
+        "minWidth": 768,
+        "minHeight": 500,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "trafficLightPosition": {
           "x": 20,
-          "y": 30
+          "y": 27
         }
       }
     ],
@@ -36,6 +39,18 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDREREFFNEZBNEFGQjBCRTcKUldUbkMvdEsrdVRhVGZZSDRieTRJOTMxTHM4V2hEUkxqMXVoWU90YzR5ZjNXZ0k5OTQ4QjduNisK",
+      "endpoints": [
+        "https://github.com/litepodsh/lite-explorer/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

@@ -14,6 +14,7 @@
     ref = $bindable(null),
     open = $bindable(true),
     onOpenChange = () => {},
+    onToggle,
     class: className,
     style,
     children,
@@ -21,10 +22,12 @@
   }: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    onToggle?: () => void;
   } = $props();
 
   const sidebar = setSidebar({
     open: () => open,
+    onToggle: () => onToggle?.(),
     setOpen: (value: boolean) => {
       open = value;
       onOpenChange(value);
