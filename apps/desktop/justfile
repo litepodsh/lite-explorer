@@ -46,12 +46,12 @@ release-linux:
     @ls -1 src-tauri/target/release/bundle/deb/*.deb src-tauri/target/release/bundle/rpm/*.rpm src-tauri/target/release/bundle/appimage/*.AppImage
 
 # Run on Windows from Git Bash with the MSVC build tools installed.
-# Output: src-tauri/target/release/bundle/{nsis,msi}.
-# Release build for Windows: .exe setup (NSIS) and .msi.
+# Installs for the current user without admin rights. Output: src-tauri/target/release/bundle/nsis.
+# Release build for Windows: .exe setup (NSIS).
 release-windows:
     bun install --frozen-lockfile
-    bun run tauri build --bundles nsis,msi
-    @ls -1 src-tauri/target/release/bundle/nsis/*.exe src-tauri/target/release/bundle/msi/*.msi
+    bun run tauri build --bundles nsis
+    @ls -1 src-tauri/target/release/bundle/nsis/*.exe
 
 # Format JavaScript, Svelte, JSON, TOML, and Rust sources.
 fmt:

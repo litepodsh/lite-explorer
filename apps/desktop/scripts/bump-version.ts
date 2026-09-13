@@ -6,9 +6,6 @@ if (!version || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
   console.error("Usage: just bump 1.2.3");
   process.exit(1);
 }
-if (version.includes("-") && !/^\d+\.\d+\.\d+-\d+$/.test(version)) {
-  console.warn(`Warning: the Windows .msi only accepts numeric pre-releases like ${version.split("-")[0]}-1.`);
-}
 
 async function updateJson(path: string) {
   const data = JSON.parse(await Bun.file(path).text());
