@@ -24,8 +24,16 @@ area.
 
 ```bash
 cd apps/desktop
-npm install
-npm run tauri dev
+
+# See just recipes availables
+just 
+
+# Install dependencies
+just install
+
+# Run development server
+just dev
+
 ```
 
 ## Stack
