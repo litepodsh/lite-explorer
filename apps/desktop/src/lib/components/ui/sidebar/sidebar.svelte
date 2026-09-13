@@ -1,7 +1,5 @@
 <script lang="ts">
-  import * as Sheet from "$lib/components/ui/sheet/index.js";
   import { cn, type WithElementRef } from "$lib/utils.js";
-  import { SIDEBAR_WIDTH_MOBILE } from "./constants.js";
   import { useSidebar } from "./context.svelte.js";
   import type { HTMLAttributes } from "svelte/elements";
 
@@ -32,32 +30,10 @@
     {...restProps}>
     {@render children?.()}
   </div>
-{:else if sidebar.isMobile}
-  <Sheet.Root bind:open={() => sidebar.openMobile, (v) => sidebar.setOpenMobile(v)} {...restProps}>
-    <Sheet.Content
-      bind:ref
-      data-sidebar="sidebar"
-      data-slot="sidebar"
-      data-mobile="true"
-      class={cn(
-        "w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden",
-        className,
-      )}
-      style="--sidebar-width: {SIDEBAR_WIDTH_MOBILE};"
-      {side}>
-      <Sheet.Header class="sr-only">
-        <Sheet.Title>Sidebar</Sheet.Title>
-        <Sheet.Description>Displays the mobile sidebar.</Sheet.Description>
-      </Sheet.Header>
-      <div class="flex h-full w-full flex-col">
-        {@render children?.()}
-      </div>
-    </Sheet.Content>
-  </Sheet.Root>
 {:else}
   <div
     bind:this={ref}
-    class="group peer hidden text-sidebar-foreground md:block"
+    class="group peer block text-sidebar-foreground"
     data-state={sidebar.state}
     data-collapsible={sidebar.state === "collapsed" ? collapsible : ""}
     data-variant={variant}
@@ -79,7 +55,7 @@
       data-slot="sidebar-container"
       data-side={side}
       class={cn(
-        "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear data-[side=left]:start-0 data-[side=left]:group-data-[collapsible=offcanvas]:start-[calc(var(--sidebar-width)_*_-1)] data-[side=right]:end-0 data-[side=right]:group-data-[collapsible=offcanvas]:end-[calc(var(--sidebar-width)_*_-1)] md:flex",
+        "fixed inset-y-0 z-10 flex h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear data-[side=left]:start-0 data-[side=left]:group-data-[collapsible=offcanvas]:start-[calc(var(--sidebar-width)_*_-1)] data-[side=right]:end-0 data-[side=right]:group-data-[collapsible=offcanvas]:end-[calc(var(--sidebar-width)_*_-1)]",
         // Adjust the padding for floating and inset variants.
         variant === "floating" || variant === "inset"
           ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_(--spacing(4))_+_2px)]"

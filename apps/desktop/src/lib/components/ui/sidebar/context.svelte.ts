@@ -18,6 +18,13 @@ export type SidebarStateProps = {
    * the sub-components and any `bind:` references.
    */
   setOpen: (open: boolean) => void;
+
+  /**
+   * An optional override for the toggle behavior. When provided, the keyboard
+   * shortcut and `sidebar.toggle()` delegate to it instead of the default
+   * `setOpen(!open)` — useful for wrapping the change in a view transition.
+   */
+  onToggle?: () => void;
 };
 
 class SidebarState {
@@ -53,7 +60,8 @@ class SidebarState {
   };
 
   toggle = () => {
-    return this.#isMobile.current ? (this.openMobile = !this.openMobile) : this.setOpen(!this.open);
+    if (this.props.onToggle) return this.props.onToggle();
+    return this.setOpen(!this.open);
   };
 }
 

@@ -20,7 +20,7 @@
   data-inset={inset}
   data-variant={variant}
   class={cn(
-    "focus:bg-accent focus:text-accent-foreground data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 dark:data-[variant=destructive]:focus:bg-destructive/20 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:text-destructive focus:*:[svg]:text-accent-foreground gap-2 min-h-7 rounded-xl px-2 py-1.5 text-sm data-inset:pl-7 [&_svg:not([class*='size-'])]:size-4 group/context-menu-item relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+    "focus:bg-[#0a84ff] focus:text-white data-[variant=destructive]:text-[#ff453a] data-[variant=destructive]:focus:bg-[#ff453a] data-[variant=destructive]:focus:text-white! data-[variant=destructive]:data-highlighted:text-white! data-[variant=destructive]:*:[svg]:text-[#ff453a] focus:*:[svg]:text-white data-[variant=destructive]:focus:*:[svg]:text-white! data-[variant=destructive]:data-highlighted:*:[svg]:text-white! gap-2 min-h-[22px] rounded-md px-3 py-1 text-[13px] data-inset:pl-7 [&_svg:not([class*='size-'])]:size-4 group/context-menu-item relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
     className,
   )}
   {...restProps} />

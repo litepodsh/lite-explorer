@@ -8,11 +8,9 @@
     class: className,
     children,
     onResizeStart,
-    onToggle,
     ...restProps
   }: WithElementRef<HTMLAttributes<HTMLButtonElement>, HTMLButtonElement> & {
     onResizeStart?: (event: PointerEvent) => void;
-    onToggle?: () => void;
   } = $props();
 
   const sidebar = useSidebar();
@@ -44,10 +42,6 @@
     }
     if (!onResizeStart) sidebar.toggle();
   }
-
-  function handleDoubleClick() {
-    (onToggle ?? sidebar.toggle)();
-  }
 </script>
 
 <button
@@ -55,16 +49,15 @@
   type="button"
   data-sidebar="rail"
   data-slot="sidebar-rail"
-  aria-label="Toggle Sidebar"
+  aria-label="Resize Sidebar"
   tabindex={-1}
   onpointerdown={handlePointerdown}
   onpointermove={handlePointermove}
   onpointerup={handlePointerup}
   onclick={handleClick}
-  ondblclick={handleDoubleClick}
-  title="Toggle Sidebar"
+  title="Resize Sidebar"
   class={cn(
-    "hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-5 touch-none select-none transition-all ease-linear group-data-[side=left]:-right-5 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:start-1/2 after:w-[2px] sm:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
+    "hover:after:bg-sidebar-border absolute inset-y-0 z-20 w-5 touch-none select-none transition-all ease-linear group-data-[side=left]:-right-5 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:start-1/2 after:w-[2px] flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
     "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
     "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
     "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full hover:group-data-[collapsible=offcanvas]:bg-sidebar",

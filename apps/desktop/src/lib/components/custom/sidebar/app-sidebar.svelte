@@ -1,43 +1,41 @@
 <script lang="ts" module>
-  import AppWindowIcon from "@lucide/svelte/icons/app-window";
   import Clock3Icon from "@lucide/svelte/icons/clock-3";
   import CloudIcon from "@lucide/svelte/icons/cloud";
-  import DownloadIcon from "@lucide/svelte/icons/download";
-  import FileTextIcon from "@lucide/svelte/icons/file-text";
+  import PlusIcon from "@lucide/svelte/icons/plus";
   import FolderIcon from "@lucide/svelte/icons/folder";
+  import GaugeIcon from "@lucide/svelte/icons/gauge";
+  import GlobeIcon from "@lucide/svelte/icons/globe";
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
+  import NetworkIcon from "@lucide/svelte/icons/network";
+  import ServerIcon from "@lucide/svelte/icons/server";
   import HouseIcon from "@lucide/svelte/icons/house";
-  import ImageIcon from "@lucide/svelte/icons/image";
-  import MonitorIcon from "@lucide/svelte/icons/monitor";
   import UsersIcon from "@lucide/svelte/icons/users";
-  import type { Component } from "svelte";
+  import SearchIcon from "@lucide/svelte/icons/search";
 
-  type Source = { label: string; icon: Component };
-  const favorites: Source[] = [
-    { label: "Applications", icon: AppWindowIcon },
-    { label: "Desktop", icon: MonitorIcon },
-    { label: "Documents", icon: FileTextIcon },
-    { label: "Downloads", icon: DownloadIcon },
-    { label: "Backup", icon: FolderIcon },
-    { label: "Work", icon: FolderIcon },
-    { label: "Movies", icon: ImageIcon },
-  ];
-  const locations: Source[] = [
-    // { label: "iCloud Drive", icon: CloudIcon },
-    // { label: "Proton Drive", icon: FolderIcon },
-    { label: "sebastiangarzon", icon: HouseIcon },
-    { label: "Macintosh HD", icon: HardDriveIcon },
-  ];
+  import type { Location } from "$lib/tabs/tabs.js";
+  export type { Location };
   const tags = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Gray"];
 </script>
 
 <script lang="ts">
+  import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  import ClipboardCopyIcon from "@lucide/svelte/icons/clipboard-copy";
+  import EjectIcon from "@lucide/svelte/icons/eject";
+  import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
+  import LockIcon from "@lucide/svelte/icons/lock";
+  import PencilIcon from "@lucide/svelte/icons/pencil";
+  import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
+  import Trash2Icon from "@lucide/svelte/icons/trash-2";
+  import { isNetworkProtocol } from "$lib/remote/network-locations.js";
+  import type { LocationStatus } from "$lib/remote/network-status.svelte.js";
   import type { ComponentProps } from "svelte";
 
   let {
     ref = $bindable(null),
-    selected = $bindable("Recents"),
+    selected = "Overview",
+    favorites = [],
+    locations = [],
     collapsible = "offcanvas",
     open = true,
     width = 256,
@@ -45,15 +43,34 @@
     onResizeStart,
     onResizeEnd,
     onToggle,
+    onOpen,
+    onAddLocation,
+    onRemoveLocation,
+    onEditLocation,
+    onCopyLocationAddress,
+    onDisconnectLocation,
+    statuses = {},
+    onOpenPalette,
     ...restProps
   }: ComponentProps<typeof Sidebar.Root> & {
     selected?: string;
+    favorites?: Location[];
+    locations?: Location[];
     open?: boolean;
     width?: number;
     onResize?: (width: number) => void;
     onResizeStart?: () => void;
     onResizeEnd?: () => void;
     onToggle?: () => void;
+    onOpen?: (location: Location) => void;
+    onAddLocation?: () => void;
+    onRemoveLocation?: (location: Location) => void;
+    onEditLocation?: (location: Location) => void;
+    onCopyLocationAddress?: (location: Location) => void;
+    onDisconnectLocation?: (location: Location) => void;
+    /** Connection state of network locations, by path. */
+    statuses?: Record<string, LocationStatus>;
+    onOpenPalette?: () => void;
   } = $props();
 
   function resizeSidebar(event: PointerEvent) {
@@ -80,32 +97,105 @@
   <Sidebar.Content class="finder-sidebar p-0">
     <nav class="finder-sources" aria-label="Finder sidebar">
       <button
+        aria-label="Go to Folder"
+        title="Go to Folder (⇧⌘P)"
+        onclick={() => onOpenPalette?.()}
+        ><SearchIcon /> <span>Go to Folder…</span></button>
+      <button
+        aria-label="Overview"
+        title="Overview"
+        class:active={selected === "Overview"}
+        onclick={() => onOpen?.({ name: "Overview", path: "", kind: "overview" })}><GaugeIcon /> <span>Overview</span></button>
+      <button
         aria-label="Recents"
         title="Recents"
         class:active={selected === "Recents"}
-        onclick={() => (selected = "Recents")}><Clock3Icon /> <span>Recents</span></button>
+        onclick={() => onOpen?.({ name: "Recents", path: "", kind: "recents" })}><Clock3Icon /> <span>Recents</span></button>
       <button
         aria-label="Shared"
         title="Shared"
         class:active={selected === "Shared"}
-        onclick={() => (selected = "Shared")}><UsersIcon /> <span>Shared</span></button>
+        onclick={() => onOpen?.({ name: "Shared", path: "", kind: "shared" })}><UsersIcon /> <span>Shared</span></button>
       <p>Favorites</p>
-      {#each favorites as source (source.label)}
+      {#each favorites as favorite (favorite.path)}
         <button
-          aria-label={source.label}
-          title={source.label}
-          class:active={selected === source.label}
-          onclick={() => (selected = source.label)}
-          ><source.icon /> <span>{source.label}</span></button>
+          aria-label={favorite.name}
+          title={favorite.path}
+          class:active={selected === favorite.name}
+          onclick={() => onOpen?.(favorite)}
+          ><FolderIcon /> <span>{favorite.name}</span></button>
       {/each}
-      <p>Locations</p>
-      {#each locations as source (source.label)}
-        <button
-          aria-label={source.label}
-          title={source.label}
-          class:active={selected === source.label}
-          onclick={() => (selected = source.label)}
-          ><source.icon /> <span>{source.label}</span></button>
+      <div class="finder-section">
+        <p>Locations</p>
+        {#if onAddLocation}
+          <button
+            class="section-add"
+            aria-label="Add location"
+            title="Add location"
+            onclick={() => onAddLocation()}><PlusIcon /></button>
+        {/if}
+      </div>
+      {#each locations as location (location.path)}
+        {#if location.kind === "s3" || isNetworkProtocol(location.kind)}
+          {@const status = statuses[location.path]}
+          <ContextMenu.Root>
+            <ContextMenu.Trigger>
+              {#snippet child({ props })}
+                <div {...props} class="location-row" data-state={status?.state ?? "idle"}>
+                  <button
+                    aria-label={location.name}
+                    title={status?.state === "locked" ? `${location.name}: password needed` : location.name}
+                    class:active={selected === location.name}
+                    aria-busy={status?.state === "connecting"}
+                    onclick={() => onOpen?.(location)}
+                    >{#if status?.state === "connecting"}<LoaderCircleIcon class="location-spinner" />{:else if location.kind === "s3"}<CloudIcon />{:else if location.kind === "webdav"}<GlobeIcon />{:else if location.kind === "sftp" || location.kind === "ftp"}<ServerIcon />{:else}<NetworkIcon />{/if}<span
+                      >{location.name}</span
+                    ></button>
+                  {#if status?.state === "connected"}
+                    <button
+                      class="location-trail"
+                      aria-label={`Disconnect ${location.name}`}
+                      title="Disconnect"
+                      onclick={() => onDisconnectLocation?.(location)}><EjectIcon /></button>
+                  {:else if status?.state === "error"}
+                    <button
+                      class="location-trail error"
+                      aria-label={`Retry ${location.name}`}
+                      title="Retry"
+                      onclick={() => onOpen?.(location)}><RotateCwIcon /></button>
+                  {:else if status?.state === "locked"}
+                    <span class="location-trail muted" aria-hidden="true"><LockIcon /></span>
+                  {/if}
+                </div>
+                {#if status?.state === "error"}
+                  <div class="location-error" role="status">{status.message}</div>
+                {/if}
+              {/snippet}
+            </ContextMenu.Trigger>
+            <ContextMenu.Content>
+              {#if isNetworkProtocol(location.kind)}
+                {#if status?.state === "connected"}
+                  <ContextMenu.Item onSelect={() => onDisconnectLocation?.(location)}><EjectIcon /> Disconnect</ContextMenu.Item>
+                {/if}
+                <ContextMenu.Item onSelect={() => onEditLocation?.(location)}><PencilIcon /> Edit…</ContextMenu.Item>
+                <ContextMenu.Item onSelect={() => onCopyLocationAddress?.(location)}>
+                  <ClipboardCopyIcon /> Copy Address
+                </ContextMenu.Item>
+                <ContextMenu.Separator />
+              {/if}
+              <ContextMenu.Item variant="destructive" onSelect={() => onRemoveLocation?.(location)}>
+                <Trash2Icon /> Remove Location
+              </ContextMenu.Item>
+            </ContextMenu.Content>
+          </ContextMenu.Root>
+        {:else}
+          <button
+            aria-label={location.name}
+            title={location.path}
+            class:active={selected === location.name}
+            onclick={() => onOpen?.(location)}
+            >{#if location.kind === "home"}<HouseIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span></button>
+        {/if}
       {/each}
       <p>Tags</p>
       {#each tags as tag (tag)}
@@ -113,7 +203,7 @@
           aria-label={tag}
           title={tag}
           class:active={selected === tag}
-          onclick={() => (selected = tag)}
+          onclick={() => onOpen?.({ name: tag, path: "", kind: "tag" })}
           ><i
             class:gray={tag === "Gray"}
             style:background-color={tag === "Gray" ? undefined : tag.toLowerCase()}></i
@@ -122,5 +212,5 @@
     </nav>
   </Sidebar.Content>
   <Sidebar.Footer class="hidden" />
-  <Sidebar.Rail onResizeStart={resizeSidebar} {onToggle} />
+  <Sidebar.Rail onResizeStart={resizeSidebar} />
 </Sidebar.Root>
