@@ -49,7 +49,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDREREFFNEZBNEFGQjBCRTcKUldUbkMvdEsrdVRhVGZZSDRieTRJOTMxTHM4V2hEUkxqMXVoWU90YzR5ZjNXZ0k5OTQ4QjduNisK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkzOEU3RkRCNDdBRUQwQTcKUldTbjBLNUgyMytPazdFSUZocHhlbDljTVZkUVFBcjlpanNhMzFUOUZORS9jTGRoQ3UzNElLblIK",
       "endpoints": [
         "https://github.com/litepodsh/lite-explorer/releases/latest/download/latest.json"
       ],
