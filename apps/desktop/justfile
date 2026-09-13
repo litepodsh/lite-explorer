@@ -17,20 +17,28 @@ i:
     bun install
 
 # Run the Tauri app in development mode.
+[unix]
 dev:
-   bun i && bun run tauri dev
+    bun i && bun run tauri dev
+
+# Run the Tauri app in development mode.
+[windows]
+dev:
+    bun i && bun run tauri dev
 
 # Create a production Tauri build.
 build:
     bun run tauri build
 
 # Build a macOS .dmg installer (output: src-tauri/target/release/bundle/dmg).
+[macos]
 build-dmg:
     bun i && bun run tauri build --bundles dmg
     @ls -1 src-tauri/target/release/bundle/dmg/*.dmg
 
 # Run on a Mac. Output: src-tauri/target/universal-apple-darwin/release/bundle/{macos,dmg}.
 # Release build for macOS: universal .app and .dmg (Apple Silicon and Intel).
+[macos]
 release-mac:
     bun install --frozen-lockfile
     rustup target add aarch64-apple-darwin x86_64-apple-darwin
@@ -40,6 +48,7 @@ release-mac:
 # Run on Linux with libwebkit2gtk-4.1-dev, libayatana-appindicator3-dev, librsvg2-dev, patchelf.
 # Output: src-tauri/target/release/bundle/{deb,rpm,appimage}.
 # Release build for Linux: .deb, .rpm and .AppImage.
+[linux]
 release-linux:
     bun install --frozen-lockfile
     bun run tauri build --bundles deb,rpm,appimage
@@ -48,6 +57,7 @@ release-linux:
 # Run on Windows from Git Bash with the MSVC build tools installed.
 # Installs for the current user without admin rights. Output: src-tauri/target/release/bundle/nsis.
 # Release build for Windows: .exe setup (NSIS).
+[windows]
 release-windows:
     bun install --frozen-lockfile
     bun run tauri build --bundles nsis
@@ -63,5 +73,11 @@ lint:
     bunx oxlint src
 
 # Remove generated dependencies and build artifacts.
+[unix]
 clean:
     rm -rf node_modules build .svelte-kit package src-tauri/target src-tauri/gen/schemas
+
+# Remove generated dependencies and build artifacts (Windows).
+[windows]
+clean:
+    cmd /c "rmdir /s /q node_modules build .svelte-kit package src-tauri\target src-tauri\gen\schemas"
