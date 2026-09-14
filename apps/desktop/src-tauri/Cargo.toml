@@ -1,6 +1,6 @@
 [package]
 name = "liteexplorer"
-version = "0.1.2"
+version = "0.1.3"
 description = "A cross-platform file explorer for local files, network shares, and cloud storage"
 authors = ["you"]
 edition = "2021"
