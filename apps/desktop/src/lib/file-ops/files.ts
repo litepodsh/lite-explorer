@@ -17,9 +17,16 @@ export function deleteItem(path: string): Promise<void> {
   return invoke("delete_item", { path });
 }
 
-/** Folder containing `path`, with a trailing slash. Remote folder paths end in `/`
- *  themselves, so it is ignored when looking for the parent. */
+const isSeparator = (character: string) => character === "/" || character === "\\";
+
+/** Folder containing `path`, with a trailing separator. Remote folder paths end in `/`
+ *  themselves, so it is ignored when looking for the parent. Windows paths use `\`. */
 export function parentPath(path: string): string {
-  const trimmed = path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
-  return trimmed.slice(0, trimmed.lastIndexOf("/") + 1);
+  const trimmed = path.length > 1 && isSeparator(path.at(-1)!) ? path.slice(0, -1) : path;
+  return trimmed.slice(0, Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\")) + 1);
+}
+
+/** Last segment of a local, remote or Windows path, ignoring a trailing separator. */
+export function baseName(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).at(-1) ?? "";
 }

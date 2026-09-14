@@ -3,6 +3,7 @@
   import FolderIcon from "@lucide/svelte/icons/folder";
   import HouseIcon from "@lucide/svelte/icons/house";
   import { flip } from "svelte/animate";
+  import { baseName } from "$lib/file-ops/files.js";
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
   import { formatSize } from "$lib/components/custom/preview/format.js";
@@ -32,7 +33,7 @@
     onOpen: (entry: FolderUsageEntry) => void;
   } = $props();
 
-  const rootName = $derived(usage?.root.split("/").filter(Boolean).at(-1) ?? "");
+  const rootName = $derived(usage ? baseName(usage.root) : "");
   const hasData = $derived(!!usage && usage.entries.length > 0);
   const totalBytes = $derived(usage ? Math.max(usage.total_bytes, scanning && usage.scanned_at === null ? scannedBytes : 0) : 0);
   const summary = $derived(summarizeFolders(usage?.entries ?? [], totalBytes, { showHidden }));

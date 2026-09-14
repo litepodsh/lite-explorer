@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { FolderUsage, FolderUsageError, FolderUsageProgress } from "./types.js";
+import { baseName } from "$lib/file-ops/files.js";
 import { isStale, upsertEntry } from "./usage.js";
 
 /**
@@ -17,7 +18,7 @@ class FolderScan {
   /** Bumped every time a scan finishes, so views can re-read what the scan affects. */
   completions = $state(0);
 
-  rootName = $derived(this.usage?.root.split("/").filter(Boolean).at(-1) ?? "home folder");
+  rootName = $derived((this.usage && baseName(this.usage.root)) || "home folder");
 
   #listening: Promise<void> | undefined;
 

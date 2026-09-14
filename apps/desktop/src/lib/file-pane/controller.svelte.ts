@@ -12,7 +12,7 @@ import {
   revealPath,
   type OpenWithApp,
 } from "$lib/file-ops/open.js";
-import { copyItem, deleteItem, moveItem, parentPath, trashItem } from "$lib/file-ops/files.js";
+import { baseName, copyItem, deleteItem, moveItem, parentPath, trashItem } from "$lib/file-ops/files.js";
 import { createItemActions, nextDefaultName, type CreateKind } from "$lib/file-ops/items.js";
 import { isNetworkPath, isServerPath } from "$lib/remote/network-locations.js";
 import { networkStatus } from "$lib/remote/network-status.svelte.js";
@@ -542,7 +542,7 @@ export class FilePaneController {
     }
     const parent = parentPath(entry.path) || entry.path;
     this.openLocation({
-      name: parent.split("/").filter(Boolean).pop() ?? parent,
+      name: baseName(parent) || parent,
       path: parent,
       kind: "folder",
     });
@@ -561,7 +561,7 @@ export class FilePaneController {
     if (!entry) return;
     const parent = parentPath(entry.path) || entry.path;
     this.openLocation({
-      name: parent.split("/").filter(Boolean).pop() ?? parent,
+      name: baseName(parent) || parent,
       path: parent,
       kind: "folder",
     });
@@ -651,7 +651,7 @@ export class FilePaneController {
     const parent = parentPath(target.path) || target.path;
     const destination = await save({
       title: "Compress",
-      defaultPath: `${parent}/${target.name}.zip`,
+      defaultPath: `${parent}${target.name}.zip`,
     });
     if (typeof destination !== "string") return;
     try {

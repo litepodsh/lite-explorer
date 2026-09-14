@@ -173,13 +173,18 @@ fn now_secs() -> i64 {
 
 const THIRTY_DAYS_SECS: i64 = 30 * 24 * 3600;
 
-fn home_location() -> Option<Location> {
-    let path = std::env::var_os(if cfg!(target_os = "windows") {
+/// The user's home folder: `USERPROFILE` on Windows, `HOME` elsewhere.
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os(if cfg!(target_os = "windows") {
         "USERPROFILE"
     } else {
         "HOME"
-    })?;
-    let path = PathBuf::from(path);
+    })
+    .map(PathBuf::from)
+}
+
+fn home_location() -> Option<Location> {
+    let path = home_dir()?;
     Some(Location {
         name: path.file_name()?.to_string_lossy().into_owned(),
         path: path.to_string_lossy().into_owned(),
@@ -333,16 +338,18 @@ fn file_url_path(value: &str) -> Option<PathBuf> {
 }
 
 fn standard_favorites() -> Vec<Location> {
-    let Some(home) = std::env::var_os("HOME").map(PathBuf::from) else {
+    let Some(home) = home_dir() else {
         return Vec::new();
     };
     let mut locations = Vec::new();
     let mut seen = HashSet::new();
+    // Folders that don't exist are skipped, so macOS "Movies" and Windows "Videos" can share a list.
     for name in [
         "Desktop",
         "Documents",
         "Downloads",
         "Movies",
+        "Videos",
         "Music",
         "Pictures",
     ] {
@@ -1638,9 +1645,61 @@ fn volume_stats(path: &Path) -> Option<VolumeStats> {
     })
 }
 
-#[cfg(not(unix))]
+#[cfg(target_os = "windows")]
+fn volume_stats(path: &Path) -> Option<VolumeStats> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+    let path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let (mut available, mut total, mut free) = (0u64, 0u64, 0u64);
+    if unsafe { GetDiskFreeSpaceExW(path.as_ptr(), &mut available, &mut total, &mut free) } == 0 {
+        return None;
+    }
+    Some(VolumeStats {
+        total_bytes: total,
+        free_bytes: available,
+        file_system: None,
+        mounted_on: None,
+    })
+}
+
+#[cfg(not(any(unix, target_os = "windows")))]
 fn volume_stats(_path: &Path) -> Option<VolumeStats> {
     None
+}
+
+/// Drive letters present in a `GetLogicalDrives` bit mask, where bit 0 is `A:`.
+#[cfg(any(target_os = "windows", test))]
+fn drive_letters(mask: u32) -> Vec<char> {
+    (0..26u8)
+        .filter(|bit| mask & (1 << bit) != 0)
+        .map(|bit| (b'A' + bit) as char)
+        .collect()
+}
+
+/// File Explorer's naming: the volume label, or "Local Disk" when the drive has none.
+#[cfg(any(target_os = "windows", test))]
+fn drive_display_name(label: &str, letter: char) -> String {
+    let label = label.trim();
+    let label = if label.is_empty() {
+        "Local Disk"
+    } else {
+        label
+    };
+    format!("{label} ({letter}:)")
+}
+
+#[cfg(target_os = "windows")]
+fn to_wide(text: &str) -> Vec<u16> {
+    text.encode_utf16().chain(Some(0)).collect()
+}
+
+#[cfg(target_os = "windows")]
+fn from_wide(buffer: &[u16]) -> String {
+    let end = buffer
+        .iter()
+        .position(|&unit| unit == 0)
+        .unwrap_or(buffer.len());
+    String::from_utf16_lossy(&buffer[..end])
 }
 
 #[cfg(target_os = "macos")]
@@ -1726,7 +1785,70 @@ fn volumes() -> Vec<VolumeInfo> {
     volumes
 }
 
-#[cfg(not(unix))]
+/// Fixed and removable drives with media, the system drive first.
+#[cfg(target_os = "windows")]
+fn volumes() -> Vec<VolumeInfo> {
+    use windows_sys::Win32::{
+        Storage::FileSystem::{GetDriveTypeW, GetLogicalDrives, GetVolumeInformationW},
+        System::WindowsProgramming::{DRIVE_FIXED, DRIVE_REMOVABLE},
+    };
+    let system_drive = std::env::var("SystemDrive")
+        .ok()
+        .and_then(|drive| drive.chars().next())
+        .unwrap_or('C')
+        .to_ascii_uppercase();
+    let mut volumes = Vec::new();
+    for letter in drive_letters(unsafe { GetLogicalDrives() }) {
+        let root = format!("{letter}:\\");
+        let root_wide = to_wide(&root);
+        let drive_type = unsafe { GetDriveTypeW(root_wide.as_ptr()) };
+        if drive_type != DRIVE_FIXED && drive_type != DRIVE_REMOVABLE {
+            continue;
+        }
+        // Card readers and empty removable drives report no size.
+        let Some(stats) = volume_stats(Path::new(&root)) else {
+            continue;
+        };
+        if stats.total_bytes == 0 {
+            continue;
+        }
+        let mut label = [0u16; 261];
+        let mut file_system = [0u16; 261];
+        let has_info = unsafe {
+            GetVolumeInformationW(
+                root_wide.as_ptr(),
+                label.as_mut_ptr(),
+                label.len() as u32,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                file_system.as_mut_ptr(),
+                file_system.len() as u32,
+            )
+        } != 0;
+        volumes.push(VolumeInfo {
+            name: drive_display_name(
+                &if has_info {
+                    from_wide(&label)
+                } else {
+                    String::new()
+                },
+                letter,
+            ),
+            mount_point: root,
+            file_system: has_info
+                .then(|| from_wide(&file_system))
+                .filter(|name| !name.is_empty()),
+            total_bytes: stats.total_bytes,
+            free_bytes: stats.free_bytes,
+            is_primary: letter == system_drive,
+        });
+    }
+    volumes.sort_by_key(|volume| !volume.is_primary);
+    volumes
+}
+
+#[cfg(not(any(unix, target_os = "windows")))]
 fn volumes() -> Vec<VolumeInfo> {
     Vec::new()
 }
@@ -1801,7 +1923,50 @@ fn device_info() -> DeviceInfo {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
+fn device_info() -> DeviceInfo {
+    use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+    let name = std::env::var("COMPUTERNAME")
+        .ok()
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "This PC".into());
+    let mut memory: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
+    memory.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
+    let memory_bytes =
+        (unsafe { GlobalMemoryStatusEx(&mut memory) } != 0).then_some(memory.ullTotalPhys);
+    DeviceInfo {
+        name,
+        chip: windows_processor_name(),
+        cores: std::thread::available_parallelism().map_or(1, |cores| cores.get()),
+        memory_bytes,
+    }
+}
+
+/// The marketing CPU name ("AMD Ryzen 7 7840U …"), which Windows keeps in the registry.
+#[cfg(target_os = "windows")]
+fn windows_processor_name() -> Option<String> {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
+    let key = to_wide(r"HARDWARE\DESCRIPTION\System\CentralProcessor\0");
+    let value = to_wide("ProcessorNameString");
+    let mut buffer = [0u16; 256];
+    let mut size = (buffer.len() * 2) as u32;
+    let status = unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            key.as_ptr(),
+            value.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            buffer.as_mut_ptr().cast(),
+            &mut size,
+        )
+    };
+    (status == 0)
+        .then(|| from_wide(&buffer).trim().to_owned())
+        .filter(|name| !name.is_empty())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn device_info() -> DeviceInfo {
     let name = fs::read_to_string("/etc/hostname")
         .map(|name| name.trim().to_owned())
@@ -2498,6 +2663,20 @@ pub fn run() {
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn drive_letters_follow_the_logical_drives_mask() {
+        assert_eq!(drive_letters(0), Vec::<char>::new());
+        assert_eq!(drive_letters(0b1100), vec!['C', 'D']);
+        assert_eq!(drive_letters(1 | 1 << 25), vec!['A', 'Z']);
+    }
+
+    #[test]
+    fn drive_display_name_uses_the_label_or_local_disk() {
+        assert_eq!(drive_display_name("", 'C'), "Local Disk (C:)");
+        assert_eq!(drive_display_name("  ", 'D'), "Local Disk (D:)");
+        assert_eq!(drive_display_name("Backup", 'E'), "Backup (E:)");
+    }
 
     #[test]
     fn window_state_is_clamped_to_the_visible_work_area() {
