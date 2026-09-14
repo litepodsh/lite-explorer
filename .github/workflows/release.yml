@@ -207,14 +207,16 @@ jobs:
 
       - name: Remove macOS signing certificate
         if: always() && runner.os == 'macOS'
+        timeout-minutes: 1
         run: |
-          if [ -s "$RUNNER_TEMP/liteexplorer-signing.pem" ]; then
-            sudo security remove-trusted-cert -d "$RUNNER_TEMP/liteexplorer-signing.pem"
-          fi
+          # The hosted runner is disposable; revoking admin trust can wait for a GUI prompt.
+          echo "Removing temporary certificate files"
+          rm -f "$RUNNER_TEMP/liteexplorer-signing.p12" "$RUNNER_TEMP/liteexplorer-signing.pem"
           if [ -f "$RUNNER_TEMP/liteexplorer-signing.keychain-db" ]; then
+            echo "Deleting temporary signing keychain"
             security delete-keychain "$RUNNER_TEMP/liteexplorer-signing.keychain-db"
           fi
-          rm -f "$RUNNER_TEMP/liteexplorer-signing.p12" "$RUNNER_TEMP/liteexplorer-signing.pem"
+          echo "Signing cleanup complete"
 
   publish-release:
     name: Publish release
