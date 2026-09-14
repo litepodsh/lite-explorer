@@ -20,6 +20,19 @@ area.
 - Floating-sidebar preference that persists locally
 - Dark, keyboard-friendly interface
 
+## Install on macOS
+
+Download the universal DMG from the latest release, open it, and drag Lite Explorer to
+the Applications folder.
+
+The current builds use a self-signed certificate and are not notarized by Apple. If macOS
+blocks the DMG, Control-click it in Finder, choose **Open**, then choose **Open** again.
+Alternatively, remove its quarantine attribute in Terminal:
+
+```bash
+xattr -dr com.apple.quarantine "/path/to/liteexplorer_0.1.1_universal.dmg"
+```
+
 ## Development
 
 ```bash
