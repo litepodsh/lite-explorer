@@ -24,6 +24,7 @@
   import EjectIcon from "@lucide/svelte/icons/eject";
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import LockIcon from "@lucide/svelte/icons/lock";
+  import PanelLeftIcon from "@lucide/svelte/icons/panel-left";
   import PencilIcon from "@lucide/svelte/icons/pencil";
   import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
@@ -51,6 +52,7 @@
     onDisconnectLocation,
     statuses = {},
     onOpenPalette,
+    brand = false,
     ...restProps
   }: ComponentProps<typeof Sidebar.Root> & {
     selected?: string;
@@ -71,6 +73,8 @@
     /** Connection state of network locations, by path. */
     statuses?: Record<string, LocationStatus>;
     onOpenPalette?: () => void;
+    /** Show the logo, name and sidebar toggle in the header (Windows and Linux). */
+    brand?: boolean;
   } = $props();
 
   function resizeSidebar(event: PointerEvent) {
@@ -93,7 +97,15 @@
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
-  <Sidebar.Header class="titlebar-spacer p-0" data-tauri-drag-region ondblclick={onToggle} />
+  {#if brand}
+    <Sidebar.Header class="titlebar-spacer sidebar-brand p-0" data-tauri-drag-region>
+      <img src="/app-icon.png" alt="" width="18" height="18" />
+      <span>Lite Explorer</span>
+      <button aria-label="Toggle sidebar" title="Toggle sidebar" onclick={onToggle}><PanelLeftIcon /></button>
+    </Sidebar.Header>
+  {:else}
+    <Sidebar.Header class="titlebar-spacer p-0" data-tauri-drag-region ondblclick={onToggle} />
+  {/if}
   <Sidebar.Content class="finder-sidebar p-0">
     <nav class="finder-sources" aria-label="Finder sidebar">
       <button

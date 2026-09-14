@@ -14,15 +14,13 @@ use sqlx::{
     Row, SqlitePool,
 };
 use tauri::{
-    menu::{
-        AboutMetadata, CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu,
-    },
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow, WindowEvent,
 };
 #[cfg(target_os = "macos")]
 use trash::macos::{DeleteMethod, TrashContextExtMacos};
 
 mod archive;
+mod menu;
 mod network;
 mod remote;
 mod transfer;
@@ -2390,94 +2388,7 @@ fn unlock_webview_frame_rate(window: &tauri::WebviewWindow) {
     });
 }
 
-fn remove_close_window<R: tauri::Runtime>(submenu: &Submenu<R>) -> tauri::Result<()> {
-    for item in submenu.items()? {
-        if let MenuItemKind::Predefined(predefined) = &item {
-            let text = predefined.text()?.replace('&', "");
-            if text == "Close Window" || text == "Close" {
-                submenu.remove(predefined)?;
-            }
-        }
-    }
-    Ok(())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-const CHECK_FOR_UPDATES: &str = "check-for-updates";
-
-/// Rebuilds the default About item with the app icon, so the About panel shows it even when the
-/// binary runs outside an app bundle (e.g. `tauri dev`), where macOS falls back to a folder icon.
-fn set_about_icon<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    menu: &Menu<R>,
-) -> tauri::Result<()> {
-    let package = app.package_info();
-    let bundle = &app.config().bundle;
-    let about = PredefinedMenuItem::about(
-        app,
-        None,
-        Some(AboutMetadata {
-            name: Some("Lite Explorer".to_string()),
-            version: Some(package.version.to_string()),
-            copyright: bundle.copyright.clone(),
-            authors: bundle.publisher.clone().map(|publisher| vec![publisher]),
-            // `credits` is the description on macOS; `comments` covers Windows and Linux.
-            credits: Some(env!("CARGO_PKG_DESCRIPTION").to_string()),
-            comments: Some(env!("CARGO_PKG_DESCRIPTION").to_string()),
-            icon: Some(tauri::include_image!("./icons/icon.png")),
-            ..Default::default()
-        }),
-    )?;
-    for entry in menu.items()? {
-        let MenuItemKind::Submenu(submenu) = entry else {
-            continue;
-        };
-        let index = submenu.items()?.iter().position(|child| match child {
-            MenuItemKind::Predefined(predefined) => predefined
-                .text()
-                .map(|text| text.starts_with("About"))
-                .unwrap_or(false),
-            _ => false,
-        });
-        if let Some(index) = index {
-            submenu.remove_at(index)?;
-            return submenu.insert(&about, index);
-        }
-    }
-    Ok(())
-}
-
-/// Puts "Check for Updates…" right after About: in the app menu on macOS, in Help elsewhere.
-fn add_check_for_updates<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    menu: &Menu<R>,
-) -> tauri::Result<()> {
-    let item = MenuItem::with_id(
-        app,
-        CHECK_FOR_UPDATES,
-        "Check for Updates…",
-        true,
-        None::<&str>,
-    )?;
-    for entry in menu.items()? {
-        let MenuItemKind::Submenu(submenu) = entry else {
-            continue;
-        };
-        let about = submenu.items()?.iter().position(|child| match child {
-            MenuItemKind::Predefined(predefined) => predefined
-                .text()
-                .map(|text| text.starts_with("About"))
-                .unwrap_or(false),
-            _ => false,
-        });
-        if let Some(index) = about {
-            return submenu.insert(&item, index + 1);
-        }
-    }
-    let help = Submenu::with_items(app, "Help", true, &[&item])?;
-    menu.append(&help)
-}
-
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -2502,239 +2413,9 @@ pub fn run() {
             app.manage(network::servers::Sessions::default());
             app.manage(transfer::TransferRegistry::default());
             app.manage(FolderScans(std::sync::Mutex::new(HashSet::new())));
-            let floating = CheckMenuItem::with_id(
-                app.handle(),
-                "toggle-sidebar-floating",
-                "Floating Sidebar",
-                true,
-                false,
-                Some("CmdOrCtrl+Shift+F"),
-            )?;
-            let sidebar = Submenu::with_items(app.handle(), "Sidebar", true, &[&floating])?;
-            let hidden_files = CheckMenuItem::with_id(
-                app.handle(),
-                "toggle-hidden-files",
-                "Show Hidden Files",
-                true,
-                false,
-                Some("CmdOrCtrl+Shift+Period"),
-            )?;
-            let show_fps = CheckMenuItem::with_id(
-                app.handle(),
-                "toggle-show-fps",
-                "Show FPS",
-                true,
-                false,
-                None::<&str>,
-            )?;
-            let menu = Menu::default(app.handle())?;
-            let new_folder = MenuItem::with_id(
-                app.handle(),
-                "new-folder",
-                "New Folder",
-                true,
-                Some("CmdOrCtrl+Shift+N"),
-            )?;
-            let new_file = MenuItem::with_id(
-                app.handle(),
-                "new-file",
-                "New File",
-                true,
-                Some("CmdOrCtrl+Shift+Alt+N"),
-            )?;
-            let open_item = MenuItem::with_id(app.handle(), "open", "Open", false, None::<&str>)?;
-            let go_to_folder = MenuItem::with_id(
-                app.handle(),
-                "go-to-folder",
-                "Go to Folder…",
-                true,
-                Some("CmdOrCtrl+Shift+P"),
-            )?;
-            let new_tab = MenuItem::with_id(
-                app.handle(),
-                "new-tab",
-                "New Tab",
-                true,
-                Some("CmdOrCtrl+T"),
-            )?;
-            let close_tab = MenuItem::with_id(
-                app.handle(),
-                "close-tab",
-                "Close Tab",
-                true,
-                Some("CmdOrCtrl+W"),
-            )?;
-            let next_tab = MenuItem::with_id(
-                app.handle(),
-                "next-tab",
-                "Show Next Tab",
-                true,
-                Some("CmdOrCtrl+Shift+]"),
-            )?;
-            let previous_tab = MenuItem::with_id(
-                app.handle(),
-                "previous-tab",
-                "Show Previous Tab",
-                true,
-                Some("CmdOrCtrl+Shift+["),
-            )?;
-            let new_tab_other = MenuItem::with_id(
-                app.handle(),
-                "new-tab-other",
-                "New Tab in Second Pane",
-                true,
-                Some("CmdOrCtrl+Shift+T"),
-            )?;
-            let show_second_pane = MenuItem::with_id(
-                app.handle(),
-                "toggle-second-pane",
-                "Show Second Pane",
-                true,
-                Some("CmdOrCtrl+Shift+L"),
-            )?;
-            let split_orientation = MenuItem::with_id(
-                app.handle(),
-                "toggle-pane-orientation",
-                "Split Horizontally/Vertically",
-                true,
-                None::<&str>,
-            )?;
-            set_about_icon(app.handle(), &menu)?;
-            add_check_for_updates(app.handle(), &menu)?;
-            let items = menu.items()?;
-            let file_index = items.iter().position(|item| match item {
-                MenuItemKind::Submenu(submenu)
-                    if submenu.text().ok().as_deref() == Some("File") =>
-                {
-                    true
-                }
-                _ => false,
-            });
-            match file_index {
-                Some(index) => {
-                    if let MenuItemKind::Submenu(file_submenu) = &items[index] {
-                        remove_close_window(file_submenu)?;
-                        file_submenu.insert(&new_tab, 0)?;
-                        file_submenu.insert(&new_tab_other, 1)?;
-                        file_submenu.insert(&new_folder, 2)?;
-                        file_submenu.insert(&new_file, 3)?;
-                        file_submenu.insert(&PredefinedMenuItem::separator(app.handle())?, 4)?;
-                        file_submenu.insert(&open_item, 5)?;
-                        file_submenu.insert(&go_to_folder, 6)?;
-                        file_submenu.append(&PredefinedMenuItem::separator(app.handle())?)?;
-                        file_submenu.append(&close_tab)?;
-                    }
-                }
-                None => {
-                    let file_menu = Submenu::with_items(
-                        app.handle(),
-                        "File",
-                        true,
-                        &[&new_tab, &new_tab_other, &new_folder, &new_file, &close_tab],
-                    )?;
-                    let view_index = items.iter().position(|item| match item {
-                        MenuItemKind::Submenu(submenu)
-                            if submenu.text().ok().as_deref() == Some("View") =>
-                        {
-                            true
-                        }
-                        _ => false,
-                    });
-                    match view_index {
-                        Some(index) => menu.insert(&file_menu, index)?,
-                        None => menu.append(&file_menu)?,
-                    }
-                }
-            }
-            let view_menu = menu.items()?.into_iter().find_map(|item| match item {
-                MenuItemKind::Submenu(submenu)
-                    if submenu.text().ok().as_deref() == Some("View") =>
-                {
-                    Some(submenu)
-                }
-                _ => None,
-            });
-            match view_menu {
-                Some(view_menu) => {
-                    view_menu.prepend(&hidden_files)?;
-                    view_menu.insert(&show_fps, 1)?;
-                    view_menu.insert(&sidebar, 2)?;
-                    view_menu.insert(&show_second_pane, 3)?;
-                    view_menu.insert(&split_orientation, 4)?;
-                    view_menu.insert(&PredefinedMenuItem::separator(app.handle())?, 5)?;
-                }
-                None => menu.append(&Submenu::with_items(
-                    app.handle(),
-                    "View",
-                    true,
-                    &[
-                        &hidden_files,
-                        &show_fps,
-                        &sidebar,
-                        &show_second_pane,
-                        &split_orientation,
-                    ],
-                )?)?,
-            }
-            let window_menu = menu.items()?.into_iter().find_map(|item| match item {
-                MenuItemKind::Submenu(submenu)
-                    if submenu.text().ok().as_deref() == Some("Window") =>
-                {
-                    Some(submenu)
-                }
-                _ => None,
-            });
-            match window_menu {
-                Some(window_menu) => {
-                    remove_close_window(&window_menu)?;
-                    window_menu.append(&PredefinedMenuItem::separator(app.handle())?)?;
-                    window_menu.append(&next_tab)?;
-                    window_menu.append(&previous_tab)?;
-                }
-                None => menu.append(&Submenu::with_items(
-                    app.handle(),
-                    "Window",
-                    true,
-                    &[&next_tab, &previous_tab],
-                )?)?,
-            }
-            app.manage(SidebarMenu(floating));
-            app.manage(HiddenFilesMenu(hidden_files));
-            app.manage(ShowFpsMenu(show_fps));
-            app.manage(OpenMenuItem(open_item));
-            app.manage(OpenTarget(std::sync::Mutex::new(None)));
-            #[cfg(debug_assertions)]
-            {
-                let developer_tools = MenuItem::with_id(
-                    app.handle(),
-                    "open-dev-tools",
-                    "Developer Tools",
-                    true,
-                    None::<&str>,
-                )?;
-                let prototype_switcher = CheckMenuItem::with_id(
-                    app.handle(),
-                    "toggle-prototype-switcher",
-                    "Show Prototype Switcher",
-                    true,
-                    false,
-                    None::<&str>,
-                )?;
-                let switcher_submenu = Submenu::with_items(
-                    app.handle(),
-                    "Prototype Switcher",
-                    true,
-                    &[&prototype_switcher],
-                )?;
-                let debug_menu = Submenu::with_items(
-                    app.handle(),
-                    "Debug",
-                    true,
-                    &[&developer_tools, &switcher_submenu],
-                )?;
-                menu.append(&debug_menu)?;
-                app.manage(PrototypeSwitcherMenu(prototype_switcher));
-            }
+            let menu = menu::build(app.handle())?;
+            app.manage(menu::AppMenu(menu.clone()));
+            #[cfg(target_os = "macos")]
             app.set_menu(menu)?;
             #[cfg(target_os = "macos")]
             for window in app.webview_windows().values() {
@@ -2742,73 +2423,13 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_menu_event(|app, event| {
-            #[cfg(debug_assertions)]
-            {
-                if event.id() == "open-dev-tools" {
-                    if let Some(window) = app.get_webview_window("main") {
-                        window.open_devtools();
-                    }
-                    return;
-                }
-                if event.id() == "toggle-prototype-switcher" {
-                    let visible = app
-                        .state::<PrototypeSwitcherMenu>()
-                        .0
-                        .is_checked()
-                        .unwrap_or(false);
-                    let _ = app.emit("dev-tools", visible);
-                    return;
-                }
-            }
-            if event.id() == "toggle-sidebar-floating" {
-                let floating = app.state::<SidebarMenu>().0.is_checked().unwrap_or(false);
-                let _ = app.emit("sidebar-floating", floating);
-            } else if event.id() == "toggle-hidden-files" {
-                let show = app
-                    .state::<HiddenFilesMenu>()
-                    .0
-                    .is_checked()
-                    .unwrap_or(false);
-                let _ = app.emit("show-hidden-files", show);
-            } else if event.id() == "toggle-show-fps" {
-                let show = app.state::<ShowFpsMenu>().0.is_checked().unwrap_or(false);
-                let _ = app.emit("show-fps", show);
-            } else if event.id() == "new-folder" {
-                let _ = app.emit("request-create-folder", ());
-            } else if event.id() == "new-file" {
-                let _ = app.emit("request-create-file", ());
-            } else if event.id() == "new-tab" {
-                let _ = app.emit("tab-new", ());
-            } else if event.id() == "new-tab-other" {
-                let _ = app.emit("tab-new-other", ());
-            } else if event.id() == "toggle-second-pane" {
-                let _ = app.emit("pane-toggle", ());
-            } else if event.id() == "toggle-pane-orientation" {
-                let _ = app.emit("pane-orientation", ());
-            } else if event.id() == "close-tab" {
-                let _ = app.emit("tab-close", ());
-            } else if event.id() == "next-tab" {
-                let _ = app.emit("tab-next", ());
-            } else if event.id() == "previous-tab" {
-                let _ = app.emit("tab-prev", ());
-            } else if event.id() == "open" {
-                let target = app.state::<OpenTarget>().0.lock().unwrap().clone();
-                if let Some((path, _)) = target {
-                    let _ = app.emit("request-open", path);
-                }
-            } else if event.id() == "go-to-folder" {
-                let _ = app.emit("command-palette", ());
-            } else if event.id() == CHECK_FOR_UPDATES {
-                let _ = app.emit("check-for-updates", ());
-            }
-        })
+        .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .invoke_handler(tauri::generate_handler![
             greet,
             os_detection,
-            set_sidebar_floating,
-            set_show_hidden_files,
-            set_show_fps,
+            menu::set_sidebar_floating,
+            menu::set_show_hidden_files,
+            menu::set_show_fps,
             locations,
             remote::test_remote_location,
             remote::add_remote_location,
@@ -2848,7 +2469,9 @@ pub fn run() {
             open_path,
             reveal_path,
             default_app,
-            set_open_target,
+            menu::set_open_target,
+            menu::app_menu,
+            menu::trigger_menu,
             compute_directory_sizes,
             read_file_preview,
             record_recent,
@@ -2869,53 +2492,6 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-struct SidebarMenu(CheckMenuItem<tauri::Wry>);
-
-#[tauri::command]
-fn set_sidebar_floating(menu: State<'_, SidebarMenu>, floating: bool) {
-    let _ = menu.0.set_checked(floating);
-}
-
-struct HiddenFilesMenu(CheckMenuItem<tauri::Wry>);
-
-#[tauri::command]
-fn set_show_hidden_files(menu: State<'_, HiddenFilesMenu>, show: bool) {
-    let _ = menu.0.set_checked(show);
-}
-
-struct ShowFpsMenu(CheckMenuItem<tauri::Wry>);
-
-#[tauri::command]
-fn set_show_fps(menu: State<'_, ShowFpsMenu>, show: bool) {
-    let _ = menu.0.set_checked(show);
-}
-
-#[cfg(debug_assertions)]
-struct PrototypeSwitcherMenu(CheckMenuItem<tauri::Wry>);
-
-struct OpenMenuItem(MenuItem<tauri::Wry>);
-struct OpenTarget(std::sync::Mutex<Option<(String, bool)>>);
-
-#[tauri::command]
-fn set_open_target(app: AppHandle, path: String, is_directory: bool, enabled: bool) {
-    let open_menu = &app.state::<OpenMenuItem>().0;
-    let text = if enabled {
-        if is_directory {
-            "Open Folder"
-        } else {
-            "Open File"
-        }
-    } else {
-        "Open"
-    };
-    let _ = open_menu.set_text(text);
-    let _ = open_menu.set_enabled(enabled);
-    *app.state::<OpenTarget>().0.lock().unwrap() = if enabled && !path.is_empty() {
-        Some((path, is_directory))
-    } else {
-        None
-    };
 }
 
 #[cfg(test)]

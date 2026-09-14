@@ -18,6 +18,7 @@
   import Rows2Icon from "@lucide/svelte/icons/rows-2";
   import SearchIcon from "@lucide/svelte/icons/search";
   import AppSidebar from "$lib/components/custom/sidebar/app-sidebar.svelte";
+  import TitleBar from "$lib/components/custom/titlebar/title-bar.svelte";
   import CommandPalette from "$lib/components/custom/command-palette.svelte";
   import { openCommandPalette } from "$lib/state/command-palette.svelte";
   import AddLocationDialog from "$lib/components/custom/sidebar/add-location/add-location-dialog.svelte";
@@ -76,8 +77,8 @@
   let sidebarFloating = $state(false);
   let sidebarOpen = $state(true);
   let sidebarResizing = $state(false);
-  let isLinux = $state(false);
   let platform = $state<"macos" | "windows" | "linux" | "unknown">("unknown");
+  let hasTitleBar = $derived(platform === "windows" || platform === "linux");
   let revealLabel = $derived(
     platform === "macos"
       ? "Show in Finder"
@@ -337,7 +338,7 @@
   onMount(() => {
     void invoke<string>("os_detection").then((detected) => {
       platform = detected as typeof platform;
-      isLinux = detected === "linux";
+      document.documentElement.dataset.platform = detected;
     });
     void invoke<Location[]>("favorites").then((nativeFavorites) => (favorites = nativeFavorites));
     void invoke<Location[]>("locations").then((savedLocations) => {
@@ -446,7 +447,7 @@
   }
 
   function handleTabKeydown(event: KeyboardEvent) {
-    const modifier = isLinux ? event.ctrlKey : event.metaKey;
+    const modifier = platform === "macos" ? event.metaKey : event.ctrlKey;
     if (!modifier || event.altKey) return;
     if (event.shiftKey && event.key.toLowerCase() === "t") {
       event.preventDefault();
@@ -497,11 +498,14 @@
 <svelte:head><title>{activeController.selected} - Lite Explorer</title></svelte:head>
 <svelte:window onkeydown={handleWindowKeydown} />
 
+{#if platform === "windows" || platform === "linux"}
+  <TitleBar {platform} />
+{/if}
 <Sidebar.Provider
   bind:open={sidebarOpen}
   onToggle={toggleSidebar}
   style={`--sidebar-width: ${sidebarWidth}px;`}
-  class={`finder-window${isLinux ? " platform-linux" : ""}${sidebarFloating ? " sidebar-floating" : ""}${sidebarResizing ? " sidebar-resizing" : ""}${sidebarOpen ? "" : " sidebar-collapsed"}`}>
+  class={`finder-window platform-${platform}${sidebarFloating ? " sidebar-floating" : ""}${sidebarResizing ? " sidebar-resizing" : ""}${sidebarOpen ? "" : " sidebar-collapsed"}`}>
   <AppSidebar
     selected={activeController.selected}
     {favorites}
@@ -520,8 +524,9 @@
     onResizeEnd={() => (sidebarResizing = false)}
     onToggle={toggleSidebar}
     variant={sidebarFloating ? "floating" : "sidebar"}
-    onOpenPalette={openCommandPalette} />
-  {#if !isLinux}
+    onOpenPalette={openCommandPalette}
+    brand={hasTitleBar} />
+  {#if !hasTitleBar}
     <button
       class="sidebar-trigger"
       class:sidebar-trigger-open={sidebarOpen}
@@ -551,9 +556,10 @@
   <Sidebar.Inset class="finder-content">
     <header class="finder-toolbar" data-tauri-drag-region="deep">
       <div class="toolbar-leading">
-        {#if isLinux}
+        {#if hasTitleBar && !sidebarOpen}
+          <img class="toolbar-brand" src="/app-icon.png" alt="Lite Explorer" width="18" height="18" />
           <button
-            class="sidebar-trigger sidebar-trigger-linux"
+            class="sidebar-trigger sidebar-trigger-inline"
             aria-label="Toggle sidebar"
             title="Toggle sidebar"
             onclick={toggleSidebar}><PanelLeftIcon /></button>
