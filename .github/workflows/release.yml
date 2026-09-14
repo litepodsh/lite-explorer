@@ -12,15 +12,10 @@
 # https://github.com/litepodsh/lite-explorer/releases/latest/download/latest.json, so drafts
 # and pre-releases never reach users. Set the TAURI_SIGNING_PRIVATE_KEY secret first.
 #
-<<<<<<< Updated upstream
-# Installers aren't code signed: macOS shows the "unidentified developer" prompt and Windows
-# shows SmartScreen. That needs Apple and Windows certificates added as secrets.
-=======
 # macOS uses the self-signed identity in APPLE_CERTIFICATE (base64 .p12),
 # APPLE_CERTIFICATE_PASSWORD. The signing identity is derived from that certificate.
 # It is not notarized.
 # Windows installers remain unsigned.
->>>>>>> Stashed changes
 
 name: Release
 
@@ -155,8 +150,6 @@ jobs:
           '
           grep '"version"' src-tauri/tauri.conf.json
 
-<<<<<<< Updated upstream
-=======
       - name: Import macOS signing certificate
         if: runner.os == 'macOS'
         env:
@@ -190,7 +183,6 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
           printf 'APPLE_SIGNING_IDENTITY=%s\n' "$signing_identity" >> "$GITHUB_ENV"
 
->>>>>>> Stashed changes
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@v0
         env:
@@ -206,6 +198,23 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release-id }}
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
+
+      - name: Verify macOS app signature
+        if: runner.os == 'macOS'
+        run: |
+          codesign --verify --deep --strict --verbose=2 "$APP_DIR/src-tauri/target/universal-apple-darwin/release/bundle/macos/liteexplorer.app"
+          codesign -d -r- "$APP_DIR/src-tauri/target/universal-apple-darwin/release/bundle/macos/liteexplorer.app"
+
+      - name: Remove macOS signing certificate
+        if: always() && runner.os == 'macOS'
+        run: |
+          if [ -s "$RUNNER_TEMP/liteexplorer-signing.pem" ]; then
+            sudo security remove-trusted-cert -d "$RUNNER_TEMP/liteexplorer-signing.pem"
+          fi
+          if [ -f "$RUNNER_TEMP/liteexplorer-signing.keychain-db" ]; then
+            security delete-keychain "$RUNNER_TEMP/liteexplorer-signing.keychain-db"
+          fi
+          rm -f "$RUNNER_TEMP/liteexplorer-signing.p12" "$RUNNER_TEMP/liteexplorer-signing.pem"
 
   publish-release:
     name: Publish release
