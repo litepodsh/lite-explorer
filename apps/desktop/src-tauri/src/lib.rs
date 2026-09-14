@@ -14,7 +14,9 @@ use sqlx::{
     Row, SqlitePool,
 };
 use tauri::{
-    menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu},
+    menu::{
+        AboutMetadata, CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu,
+    },
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow, WindowEvent,
 };
 #[cfg(target_os = "macos")]
@@ -2403,6 +2405,48 @@ fn remove_close_window<R: tauri::Runtime>(submenu: &Submenu<R>) -> tauri::Result
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 const CHECK_FOR_UPDATES: &str = "check-for-updates";
 
+/// Rebuilds the default About item with the app icon, so the About panel shows it even when the
+/// binary runs outside an app bundle (e.g. `tauri dev`), where macOS falls back to a folder icon.
+fn set_about_icon<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    menu: &Menu<R>,
+) -> tauri::Result<()> {
+    let package = app.package_info();
+    let bundle = &app.config().bundle;
+    let about = PredefinedMenuItem::about(
+        app,
+        None,
+        Some(AboutMetadata {
+            name: Some("Lite Explorer".to_string()),
+            version: Some(package.version.to_string()),
+            copyright: bundle.copyright.clone(),
+            authors: bundle.publisher.clone().map(|publisher| vec![publisher]),
+            // `credits` is the description on macOS; `comments` covers Windows and Linux.
+            credits: Some(env!("CARGO_PKG_DESCRIPTION").to_string()),
+            comments: Some(env!("CARGO_PKG_DESCRIPTION").to_string()),
+            icon: Some(tauri::include_image!("./icons/icon.png")),
+            ..Default::default()
+        }),
+    )?;
+    for entry in menu.items()? {
+        let MenuItemKind::Submenu(submenu) = entry else {
+            continue;
+        };
+        let index = submenu.items()?.iter().position(|child| match child {
+            MenuItemKind::Predefined(predefined) => predefined
+                .text()
+                .map(|text| text.starts_with("About"))
+                .unwrap_or(false),
+            _ => false,
+        });
+        if let Some(index) = index {
+            submenu.remove_at(index)?;
+            return submenu.insert(&about, index);
+        }
+    }
+    Ok(())
+}
+
 /// Puts "Check for Updates…" right after About: in the app menu on macOS, in Help elsewhere.
 fn add_check_for_updates<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
@@ -2555,6 +2599,7 @@ pub fn run() {
                 true,
                 None::<&str>,
             )?;
+            set_about_icon(app.handle(), &menu)?;
             add_check_for_updates(app.handle(), &menu)?;
             let items = menu.items()?;
             let file_index = items.iter().position(|item| match item {
