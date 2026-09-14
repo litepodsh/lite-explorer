@@ -12,8 +12,15 @@
 # https://github.com/litepodsh/lite-explorer/releases/latest/download/latest.json, so drafts
 # and pre-releases never reach users. Set the TAURI_SIGNING_PRIVATE_KEY secret first.
 #
+<<<<<<< Updated upstream
 # Installers aren't code signed: macOS shows the "unidentified developer" prompt and Windows
 # shows SmartScreen. That needs Apple and Windows certificates added as secrets.
+=======
+# macOS uses the self-signed identity in APPLE_CERTIFICATE (base64 .p12),
+# APPLE_CERTIFICATE_PASSWORD. The signing identity is derived from that certificate.
+# It is not notarized.
+# Windows installers remain unsigned.
+>>>>>>> Stashed changes
 
 name: Release
 
@@ -148,6 +155,42 @@ jobs:
           '
           grep '"version"' src-tauri/tauri.conf.json
 
+<<<<<<< Updated upstream
+=======
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${APPLE_CERTIFICATE:?Missing APPLE_CERTIFICATE}"
+          : "${APPLE_CERTIFICATE_PASSWORD:?Missing APPLE_CERTIFICATE_PASSWORD}"
+          umask 077
+          keychain="$RUNNER_TEMP/liteexplorer-signing.keychain-db"
+          keychain_password=$(openssl rand -hex 32)
+          echo "::add-mask::$keychain_password"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/liteexplorer-signing.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/liteexplorer-signing.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+          security find-certificate -a -p "$keychain" > "$RUNNER_TEMP/liteexplorer-signing.pem"
+          if [ "$(grep -c 'BEGIN CERTIFICATE' "$RUNNER_TEMP/liteexplorer-signing.pem")" != 1 ]; then
+            echo "::error::APPLE_CERTIFICATE must contain exactly one self-signed code-signing certificate and its private key. Export the identity from Keychain Access > My Certificates as .p12."
+            exit 1
+          fi
+          signing_identity=$(openssl x509 -in "$RUNNER_TEMP/liteexplorer-signing.pem" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k "$keychain" "$RUNNER_TEMP/liteexplorer-signing.pem"
+          if ! security find-identity -v -p codesigning "$keychain" | grep -Fq "$signing_identity"; then
+            echo "::error::The imported certificate has no valid code-signing identity. Re-export it with its private key and check its expiry and Code Signing usage."
+            exit 1
+          fi
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
+          printf 'APPLE_SIGNING_IDENTITY=%s\n' "$signing_identity" >> "$GITHUB_ENV"
+
+>>>>>>> Stashed changes
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@v0
         env:
