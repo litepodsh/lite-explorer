@@ -292,8 +292,42 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         menu.append(&debug_menu)?;
         app.manage(PrototypeSwitcherMenu(prototype_switcher));
     }
+    order_top_level_menus(&menu)?;
     app.manage(info);
     Ok(menu)
+}
+
+/// Top-level menus in the order people expect. Tauri's default menu differs per platform (Linux
+/// has no File or View menu, Windows no View menu), so menus added above land after Help.
+const MENU_ORDER: &[&str] = &["File", "Edit", "View", "Window", "Help", "Debug"];
+
+/// Sort key for a top-level menu. Menus outside `MENU_ORDER`, like the macOS app menu, stay first.
+fn menu_rank(label: &str) -> usize {
+    let label = strip_mnemonic(label);
+    MENU_ORDER
+        .iter()
+        .position(|name| *name == label)
+        .map_or(0, |index| index + 1)
+}
+
+fn order_top_level_menus<R: Runtime>(menu: &Menu<R>) -> tauri::Result<()> {
+    let mut submenus = Vec::new();
+    for item in menu.items()? {
+        if let MenuItemKind::Submenu(submenu) = item {
+            submenus.push((menu_rank(&submenu.text()?), submenu));
+        }
+    }
+    if submenus.windows(2).all(|pair| pair[0].0 <= pair[1].0) {
+        return Ok(());
+    }
+    submenus.sort_by_key(|(rank, _)| *rank);
+    for (_, submenu) in &submenus {
+        menu.remove(submenu)?;
+    }
+    for (_, submenu) in &submenus {
+        menu.append(submenu)?;
+    }
+    Ok(())
 }
 
 pub fn handle(app: &AppHandle, id: &str) {
@@ -688,6 +722,32 @@ mod tests {
         );
         assert_eq!(predefined_kind("Services"), None);
         assert_eq!(predefined_kind(""), None);
+    }
+
+    #[test]
+    fn menu_rank_orders_file_edit_view_window_help_debug() {
+        let mut labels = vec![
+            "Edit",
+            "Window",
+            "&Help",
+            "File",
+            "View",
+            "Debug",
+            "Lite Explorer",
+        ];
+        labels.sort_by_key(|label| menu_rank(label));
+        assert_eq!(
+            labels,
+            vec![
+                "Lite Explorer",
+                "File",
+                "Edit",
+                "View",
+                "Window",
+                "&Help",
+                "Debug"
+            ]
+        );
     }
 
     #[test]
