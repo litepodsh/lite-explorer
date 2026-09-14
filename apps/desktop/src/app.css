@@ -637,6 +637,9 @@
   font-size: 13px;
   font-weight: 600;
 }
+.platform-linux .sidebar-brand {
+  flex-direction: row;
+}
 .sidebar-brand > * {
   position: relative;
   z-index: 1;
