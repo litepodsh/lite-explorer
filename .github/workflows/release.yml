@@ -12,8 +12,9 @@
 # https://github.com/litepodsh/lite-explorer/releases/latest/download/latest.json, so drafts
 # and pre-releases never reach users. Set the TAURI_SIGNING_PRIVATE_KEY secret first.
 #
-# Installers aren't code signed: macOS shows the "unidentified developer" prompt and Windows
-# shows SmartScreen. That needs Apple and Windows certificates added as secrets.
+# macOS uses the self-signed identity in APPLE_CERTIFICATE (base64 .p12),
+# APPLE_CERTIFICATE_PASSWORD and APPLE_SIGNING_IDENTITY. It is not notarized.
+# Windows installers remain unsigned.
 
 name: Release
 
@@ -148,6 +149,33 @@ jobs:
           '
           grep '"version"' src-tauri/tauri.conf.json
 
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          : "${APPLE_CERTIFICATE:?Missing APPLE_CERTIFICATE}"
+          : "${APPLE_CERTIFICATE_PASSWORD:?Missing APPLE_CERTIFICATE_PASSWORD}"
+          : "${APPLE_SIGNING_IDENTITY:?Missing APPLE_SIGNING_IDENTITY}"
+          umask 077
+          keychain="$RUNNER_TEMP/liteexplorer-signing.keychain-db"
+          keychain_password=$(openssl rand -hex 32)
+          echo "::add-mask::$keychain_password"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/liteexplorer-signing.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/liteexplorer-signing.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+          security find-certificate -c "$APPLE_SIGNING_IDENTITY" -p "$keychain" > "$RUNNER_TEMP/liteexplorer-signing.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k "$keychain" "$RUNNER_TEMP/liteexplorer-signing.pem"
+          security find-identity -v -p codesigning "$keychain"
+          printf 'APPLE_SIGNING_IDENTITY=%s\n' "$APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@v0
         env:
@@ -163,6 +191,23 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release-id }}
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
+
+      - name: Verify macOS app signature
+        if: runner.os == 'macOS'
+        run: |
+          codesign --verify --deep --strict --verbose=2 "$APP_DIR/src-tauri/target/universal-apple-darwin/release/bundle/macos/liteexplorer.app"
+          codesign -d -r- "$APP_DIR/src-tauri/target/universal-apple-darwin/release/bundle/macos/liteexplorer.app"
+
+      - name: Remove macOS signing certificate
+        if: always() && runner.os == 'macOS'
+        run: |
+          if [ -s "$RUNNER_TEMP/liteexplorer-signing.pem" ]; then
+            sudo security remove-trusted-cert -d "$RUNNER_TEMP/liteexplorer-signing.pem"
+          fi
+          if [ -f "$RUNNER_TEMP/liteexplorer-signing.keychain-db" ]; then
+            security delete-keychain "$RUNNER_TEMP/liteexplorer-signing.keychain-db"
+          fi
+          rm -f "$RUNNER_TEMP/liteexplorer-signing.p12" "$RUNNER_TEMP/liteexplorer-signing.pem"
 
   publish-release:
     name: Publish release

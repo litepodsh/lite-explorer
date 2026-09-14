@@ -2408,7 +2408,13 @@ fn add_check_for_updates<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     menu: &Menu<R>,
 ) -> tauri::Result<()> {
-    let item = MenuItem::with_id(app, CHECK_FOR_UPDATES, "Check for Updates…", true, None::<&str>)?;
+    let item = MenuItem::with_id(
+        app,
+        CHECK_FOR_UPDATES,
+        "Check for Updates…",
+        true,
+        None::<&str>,
+    )?;
     for entry in menu.items()? {
         let MenuItemKind::Submenu(submenu) = entry else {
             continue;
