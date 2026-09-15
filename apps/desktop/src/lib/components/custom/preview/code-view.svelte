@@ -3,14 +3,70 @@
   import type * as Monaco from "monaco-editor/editor/editor.api";
   import { DEFAULT_FONT_SIZE, lineHeightFor } from "./font-size.js";
   import { ensureLanguage, loadMonaco, modelFor, PREVIEW_THEME, type CachedModel, type MonacoApi } from "./monaco.js";
+  import { detectDelimiter, sampleLines, visibleDecorations } from "./rainbow-csv.js";
 
-  type Props = { value: string; language: string; modelKey: string; modified?: number | null; fontSize?: number };
-  let { value, language, modelKey, modified = null, fontSize = DEFAULT_FONT_SIZE }: Props = $props();
+  type Props = {
+    value: string;
+    language: string;
+    modelKey: string;
+    modified?: number | null;
+    fontSize?: number;
+    csv?: boolean;
+  };
+  let { value, language, modelKey, modified = null, fontSize = DEFAULT_FONT_SIZE, csv = false }: Props = $props();
+
+  // Lines above/below the viewport to color ahead of scroll, plus a hard cap so a
+  // not-yet-laid-out editor (which can report the whole document as visible)
+  // cannot trigger a huge scan.
+  const RAINBOW_OVERSCAN = 40;
+  const MAX_VISIBLE_LINES = 800;
 
   let host: HTMLDivElement;
   let api = $state.raw<MonacoApi | null>(null);
   let editor = $state.raw<Monaco.editor.IStandaloneCodeEditor | null>(null);
   let current: CachedModel | null = null;
+  let rainbow: Monaco.editor.IEditorDecorationsCollection | null = null;
+  let listeners: Monaco.IDisposable[] = [];
+  let delimiterModel: Monaco.editor.ITextModel | null = null;
+  let delimiterVersion = -1;
+  let delimiter = ",";
+  let rainbowFrame = 0;
+
+  function scheduleRainbow() {
+    cancelAnimationFrame(rainbowFrame);
+    rainbowFrame = requestAnimationFrame(paintRainbow);
+  }
+
+  // Delimiter detection is sampled once per model revision, not per repaint.
+  function delimiterFor(model: Monaco.editor.ITextModel): string {
+    const version = model.getVersionId();
+    if (model === delimiterModel && version === delimiterVersion) return delimiter;
+    delimiter = detectDelimiter(sampleLines(model));
+    delimiterModel = model;
+    delimiterVersion = version;
+    return delimiter;
+  }
+
+  // Only visible lines are scanned, so cost is independent of file size.
+  function paintRainbow() {
+    if (!editor || !rainbow) return;
+    if (!csv) {
+      rainbow.clear();
+      return;
+    }
+    const model = editor.getModel();
+    if (!model) return;
+
+    const lineCount = model.getLineCount();
+    const lines = new Set<number>();
+    for (const range of editor.getVisibleRanges()) {
+      const start = Math.max(1, range.startLineNumber - RAINBOW_OVERSCAN);
+      const end = Math.min(lineCount, range.endLineNumber + RAINBOW_OVERSCAN);
+      for (let line = start; line <= end && lines.size < MAX_VISIBLE_LINES; line++) lines.add(line);
+      if (lines.size >= MAX_VISIBLE_LINES) break;
+    }
+    rainbow.set(visibleDecorations(model, delimiterFor(model), lines));
+  }
 
   onMount(() => {
     let disposed = false;
@@ -25,7 +81,7 @@
       .then((monaco) => {
         if (disposed) return;
         api = monaco;
-        editor = monaco.editor.create(host, {
+        const instance = monaco.editor.create(host, {
           theme: PREVIEW_THEME,
           readOnly: true,
           domReadOnly: true,
@@ -43,6 +99,16 @@
           fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
           padding: { top: 8, bottom: 8 },
         });
+        editor = instance;
+        rainbow = instance.createDecorationsCollection([]);
+        listeners = [
+          instance.onDidScrollChange(scheduleRainbow),
+          instance.onDidChangeModel(() => {
+            delimiterModel = null;
+            scheduleRainbow();
+          }),
+          instance.onDidChangeModelContent(scheduleRainbow),
+        ];
       })
       .catch(() => {
         // Keep the plain-text fallback.
@@ -52,9 +118,26 @@
       disposed = true;
       observer.disconnect();
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(rainbowFrame);
+      for (const listener of listeners) listener.dispose();
+      listeners = [];
       if (editor && current) current.viewState = editor.saveViewState();
       editor?.dispose();
     };
+  });
+
+  $effect(() => {
+    // Re-paint when the rendered flag, content or editor instance changes.
+    void value;
+    void csv;
+    if (!editor) return;
+    if (!csv) {
+      cancelAnimationFrame(rainbowFrame);
+      rainbow?.clear();
+      delimiterModel = null;
+      return;
+    }
+    scheduleRainbow();
   });
 
   $effect(() => {

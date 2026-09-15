@@ -28,6 +28,7 @@
     "fuse.js": "^7.5.0",
     "marked": "^18.0.13",
     "monaco-editor": "0.56.0",
+    "pdfjs-dist": "^6.3.289",
     "shiki": "4.4.3"
   },
   "devDependencies": {

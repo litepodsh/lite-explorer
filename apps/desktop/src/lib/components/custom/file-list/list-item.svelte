@@ -3,6 +3,8 @@
 </script>
 
 <script lang="ts">
+  import DownloadIndicator from "$lib/transfers/download-indicator.svelte";
+  import type { DownloadSnapshot } from "$lib/transfers/download-progress.js";
   import EntryIcon from "$lib/file-icons/entry-icon.svelte";
   import { entryType } from "./sort.js";
   import FolderIcon from "@lucide/svelte/icons/folder";
@@ -15,6 +17,7 @@
 
   let {
     entry,
+    downloadSnapshot,
     view = "list",
     selected = false,
     focused = false,
@@ -24,6 +27,7 @@
     revealDelay = 0,
     renaming = false,
     rowIndex,
+    zebra = false,
     onItemClick,
     onToggle,
     onOpen,
@@ -37,6 +41,7 @@
     searchQuery = "",
   } = $props<{
     entry: DirectoryEntry;
+    downloadSnapshot?: DownloadSnapshot;
     view?: "list" | "grid";
     selected?: boolean;
     /** Keyboard focus is on this item. */
@@ -50,6 +55,8 @@
     revealDelay?: number;
     renaming?: boolean;
     rowIndex?: number;
+    /** Alternating row shading, based on the visible row index. */
+    zebra?: boolean;
     onItemClick?: (entry: DirectoryEntry, modifiers: { primary: boolean; shift: boolean }) => void;
     onToggle?: (entry: DirectoryEntry) => void;
     onOpen?: (entry: DirectoryEntry, options?: { newTab: boolean }) => void;
@@ -142,6 +149,7 @@
     data-focused={focused || undefined}
     data-join-prev={joinPrev || undefined}
     data-join-next={joinNext || undefined}
+    data-zebra={zebra || undefined}
     onclick={handleClick}
     onkeydown={() => {}}
     onpointerdown={(event) => onPointerDown?.(event, entry)}
@@ -152,7 +160,8 @@
     }}
     ondblclick={handleDblClick}>
     <div role="gridcell" class="flex items-center gap-2 px-2">{#if checkboxes}<span class="flex" transition:checkboxReveal={{ delay: revealDelay }}><SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} /></span>{/if}{#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else if entry.is_directory}<FolderIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} />{/if}</div>
-    <div role="gridcell" class="truncate px-2">
+    <div role="gridcell" class="flex min-w-0 items-center gap-2 px-2">
+      <span class="min-w-0 flex-1 truncate">
       {#if renaming}
         <input
           bind:value={editName}
@@ -178,6 +187,8 @@
           {entry.name}
         {/if}
       {/if}
+      </span>
+      {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </div>
     <div role="gridcell" class="px-2 text-xs text-[#9c9895]">{entryType(entry)}</div>
     <div role="gridcell" class="px-2 text-right text-xs tabular-nums text-[#9c9895]">{entry.is_directory || entry.size == null ? "—" : formatSize(entry.size)}</div>
@@ -185,7 +196,7 @@
   </div>
 {:else}
   <button
-    class="file-tile relative flex h-24 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-md border-0 bg-transparent p-3 text-center text-[13px] text-[#e8e5e2] {dropTarget ? 'entry-drop-target' : ''}"
+    class="file-tile relative flex h-24 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-md border-0 bg-transparent p-3 text-center text-[13px] text-[#e8e5e2] {dropTarget ? 'entry-drop-target' : ''} {pasted ? 'entry-pasted' : ''}"
     aria-label={entry.name}
     aria-pressed={selected}
     data-entry-path={entry.path}
@@ -208,7 +219,10 @@
         <SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} />
       </span>
     {/if}
+    <span class="flex items-center gap-1.5">
     {#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else if entry.is_directory}<FolderIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} />{/if}
+    {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
+    </span>
     {#if renaming}
       <input
         bind:value={editName}
@@ -233,6 +247,10 @@
     transition:
       background-color 140ms var(--ease),
       grid-template-columns 260ms var(--ease);
+  }
+
+  .file-row[data-zebra] {
+    background: rgb(255 255 255 / 0.03);
   }
 
   .file-row:hover {

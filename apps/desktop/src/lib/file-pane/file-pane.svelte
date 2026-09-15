@@ -54,6 +54,8 @@
     favoritePaths = new Set<string>(),
     pastedPaths = new Set<string>(),
     onToggleFavorite = (_entry: DirectoryEntry, _add: boolean) => {},
+    keyboardMode = "standard",
+    pendingKeys = "",
   }: {
     controller: FilePaneController;
     active?: boolean;
@@ -74,6 +76,8 @@
     favoritePaths?: Set<string>;
     pastedPaths?: Set<string>;
     onToggleFavorite?: (entry: DirectoryEntry, add: boolean) => void;
+    keyboardMode?: "standard" | "yazi";
+    pendingKeys?: string;
   } = $props();
 
   let statusPath = $derived(controller.selected === "Overview" ? "" : controller.listingPath);
@@ -224,6 +228,7 @@
     <ContextMenu.Root bind:open={controller.contextMenuOpen} onOpenChange={(open) => controller.onContextMenuOpenChange(open)}>
       <ContextMenu.Trigger class={`flex min-h-0 min-w-0 flex-1${controller.remoteDropActive ? " remote-drop-active" : ""}`}>
         <ListPanel
+          onFilesChanged={() => void controller.refreshListing(controller.listingPath)}
           entries={controller.visibleEntries}
           searchQuery={controller.searchMode === "content" ? controller.searchQuery.trim() : ""}
           sortKey={controller.listingPath}
@@ -411,6 +416,9 @@
 
   <PathStatusBar
     {showFps}
+    {keyboardMode}
+    {pendingKeys}
+    visual={Boolean(controller.visual)}
     path={statusPath ? controller.displayPath(statusPath) : ""}
     network={Boolean(statusPath && networkStatus.ownerOf(statusPath))}
     entries={controller.selected === "Recents"

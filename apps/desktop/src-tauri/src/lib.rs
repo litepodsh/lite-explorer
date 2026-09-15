@@ -20,6 +20,7 @@ use tauri::{
 use trash::macos::{DeleteMethod, TrashContextExtMacos};
 
 mod archive;
+mod download_progress;
 mod icons;
 mod menu;
 mod network;
@@ -136,6 +137,7 @@ struct DirectoryEntry {
 const PREVIEW_SNIFF_BYTES: usize = 8 * 1024;
 const PREVIEW_MAX_BYTES: usize = 2 * 1024 * 1024;
 const IMAGE_MAX_BYTES: usize = 16 * 1024 * 1024;
+const PDF_MAX_BYTES: usize = 32 * 1024 * 1024;
 
 #[derive(Serialize, Debug, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -145,6 +147,7 @@ enum PreviewKind {
     Directory,
     Image,
     Archive,
+    Pdf,
 }
 
 #[derive(Serialize, Debug)]
@@ -184,6 +187,28 @@ fn home_dir() -> Option<PathBuf> {
         "HOME"
     })
     .map(PathBuf::from)
+}
+
+/// Expands a leading `~` to `home`, leaving every other path untouched.
+fn expand_tilde_with(path: &str, home: Option<&Path>) -> PathBuf {
+    let Some(home) = home else {
+        return PathBuf::from(path);
+    };
+    if path == "~" {
+        return home.to_path_buf();
+    }
+    let rest = path
+        .strip_prefix("~/")
+        .or_else(|| path.strip_prefix("~\\"));
+    match rest {
+        Some(rest) => home.join(rest),
+        None => PathBuf::from(path),
+    }
+}
+
+/// Expands a leading `~` to the user's home folder.
+fn expand_tilde(path: &str) -> PathBuf {
+    expand_tilde_with(path, home_dir().as_deref())
 }
 
 fn home_location() -> Option<Location> {
@@ -758,11 +783,17 @@ async fn read_directory(
         return remote::list_directory(&database.0, &clients, &path).await;
     }
     tauri::async_runtime::spawn_blocking(move || {
-        let path = PathBuf::from(path);
+        let path = expand_tilde(&path);
         coordinated_read(&path, || directory_entries(&path))
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+/// Expands a leading `~` and returns the absolute local path.
+#[tauri::command]
+fn resolve_path(path: String) -> String {
+    expand_tilde(&path).to_string_lossy().into_owned()
 }
 
 #[tauri::command]
@@ -1219,6 +1250,31 @@ fn image_mime(extension: &str) -> Option<&'static str> {
     }
 }
 
+/// Local PDF bytes, capped at `PDF_MAX_BYTES`, as a data URL the frontend feeds to pdf.js.
+fn pdf_preview(path: &Path, mut preview: FilePreview) -> Result<FilePreview, String> {
+    let file = fs::File::open(path).map_err(|error| error.to_string())?;
+    let mut bytes = Vec::new();
+    // One byte past the limit tells an oversized file from one that fits exactly.
+    file.take(PDF_MAX_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| error.to_string())?;
+    if bytes.len() > PDF_MAX_BYTES {
+        return Err(format!(
+            "PDF exceeds {} MB preview limit",
+            PDF_MAX_BYTES / (1024 * 1024)
+        ));
+    }
+    set_pdf_preview(&mut preview, bytes);
+    Ok(preview)
+}
+
+/// Marks a preview as a PDF and stores the bytes as a data URL.
+fn set_pdf_preview(preview: &mut FilePreview, bytes: Vec<u8>) {
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    preview.kind = PreviewKind::Pdf;
+    preview.src = Some(format!("data:application/pdf;base64,{encoded}"));
+}
+
 fn file_preview(path: &Path) -> Result<FilePreview, String> {
     let metadata = fs::metadata(path).map_err(|error| error.to_string())?;
     let mut preview = FilePreview {
@@ -1244,6 +1300,9 @@ fn file_preview(path: &Path) -> Result<FilePreview, String> {
     }
 
     if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
+        if extension.eq_ignore_ascii_case("pdf") {
+            return pdf_preview(path, preview);
+        }
         if let Some(mime) = image_mime(extension) {
             let file = fs::File::open(path).map_err(|error| error.to_string())?;
             let mut bytes = Vec::new();
@@ -1270,6 +1329,10 @@ fn file_preview(path: &Path) -> Result<FilePreview, String> {
         .take(PREVIEW_SNIFF_BYTES as u64)
         .read_to_end(&mut bytes)
         .map_err(|error| error.to_string())?;
+    // A PDF without the extension: the magic bytes carry the whole file.
+    if bytes.starts_with(b"%PDF-") {
+        return pdf_preview(path, preview);
+    }
     if bytes.contains(&0) {
         preview.kind = PreviewKind::Binary;
         return Ok(preview);
@@ -2696,9 +2759,11 @@ pub fn run() {
             greet,
             os_detection,
             icons::file_icons,
-            menu::set_sidebar_floating,
+            download_progress::read_download_progress,
             menu::set_show_hidden_files,
             menu::set_show_fps,
+            menu::set_prototype_switcher,
+            menu::open_settings,
             locations,
             remote::test_remote_location,
             remote::add_remote_location,
@@ -2736,6 +2801,7 @@ pub fn run() {
             remove_favorite,
             reorder_favorites,
             read_directory,
+            resolve_path,
             search_directory,
             create_item,
             rename_item,
@@ -2773,6 +2839,25 @@ pub fn run() {
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn expand_tilde_replaces_a_leading_tilde() {
+        let home = Path::new("/Users/me");
+        assert_eq!(expand_tilde_with("~", Some(home)), PathBuf::from("/Users/me"));
+        assert_eq!(
+            expand_tilde_with("~/Work/lp", Some(home)),
+            PathBuf::from("/Users/me/Work/lp")
+        );
+        assert_eq!(
+            expand_tilde_with("/abs/path", Some(home)),
+            PathBuf::from("/abs/path")
+        );
+        assert_eq!(
+            expand_tilde_with("relative/path", Some(home)),
+            PathBuf::from("relative/path")
+        );
+        assert_eq!(expand_tilde_with("~", None), PathBuf::from("~"));
+    }
 
     #[test]
     fn drive_letters_follow_the_logical_drives_mask() {
@@ -3076,6 +3161,42 @@ mod tests {
         assert_eq!(preview.kind, PreviewKind::Image);
         assert_eq!(preview.content, None);
         assert!(preview.src.unwrap().starts_with("data:image/png;base64,"));
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_preview_encodes_pdfs_as_data_url() {
+        let path = preview_fixture("doc.pdf", b"%PDF-1.7\n\x00\x00binary body");
+
+        let preview = file_preview(&path).unwrap();
+
+        assert_eq!(preview.kind, PreviewKind::Pdf);
+        assert_eq!(preview.content, None);
+        assert!(!preview.truncated);
+        assert!(preview
+            .src
+            .unwrap()
+            .starts_with("data:application/pdf;base64,"));
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_preview_detects_pdf_by_magic_without_extension() {
+        let path = preview_fixture("report", b"%PDF-1.4\nno extension here");
+
+        let preview = file_preview(&path).unwrap();
+
+        assert_eq!(preview.kind, PreviewKind::Pdf);
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_preview_rejects_oversized_pdfs() {
+        let path = preview_fixture("huge.pdf", &vec![b'x'; PDF_MAX_BYTES + 1]);
+
+        let error = file_preview(&path).unwrap_err();
+
+        assert!(error.contains("PDF exceeds"));
         fs::remove_dir_all(path.parent().unwrap()).unwrap();
     }
 

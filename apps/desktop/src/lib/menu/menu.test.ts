@@ -35,13 +35,13 @@ const nodes: MenuNode[] = [
     children: [
       {
         type: "submenu",
-        label: "Sidebar",
+        label: "Panes",
         children: [
           {
             type: "check",
-            id: "toggle-sidebar-floating",
-            label: "Floating Sidebar",
-            accelerator: "CmdOrCtrl+Shift+F",
+            id: "toggle-second-pane",
+            label: "Show Second Pane",
+            accelerator: "CmdOrCtrl+Shift+L",
             enabled: true,
             checked: false,
           },
@@ -59,8 +59,8 @@ const nodes: MenuNode[] = [
 describe("findShortcut", () => {
   test("finds enabled items, including inside nested submenus", () => {
     expect(nameOf(findShortcut(nodes, key("KeyT", { ctrl: true }), "windows"))).toBe("new-tab");
-    expect(nameOf(findShortcut(nodes, key("KeyF", { ctrl: true, shift: true }), "linux"))).toBe(
-      "toggle-sidebar-floating",
+    expect(nameOf(findShortcut(nodes, key("KeyL", { ctrl: true, shift: true }), "linux"))).toBe(
+      "toggle-second-pane",
     );
   });
 

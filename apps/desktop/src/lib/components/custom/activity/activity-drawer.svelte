@@ -1,4 +1,12 @@
 <script lang="ts">
+  import UploadIcon from "@lucide/svelte/icons/upload";
+  import DownloadIcon from "@lucide/svelte/icons/download";
+  import CopyIcon from "@lucide/svelte/icons/copy";
+  import FolderInputIcon from "@lucide/svelte/icons/folder-input";
+  import Trash2Icon from "@lucide/svelte/icons/trash-2";
+  import ArchiveIcon from "@lucide/svelte/icons/archive";
+  import FilePlusIcon from "@lucide/svelte/icons/file-plus";
+  import PencilIcon from "@lucide/svelte/icons/pencil";
   import CheckIcon from "@lucide/svelte/icons/check";
   import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import ChevronUpIcon from "@lucide/svelte/icons/chevron-up";
@@ -7,7 +15,7 @@
   import XIcon from "@lucide/svelte/icons/x";
   import { formatSize } from "$lib/components/custom/preview/format.js";
   import type { JobsStore } from "$lib/transfers/jobs.svelte.js";
-  import { isRunning, type Job, type JobFilter, type JobKind } from "$lib/transfers/jobs.js";
+  import { formatJobDuration, isRunning, type Job, type JobFilter, type JobKind } from "$lib/transfers/jobs.js";
 
   let {
     jobs,
@@ -20,6 +28,19 @@
   } = $props();
 
   let filter = $state<JobFilter>("all");
+  let now = $state(Date.now());
+  const timestamp = new Intl.DateTimeFormat(undefined, {
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    fractionalSecondDigits: 3, hourCycle: "h23", timeZoneName: "short",
+  });
+
+  $effect(() => {
+    if (!open || jobs.activeCount === 0) return;
+    now = Date.now();
+    const timer = setInterval(() => { now = Date.now(); }, 250);
+    return () => clearInterval(timer);
+  });
 
   const filters: { id: JobFilter; label: string }[] = [
     { id: "all", label: "All" },
@@ -28,15 +49,18 @@
     { id: "failed", label: "Failed" },
   ];
 
-  const kindIcon: Record<JobKind, string> = {
-    upload: "M12 19V5M6 11l6-6 6 6",
-    download: "M12 5v14M6 13l6 6 6-6",
-    copy: "M9 9h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2ZM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1",
-    move: "M12 19V5M6 11l6-6 6 6",
-    delete: "M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13",
-    send: "M12 19V5M6 11l6-6 6 6",
-    receive: "M12 5v14M6 13l6 6 6-6",
-    extract: "M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4M12 3v12M7 10l5 5 5-5",
+  const kindIcon: Record<JobKind, typeof CopyIcon> = {
+    upload: UploadIcon,
+    download: DownloadIcon,
+    copy: CopyIcon,
+    move: FolderInputIcon,
+    delete: Trash2Icon,
+    send: UploadIcon,
+    receive: DownloadIcon,
+    extract: ArchiveIcon,
+    compress: ArchiveIcon,
+    create: FilePlusIcon,
+    rename: PencilIcon,
   };
 
   function percent(job: Job): number {
@@ -70,12 +94,13 @@
   {#if open}
     <div class="activity-body">
       {#if shown.length === 0}
-        <p class="empty">No transfers.</p>
+        <p class="empty">No activities.</p>
       {:else}
         {#each shown as job (job.id)}
+          {@const Icon = kindIcon[job.kind]}
           <article class="job" data-state={job.state}>
             <span class="kind">
-              <svg viewBox="0 0 24 24"><path d={kindIcon[job.kind]} /></svg>
+              <Icon />
             </span>
             <div class="info">
               <div class="line">
@@ -83,7 +108,11 @@
               </div>
               {#if job.destination}<div class="dest">→ {job.destination}</div>{/if}
               {#if isRunning(job)}
-                <div class="bar"><span style="width: {percent(job)}%"></span></div>
+                {#if job.bytesTotal > 0 || job.filesTotal > 0}
+                  <div class="bar"><span style="width: {percent(job)}%"></span></div>
+                {:else}
+                  <div class="stats">In progress…</div>
+                {/if}
                 <div class="stats">
                   {#if job.bytesTotal > 0}
                     <span>{formatSize(job.bytesDone)} of {formatSize(job.bytesTotal)}</span>
@@ -99,6 +128,13 @@
               {:else}
                 <div class="stats">Cancelled</div>
               {/if}
+              <div class="timing">
+                <span>Started <time datetime={new Date(job.startedAt).toISOString()}>{timestamp.format(job.startedAt)}</time></span>
+                {#if job.finishedAt !== undefined}
+                  <span>Finished <time datetime={new Date(job.finishedAt).toISOString()}>{timestamp.format(job.finishedAt)}</time></span>
+                {/if}
+                <span>{isRunning(job) ? "Elapsed" : "Duration"} {formatJobDuration(job, now)}</span>
+              </div>
             </div>
             <div class="actions">
               {#if job.state === "done"}
@@ -107,9 +143,9 @@
               {:else if job.state === "failed"}
                 <span class="state-fail"><TriangleAlertIcon class="size-4" /></span>
                 <button class="icon" aria-label="Dismiss" onclick={() => jobs.remove(job.id)}><XIcon class="size-4" /></button>
-              {:else if isRunning(job)}
+              {:else if isRunning(job) && job.cancellable !== false}
                 <button class="icon" aria-label="Cancel" onclick={() => jobs.cancel(job.id)}><XIcon class="size-4" /></button>
-              {:else}
+              {:else if !isRunning(job)}
                 <button class="icon" aria-label="Dismiss" onclick={() => jobs.remove(job.id)}><XIcon class="size-4" /></button>
               {/if}
             </div>
@@ -263,7 +299,7 @@
     background: #34312e;
     color: #7cc4ff;
   }
-  .kind svg {
+  .kind :global(svg) {
     width: 15px;
     height: 15px;
     fill: none;
@@ -318,6 +354,15 @@
   .stats.error {
     display: block;
     color: #ff928b;
+  }
+  .timing {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 14px;
+    margin-top: 6px;
+    color: #a8a4a1;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
   }
   .actions {
     display: flex;

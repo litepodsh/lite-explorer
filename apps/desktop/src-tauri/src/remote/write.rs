@@ -501,7 +501,7 @@ impl Progress {
     }
 
     fn add_bytes(&mut self, bytes: u64) {
-        self.state.bytes_done += bytes;
+        self.state.add_bytes(bytes);
         if self.last_emit.elapsed() >= PROGRESS_INTERVAL {
             self.emit();
             self.last_emit = Instant::now();
@@ -510,6 +510,8 @@ impl Progress {
 
     fn finish_file(&mut self) {
         self.state.files_done += 1;
+        self.state.file_progress = None;
+        self.emit();
     }
 
     fn finish(mut self) {
@@ -689,7 +691,7 @@ pub(super) async fn download_to(
     key: &str,
     local: &Path,
     max_bytes: Option<u64>,
-    mut on_bytes: impl FnMut(u64),
+    mut on_bytes: impl FnMut(u64, Option<u64>),
 ) -> Result<(), String> {
     let mut output = client
         .get_object()
@@ -707,6 +709,10 @@ pub(super) async fn download_to(
             ));
         }
     }
+    let total = output
+        .content_length()
+        .and_then(|length| u64::try_from(length).ok());
+    on_bytes(0, total);
     if let Some(parent) = local.parent() {
         tokio::fs::create_dir_all(parent)
             .await
@@ -721,7 +727,7 @@ pub(super) async fn download_to(
             .map_err(std::io::Error::other)?
         {
             file.write_all(&chunk).await?;
-            on_bytes(chunk.len() as u64);
+            on_bytes(chunk.len() as u64, total);
         }
         file.flush().await
     }
@@ -808,12 +814,18 @@ pub async fn download_remote_items(
         total_bytes,
     );
     let result = async {
-        for (bucket, key, local, _) in &files {
+        for (bucket, key, local, size) in &files {
             if progress.cancelled() {
                 break;
             }
+            progress.state.start_download(local, *size);
             progress.start_file(entry_name(key));
-            download_to(&client, bucket, key, local, None, |bytes| {
+            download_to(&client, bucket, key, local, None, |bytes, total| {
+                if let (Some(file), Some(total)) = (&mut progress.state.file_progress, total) {
+                    progress.state.bytes_total =
+                        progress.state.bytes_total.saturating_sub(file.bytes_total) + total;
+                    file.bytes_total = total;
+                }
                 progress.add_bytes(bytes)
             })
             .await?;

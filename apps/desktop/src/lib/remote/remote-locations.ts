@@ -1,3 +1,4 @@
+import { activity } from "$lib/transfers/jobs.js";
 import { invoke } from "@tauri-apps/api/core";
 import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
 import type { Location } from "$lib/tabs/tabs.js";
@@ -122,7 +123,7 @@ export function createRemoteBucket(
   name: string,
   options: { versioning?: boolean; public?: boolean } = {},
 ): Promise<CreatedBucket> {
-  return invoke<CreatedBucket>("create_remote_bucket", { location, name, ...options });
+  return activity.track("create", `Create bucket: ${name}`, location, () => invoke<CreatedBucket>("create_remote_bucket", { location, name, ...options }));
 }
 
 export function remoteProvider(path: string): Promise<Provider> {
@@ -151,11 +152,11 @@ export function setBucketPublic(path: string, isPublic: boolean): Promise<Bucket
 
 /** Deletes an empty bucket. */
 export function deleteRemoteBucket(path: string): Promise<void> {
-  return invoke("delete_remote_bucket", { path });
+  return activity.track("delete", `Delete bucket: ${path}`, "", () => invoke<void>("delete_remote_bucket", { path }));
 }
 
 export function deleteRemoteItems(paths: string[]): Promise<void> {
-  return invoke("delete_remote_items", { paths });
+  return activity.track("delete", paths.length === 1 ? `Delete: ${paths[0]}` : `Delete ${paths.length} items`, "", () => invoke<void>("delete_remote_items", { paths }));
 }
 
 export function uploadRemoteFiles(destination: string, sources: string[]): Promise<void> {

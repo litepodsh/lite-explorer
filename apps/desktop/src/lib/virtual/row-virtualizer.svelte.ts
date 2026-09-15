@@ -1,5 +1,4 @@
-import { elementScroll, observeElementOffset, observeElementRect } from "@tanstack/virtual-core";
-import { createVirtualizer, type Virtualizer } from "@tanstack/svelte-virtual";
+import { createVirtualizer, elementScroll, observeElementOffset, observeElementRect, type Virtualizer } from "@tanstack/svelte-virtual";
 
 type RowVirtualizerOptions = {
   count: () => number;
@@ -7,6 +6,8 @@ type RowVirtualizerOptions = {
   overscan?: number;
   /** Distance (px) from the top of the scroll content to the first row, e.g. a sticky header. */
   scrollMargin?: () => number;
+  /** Distance (px) at the top of the viewport covered by overlays, kept clear when scrolling to a row. */
+  scrollPaddingStart?: () => number;
   getScrollElement: () => HTMLElement | null;
 };
 
@@ -76,6 +77,7 @@ export function createRowVirtualizer(opts: RowVirtualizerOptions) {
       estimateSize: opts.estimateSize,
       overscan: getOverscan(),
       scrollMargin: getScrollMargin(),
+      scrollPaddingStart: opts.scrollPaddingStart?.() ?? 0,
       getScrollElement: () => scrollElement,
       scrollToFn: elementScroll,
       observeElementRect,

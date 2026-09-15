@@ -1,3 +1,4 @@
+import { activity } from "$lib/transfers/jobs.js";
 import { invoke } from "@tauri-apps/api/core";
 import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
 
@@ -15,7 +16,7 @@ export const createFolderAction: CreateItemAction = {
   label: "New Folder",
   defaultName: () => "untitled folder",
   create: (parentPath, name) =>
-    invoke<DirectoryEntry>("create_item", { parent: parentPath, kind: "folder", name }),
+    activity.track("create", `Create folder: ${name}`, parentPath, () => invoke<DirectoryEntry>("create_item", { parent: parentPath, kind: "folder", name })),
 };
 
 export const createFileAction: CreateItemAction = {
@@ -23,7 +24,7 @@ export const createFileAction: CreateItemAction = {
   label: "New File",
   defaultName: () => "untitled.txt",
   create: (parentPath, name) =>
-    invoke<DirectoryEntry>("create_item", { parent: parentPath, kind: "file", name }),
+    activity.track("create", `Create file: ${name}`, parentPath, () => invoke<DirectoryEntry>("create_item", { parent: parentPath, kind: "file", name })),
 };
 
 export const createItemActions: Record<CreateKind, CreateItemAction> = {

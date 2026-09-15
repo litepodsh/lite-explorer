@@ -25,7 +25,8 @@ use super::{
 use crate::remote::read_optional_secret;
 use crate::transfer::{self, TransferEvent, TransferRegistry};
 use crate::{
-    image_mime, DirectoryEntry, FilePreview, PreviewKind, IMAGE_MAX_BYTES, PREVIEW_MAX_BYTES,
+    image_mime, set_pdf_preview, DirectoryEntry, FilePreview, PreviewKind, IMAGE_MAX_BYTES,
+    PDF_MAX_BYTES, PREVIEW_MAX_BYTES,
 };
 
 mod ftp;
@@ -240,7 +241,7 @@ impl Progress {
     }
 
     pub fn add_bytes(&mut self, bytes: u64) {
-        self.state.bytes_done += bytes;
+        self.state.add_bytes(bytes);
         if self.last_emit.elapsed() >= PROGRESS_INTERVAL {
             self.emit();
             self.last_emit = Instant::now();
@@ -255,6 +256,8 @@ impl Progress {
 
     fn finish_file(&mut self) {
         self.state.files_done += 1;
+        self.state.file_progress = None;
+        self.emit();
     }
 
     fn finish(mut self) {
@@ -687,6 +690,17 @@ pub async fn file_preview(
         ));
         return Ok(preview);
     }
+    if extension.is_some_and(|extension| extension.eq_ignore_ascii_case("pdf")) {
+        if item.size > PDF_MAX_BYTES as u64 {
+            return Err(format!(
+                "PDF exceeds {} MB preview limit",
+                PDF_MAX_BYTES / (1024 * 1024)
+            ));
+        }
+        let bytes = session.read_head(&at.remote, PDF_MAX_BYTES).await?;
+        set_pdf_preview(&mut preview, bytes);
+        return Ok(preview);
+    }
     // One byte past the limit tells a truncated file from one that fits exactly.
     let bytes = session.read_head(&at.remote, PREVIEW_MAX_BYTES + 1).await?;
     crate::remote::classify_preview_bytes(&mut preview, bytes);
@@ -869,6 +883,7 @@ async fn run_download(
                 .await
                 .map_err(ConnectError::other)?;
         }
+        progress.state.start_download(&step.local, step.size);
         progress.start_file(file_name(&step.remote));
         if let Err(error) = session.download(&step.remote, &step.local, progress).await {
             let _ = tokio::fs::remove_file(&step.local).await;

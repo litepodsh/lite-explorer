@@ -1,0 +1,13 @@
+[
+  { "id": "toggle-hidden-files", "accelerator": "CmdOrCtrl+Shift+Period" },
+  { "id": "new-folder", "accelerator": "CmdOrCtrl+Shift+N" },
+  { "id": "new-file", "accelerator": "CmdOrCtrl+Shift+Alt+N" },
+  { "id": "go-to-folder", "accelerator": "CmdOrCtrl+Shift+P" },
+  { "id": "new-tab", "accelerator": "CmdOrCtrl+T" },
+  { "id": "close-tab", "accelerator": "CmdOrCtrl+W" },
+  { "id": "next-tab", "accelerator": "CmdOrCtrl+Shift+]" },
+  { "id": "previous-tab", "accelerator": "CmdOrCtrl+Shift+[" },
+  { "id": "new-tab-other", "accelerator": "CmdOrCtrl+Shift+T" },
+  { "id": "toggle-second-pane", "accelerator": "CmdOrCtrl+Shift+L" },
+  { "id": "open-settings", "accelerator": "CmdOrCtrl+Comma" }
+]

@@ -11,15 +11,17 @@
   import ShieldAlert from "@lucide/svelte/icons/shield-alert";
   import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
   import CodeView from "./code-view.svelte";
+  import CsvView from "./csv-view.svelte";
   import FileInfo from "./file-info.svelte";
   import FindBar from "./find-bar.svelte";
   import MarkdownView from "./markdown-view.svelte";
   import HtmlView from "./html-view.svelte";
   import ImageView from "./image-view.svelte";
   import BinaryView from "./binary-view.svelte";
+  import PdfView from "./pdf-view.svelte";
   import ArchiveView from "$lib/archive/archive-view.svelte";
   import { fontSizeForShortcut, lineHeightFor, parseFontSize } from "./font-size.js";
-  import { isHtmlName, isMarkdownName, languageFor } from "./languages.js";
+  import { isCsvName, isHtmlName, isMarkdownName, languageFor } from "./languages.js";
   import { analyzeHtmlSafety } from "./html-safety.js";
   import type { FilePreview } from "./types.js";
   import { fetchDefaultApp, type OpenWithApp } from "$lib/file-ops/open.js";
@@ -46,6 +48,7 @@
   let htmlZoom = $state(1);
   let contentRoot = $state<HTMLElement | null>(null);
   let codeView = $state<ReturnType<typeof CodeView> | null>(null);
+  let pdfView = $state<ReturnType<typeof PdfView> | null>(null);
   let findBar = $state<ReturnType<typeof FindBar> | null>(null);
   let token = 0;
 
@@ -54,10 +57,12 @@
   const pending = $derived(previewPath !== entry.path);
   const previewIsMarkdown = $derived(preview ? isMarkdownName(preview.name) : false);
   const previewIsHtml = $derived(preview ? isHtmlName(preview.name) : false);
-  const showViewToggle = $derived(previewIsMarkdown || previewIsHtml);
+  const previewIsCsv = $derived(preview ? isCsvName(preview.name) : false);
+  const showViewToggle = $derived(previewIsMarkdown || previewIsHtml || previewIsCsv);
   const showRendered = $derived(
     (previewIsMarkdown && viewMode === "render" && !markdownFailed) ||
-      (previewIsHtml && viewMode === "render"),
+      (previewIsHtml && viewMode === "render") ||
+      (previewIsCsv && viewMode === "render"),
   );
   const htmlSafety = $derived(
     previewIsHtml && preview?.content ? analyzeHtmlSafety(preview.content) : null,
@@ -126,6 +131,10 @@
       }
     }
     if (event.key.toLowerCase() !== "f" || !(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
+    if (preview?.kind === "pdf") {
+      if (pdfView?.openFind()) event.preventDefault();
+      return;
+    }
     if (preview?.kind !== "text" || !preview.content || !codeView?.hasTextFocus()) return;
     event.preventDefault();
     void codeView.openFind();
@@ -153,6 +162,8 @@
       <ArchiveView path={previewPath} name={preview.name} />
     {:else if preview.kind === "binary"}
       <BinaryView name={preview.name} />
+    {:else if preview.kind === "pdf"}
+      <PdfView bind:this={pdfView} src={preview.src ?? ""} name={preview.name} />
     {:else if preview.kind === "image"}
       <ImageView src={preview.src ?? ""} name={preview.name} />
     {:else if !preview.content}
@@ -171,6 +182,8 @@
           <MarkdownView source={preview.content ?? ""} onError={() => (markdownFailed = true)} />
         {:else if showRendered && previewIsHtml}
           <HtmlView source={preview.content ?? ""} zoom={htmlZoom} />
+        {:else if showRendered && previewIsCsv}
+          <CsvView content={preview.content ?? ""} />
         {:else}
           <CodeView
             bind:this={codeView}
@@ -178,6 +191,7 @@
             language={languageFor(preview.name)}
             modelKey={previewPath}
             modified={preview.modified}
+            csv={previewIsCsv}
             {fontSize} />
         {/if}
       </div>
@@ -222,7 +236,7 @@
               ? 'bg-[#3b3836] text-[#e8e5e2]'
               : 'bg-transparent text-[#9c9895] hover:text-[#e8e5e2]'}"
             aria-pressed={viewMode === "render"}
-            onclick={() => setViewMode("render")}>Render</button>
+            onclick={() => setViewMode("render")}>{previewIsCsv ? "Table" : "Render"}</button>
           <button
             class="rounded border-0 px-2 py-0.5 {viewMode === 'code'
               ? 'bg-[#3b3836] text-[#e8e5e2]'

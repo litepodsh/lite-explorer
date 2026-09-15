@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { invoke } from "@tauri-apps/api/core";
+  import { isPartialDownload, type DownloadSnapshot } from "$lib/transfers/download-progress.js";
   import { tick, untrack } from "svelte";
   import { get } from "svelte/store";
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
@@ -47,8 +49,10 @@
     sortKey = "",
     pastedPaths = new Set<string>(),
     searchQuery = "",
+    onFilesChanged,
   } = $props<{
     entries?: DirectoryEntry[];
+    onFilesChanged?: () => void;
     view?: "list" | "grid";
     showHidden?: boolean;
     selectedPaths?: Set<string>;
@@ -326,15 +330,29 @@
 
   let scrollEl = $state<HTMLDivElement>();
   let containerW = $state(0);
+  // Rows scroll under the toolbar and the column header; this is the scroll area's top padding they cover.
+  let insetTop = $state(0);
+
+  $effect(() => {
+    const element = scrollEl;
+    if (!element) return;
+    const measure = () => (insetTop = parseFloat(getComputedStyle(element).paddingTop) || 0);
+    // A padding change (view switch, tab bar toggling the overlap) resizes the content box.
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    measure();
+    return () => observer.disconnect();
+  });
 
   let itemsPerRow = $derived(view === "grid" ? Math.max(1, Math.floor((containerW - SCROLL_PADDING_X + GRID_GAP) / (GRID_MIN + GRID_GAP))) : 1);
   let gridRowCount = $derived(Math.ceil(visibleEntries.length / itemsPerRow));
-  let scrollMargin = $derived(view === "list" ? 32 : GRID_TOP);
+  let scrollMargin = $derived(view === "list" ? insetTop : insetTop + GRID_TOP);
 
   const rows = createRowVirtualizer({
     count: () => (view === "list" ? visibleEntries.length : gridRowCount),
     estimateSize: () => (view === "list" ? (visibleEntries[0]?.relative_path != null ? SEARCH_ROW_H : LIST_ROW_H) : GRID_ROW_H),
     scrollMargin: () => scrollMargin,
+    scrollPaddingStart: () => insetTop,
     overscan: 10,
     getScrollElement: () => scrollEl ?? null,
   });
@@ -348,14 +366,52 @@
       columns: () => itemsPerRow,
       pageRows: () => {
         const rowHeight = view === "list" ? (visibleEntries[0]?.relative_path != null ? SEARCH_ROW_H : LIST_ROW_H) : GRID_ROW_H;
-        const viewport = (scrollEl?.clientHeight ?? 0) - (view === "list" ? scrollMargin : 0);
+        const viewport = (scrollEl?.clientHeight ?? 0) - insetTop;
         return Math.max(1, Math.floor(viewport / rowHeight));
       },
       scrollToIndex: (index: number) => {
         const row = view === "grid" ? Math.floor(index / itemsPerRow) : index;
         if (rows.virtualizer) get(rows.virtualizer).scrollToIndex(row, { align: "auto" });
       },
+      sort: (column: SortColumn, dir: SortDir) => {
+        sortColumn = column;
+        sortDir = dir;
+        saveFolderSort(sortKey, { column, dir });
+      },
     });
+  });
+
+  let downloadSnapshots = $state<Record<string, DownloadSnapshot>>({});
+  // Only inspect rendered local items. No directory scans or browser history access.
+  const downloadPaths = $derived(rows.virtualItems.flatMap((row) =>
+    view === "grid" ? gridRowEntries(row.index) : [visibleEntries[row.index]],
+  ).filter((entry): entry is DirectoryEntry => !!entry && !entry.inner_path && canDragOut(entry) &&
+    isPartialDownload(entry.name))
+    .map((entry) => entry.path).slice(0, 512).join("\0"));
+
+  $effect(() => {
+    const paths = downloadPaths ? downloadPaths.split("\0") : [];
+    const refresh = onFilesChanged;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    downloadSnapshots = {};
+    async function poll() {
+      try {
+        if (!document.hidden) {
+          const snapshots = await invoke<DownloadSnapshot[]>("read_download_progress", { paths });
+          if (stopped) return;
+          downloadSnapshots = Object.fromEntries(snapshots.map((snapshot) => [snapshot.path, snapshot]));
+          if (snapshots.some((snapshot) => snapshot.missing)) refresh?.();
+        }
+      } catch (error) {
+        // Optional metadata must never prevent browsing a folder.
+        if (!stopped) console.warn("Could not read download progress", error);
+      } finally {
+        if (!stopped) timer = setTimeout(poll, 1000);
+      }
+    }
+    if (paths.length) void poll();
+    return () => { stopped = true; clearTimeout(timer); };
   });
 
   // Checkboxes cascade in and out from the top of the viewport.
@@ -406,7 +462,7 @@
       role={view === "list" ? "grid" : undefined}
       aria-multiselectable={view === "list" ? "true" : undefined}
       aria-rowcount={view === "list" ? visibleEntries.length + 1 : undefined}
-      class="flex h-full min-h-0 min-w-0 flex-col text-left">
+      class="relative flex h-full min-h-0 min-w-0 flex-col text-left">
       {#snippet sortIcon(column: SortColumn)}
         {#if sortColumn === column}
           {#if sortDir === "asc"}<ArrowUpIcon class="size-3" />{:else}<ArrowDownIcon class="size-3" />{/if}
@@ -415,13 +471,12 @@
         {/if}
       {/snippet}
       {#if view === "list"}
-        <!-- Sticky header lives inside the scroll container so it stays aligned with the
-             rows during both vertical and horizontal scrolling. -->
+        <!-- Glass header floats over the scroll area, so rows stay visible, blurred, behind it. -->
         <div
           role="row"
           aria-rowindex={1}
           style={gridTemplate}
-          class="list-header sticky top-0 z-10 grid h-8 items-center bg-[#242220] text-[11px] font-semibold uppercase tracking-wide text-[#9c9895] shadow-[inset_0_-1px_0_#3a3734]">
+          class="list-header absolute inset-x-0 z-10 grid h-8 items-center text-[11px] font-semibold uppercase tracking-wide text-[#9c9895]">
           <div role="columnheader" class="flex items-center px-2">
             <!-- First click turns on checkbox selection; after that it selects or deselects everything. -->
             <SelectionCheckbox
@@ -457,15 +512,18 @@
         </div>
       {/if}
       <!-- Blank-space click to deselect is a mouse-only convenience, like Finder. -->
-      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions, a11y_no_noninteractive_tabindex -->
       <div
         bind:this={scrollEl}
         bind:clientWidth={containerW}
         data-file-list
         data-pane-id={paneId}
+        data-key-scope="list"
+        tabindex="0"
         onclick={handleBlankClick}
         onscroll={() => scrollEl && onScroll?.(scrollEl.scrollTop)}
-        class="min-h-0 min-w-0 flex-1 overflow-auto px-2 pb-2 [scrollbar-gutter:stable]"
+        class="list-scroll min-h-0 min-w-0 flex-1 overflow-auto px-2 pb-2 [scrollbar-gutter:stable]"
+        class:with-header={view === "list"}
         class:remote-drop-active={externalOver}>
         {#if view === "list"}
           {#if visibleEntries.length === 0}
@@ -478,8 +536,10 @@
                   {@const selected = selectedPaths.has(entry.path)}
                   <ListItem
                     {entry}
+                    downloadSnapshot={downloadSnapshots[entry.path]}
                     view="list"
                     rowIndex={v.index + 2}
+                    zebra={v.index % 2 === 1}
                     {selected}
                     focused={entry.path === focusPath}
                     joinPrev={selected && v.index > 0 && selectedPaths.has(visibleEntries[v.index - 1].path)}
@@ -513,6 +573,7 @@
                 {#each gridRowEntries(v.index) as entry (entry.path)}
                   <ListItem
                     {entry}
+                    downloadSnapshot={downloadSnapshots[entry.path]}
                     view="grid"
                     selected={selectedPaths.has(entry.path)}
                     focused={entry.path === focusPath}
@@ -539,24 +600,60 @@
   </Resizable.Pane>
   {#if previewEntry}
     <Resizable.Handle />
-    <Resizable.Pane id="preview" order={2} defaultSize={35} minSize={20} maxSize={70} bind:ref={previewPaneEl}>
-      {#if previewEntry === SUMMARY}
-        <SelectionSummary entries={selectedVisible} />
-      {:else}
-        <PreviewPanel entry={previewEntry} />
-      {/if}
+    <Resizable.Pane id="preview" order={2} defaultSize={35} minSize={20} maxSize={70} class="pt-(--content-overlap)" bind:ref={previewPaneEl}>
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <div class="h-full min-h-0" data-key-scope="preview" data-pane-id={paneId} tabindex="0">
+        {#if previewEntry === SUMMARY}
+          <SelectionSummary entries={selectedVisible} />
+        {:else}
+          <PreviewPanel entry={previewEntry} />
+        {/if}
+      </div>
     </Resizable.Pane>
   {/if}
 </Resizable.PaneGroup>
 
 <style>
+  /* `--content-overlap` is the toolbar height the pane slides under (0 when the tab bar is open). */
+  .list-scroll {
+    padding-top: var(--content-overlap, 0px);
+    scroll-padding-top: var(--content-overlap, 0px);
+  }
+  .list-scroll.with-header {
+    padding-top: calc(var(--content-overlap, 0px) + 2rem);
+    scroll-padding-top: calc(var(--content-overlap, 0px) + 2rem);
+  }
+
   .list-header {
+    top: var(--content-overlap, 0px);
+    isolation: isolate;
+    box-shadow: inset 0 -1px 0 rgb(255 255 255 / 7%);
     transition: grid-template-columns 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  /* One frosted band from the top of the pane (under the toolbar) to the header's bottom edge. Full blur
+     from that edge up, so the header stands apart from the rows passing behind it. */
+  .list-header::before {
+    position: absolute;
+    inset: calc(-1 * var(--content-overlap, 0px)) 0 0;
+    z-index: -1;
+    background: linear-gradient(to top, rgb(36 34 32 / 62%), rgb(37 35 34 / 42%));
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    backdrop-filter: blur(24px) saturate(140%);
+    content: "";
+    pointer-events: none;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .list-header {
       transition: none;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .list-header::before {
+      background: #242220;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
     }
   }
 </style>

@@ -36,7 +36,7 @@
   import { atWindowEdge, startNativeDrag } from "$lib/file-drag/native-drag.js";
   import { isNetworkProtocol } from "$lib/remote/network-locations.js";
   import type { LocationStatus } from "$lib/remote/network-status.svelte.js";
-  import type { ComponentProps } from "svelte";
+  import { tick, type ComponentProps } from "svelte";
 
   let {
     ref = $bindable(null),
@@ -172,6 +172,63 @@
     window.addEventListener("pointerup", stop, { once: true });
     window.addEventListener("pointercancel", stop, { once: true });
   }
+
+  let sourcesNav = $state<HTMLElement | null>(null);
+  let lastFocused: HTMLElement | null = null;
+
+  function sidebarItems(): HTMLElement[] {
+    return sourcesNav ? [...sourcesNav.querySelectorAll<HTMLElement>("[data-sidebar-item]")] : [];
+  }
+
+  /** One sidebar item is in the Tab order at a time; arrows or j/k move between them. */
+  function rove(current: HTMLElement) {
+    for (const item of sidebarItems()) item.tabIndex = item === current ? 0 : -1;
+  }
+
+  function handleFocusIn(event: FocusEvent) {
+    const item = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-sidebar-item]") : null;
+    if (!item) return;
+    lastFocused = item;
+    rove(item);
+  }
+
+  $effect(() => {
+    void favorites.length;
+    void locations.length;
+    void tick().then(() => {
+      const items = sidebarItems();
+      const current = (lastFocused && items.includes(lastFocused) ? lastFocused : null) ?? items[0];
+      if (current) rove(current);
+    });
+  });
+
+  /** Focuses the item focused last, else the active one, else the first. */
+  export function focusItem(): boolean {
+    const items = sidebarItems();
+    const item =
+      (lastFocused && items.includes(lastFocused) ? lastFocused : null) ??
+      items.find((candidate) => candidate.classList.contains("active")) ??
+      items[0];
+    if (!item) return false;
+    item.focus();
+    return true;
+  }
+
+  export function moveFocus(delta: 1 | -1): boolean {
+    const items = sidebarItems();
+    const index = items.findIndex((item) => item === document.activeElement);
+    if (index < 0) return focusItem();
+    items[Math.max(0, Math.min(items.length - 1, index + delta))].focus();
+    return true;
+  }
+
+  export function openFocused(): boolean {
+    const item =
+      document.activeElement instanceof HTMLElement ? document.activeElement.closest<HTMLElement>("[data-sidebar-item]") : null;
+    if (!item) return false;
+    item.click();
+    return true;
+  }
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
@@ -185,23 +242,27 @@
     <Sidebar.Header class="titlebar-spacer p-0" data-tauri-drag-region ondblclick={onToggle} />
   {/if}
   <Sidebar.Content class="finder-sidebar p-0">
-    <nav class="finder-sources" aria-label="Finder sidebar">
+    <nav class="finder-sources" aria-label="Finder sidebar" data-key-scope="sidebar" bind:this={sourcesNav} onfocusin={handleFocusIn}>
       <button
+        data-sidebar-item
         aria-label="Go to Folder"
         title="Go to Folder (⇧⌘P)"
         onclick={() => onOpenPalette?.()}
         ><SearchIcon /> <span>Go to Folder…</span></button>
       <button
+        data-sidebar-item
         aria-label="Overview"
         title="Overview"
         class:active={selected === "Overview"}
         onclick={() => onOpen?.({ name: "Overview", path: "", kind: "overview" })}><GaugeIcon /> <span>Overview</span></button>
       <button
+        data-sidebar-item
         aria-label="Recents"
         title="Recents"
         class:active={selected === "Recents"}
         onclick={() => onOpen?.({ name: "Recents", path: "", kind: "recents" })}><Clock3Icon /> <span>Recents</span></button>
       <button
+        data-sidebar-item
         aria-label="Shared"
         title="Shared"
         class:active={selected === "Shared"}
@@ -221,7 +282,7 @@
                   data-favorite-index={index}
                   data-favorite-path={favorite.path}>
                   <button
-                    aria-label={favorite.name}
+                    aria-label={favorite.name} data-sidebar-item
                     title={favorite.path}
                     class:active={selected === favorite.name}
                     onpointerdown={(event) => startReorder(event, favorite)}
@@ -266,7 +327,7 @@
               {#snippet child({ props })}
                 <div {...props} class="location-row" data-state={status?.state ?? "idle"}>
                   <button
-                    aria-label={location.name}
+                    aria-label={location.name} data-sidebar-item
                     title={status?.state === "locked" ? `${location.name}: password needed` : location.name}
                     class:active={selected === location.name}
                     aria-busy={status?.state === "connecting"}
@@ -313,7 +374,7 @@
           </ContextMenu.Root>
         {:else}
           <button
-            aria-label={location.name}
+            aria-label={location.name} data-sidebar-item
             title={location.path}
             class:active={selected === location.name}
             onclick={() => onOpen?.(location)}
@@ -323,7 +384,7 @@
       <p>Tags</p>
       {#each tags as tag (tag)}
         <button
-          aria-label={tag}
+          aria-label={tag} data-sidebar-item
           title={tag}
           class:active={selected === tag}
           onclick={() => onOpen?.({ name: tag, path: "", kind: "tag" })}

@@ -23,6 +23,7 @@
   let slow = $state(false);
   let selected = $state<string[]>([]);
   let tree = $state<ReturnType<typeof PathTree> | null>(null);
+  let root = $state<HTMLElement | null>(null);
 
   $effect(() => {
     const current = path;
@@ -123,7 +124,7 @@
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key.toLowerCase() !== "f" || !(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
-    if (!tree) return;
+    if (!tree || !root?.contains(document.activeElement)) return;
     event.preventDefault();
     tree.openSearch();
   }
@@ -131,7 +132,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="flex min-h-0 flex-1 flex-col">
+<div bind:this={root} data-archive-view class="flex min-h-0 flex-1 flex-col">
   {#if error}
     <div class="grid flex-1 place-content-center justify-items-center gap-1 px-4 text-center">
       <ArchiveIcon class="mb-2 size-12 stroke-[1.2] text-[#67635f]" />

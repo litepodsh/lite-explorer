@@ -3,7 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { devToolsVisible } from "$lib/stores/devTools";
-  import { onMount, untrack } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
@@ -24,7 +24,7 @@
   import TitleBar from "$lib/components/custom/titlebar/title-bar.svelte";
   import CommandPalette from "$lib/components/custom/command-palette.svelte";
   import { platformState } from "$lib/state/platform.svelte.js";
-  import { openCommandPalette } from "$lib/state/command-palette.svelte";
+  import { commandPaletteState, openCommandPalette, openCommandPaletteWith } from "$lib/state/command-palette.svelte";
   import AddLocationDialog from "$lib/components/custom/sidebar/add-location/add-location-dialog.svelte";
   import PasswordPrompt from "$lib/components/custom/sidebar/add-location/password-prompt.svelte";
   import NewBucketDialog from "$lib/components/custom/remote/new-bucket-dialog.svelte";
@@ -50,12 +50,13 @@
   } from "$lib/remote/network-locations.js";
   import { remapMountPath } from "$lib/remote/network-paths.js";
   import { networkStatus, type ConnectOutcome } from "$lib/remote/network-status.svelte.js";
-  import { baseName, copyItem, moveItem } from "$lib/file-ops/files.js";
+  import { baseName, copyItem, moveItem, parentPath } from "$lib/file-ops/files.js";
   import { message } from "@tauri-apps/plugin-dialog";
   import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
   import ActivityDrawer from "$lib/components/custom/activity/activity-drawer.svelte";
+  import { applyDownloadProgress, fileDownloads } from "$lib/transfers/download-progress.svelte.js";
   import { JobsStore } from "$lib/transfers/jobs.svelte.js";
-  import { isRunning, type TransferEventPayload } from "$lib/transfers/jobs.js";
+  import { activity, isRunning, type TransferEventPayload } from "$lib/transfers/jobs.js";
   import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
   import CopyIcon from "@lucide/svelte/icons/copy";
   import ScissorsIcon from "@lucide/svelte/icons/scissors";
@@ -65,7 +66,26 @@
   import UpdateBanner from "$lib/updates/update-banner.svelte";
   import { updates } from "$lib/updates/updates.svelte.js";
   import { TransferClipboard } from "$lib/transfer-clipboard/queue.svelte.js";
+  import { CommandRegistry } from "$lib/keyboard/commands.js";
+  import { KeyboardDispatcher } from "$lib/keyboard/dispatcher.svelte.js";
+  import { allBindings, appliesTo } from "$lib/keyboard/keymap.js";
+  import { standardCommands } from "$lib/keyboard/app-commands.js";
+  import { formatToken, normalizeToken, toKeyPlatform } from "$lib/keyboard/keys.js";
+  import type { PaletteCommand } from "$lib/components/custom/command-palette.svelte";
+  import WhichKey from "$lib/keyboard/which-key.svelte";
+  import ShortcutsDialog from "$lib/keyboard/shortcuts-dialog.svelte";
+  import type { ShortcutRow } from "$lib/keyboard/shortcuts-filter.js";
+  import type { AppContext } from "$lib/keyboard/context.js";
+  import type { Scope } from "$lib/keyboard/scope.js";
+  import { downloadDir, homeDir } from "@tauri-apps/api/path";
+  import { openShortcuts } from "$lib/state/shortcuts-dialog.svelte.js";
+  import { navigationCommands } from "$lib/keyboard/navigation-commands.js";
+  import { nextRegion, type RegionSlot } from "$lib/keyboard/focus-cycle.js";
+  import { scrollPreview } from "$lib/keyboard/preview-scroll.js";
+  import { settings } from "$lib/settings/settings.svelte.js";
 
+  // Before any store reads a preference.
+  settings.load();
   const panes = new PanesStore();
   const controllers = new Map<string, FilePaneController>();
   const transferClipboard = new TransferClipboard();
@@ -91,7 +111,6 @@
 
   let activeController = $derived(controllerFor(panes.activeId));
 
-  let sidebarFloating = $state(false);
   let sidebarOpen = $state(true);
   let sidebarResizing = $state(false);
   let platform = $state<"macos" | "windows" | "linux" | "unknown">("unknown");
@@ -114,12 +133,13 @@
   let newBucketOpen = $state(false);
   let bucketSettingsOpen = $state(false);
   let bucketSettingsTarget = $state<DirectoryEntry | null>(null);
-  let showHiddenFiles = $state(false);
+  let showHiddenFiles = $derived(settings.current.showHiddenFiles);
   let itemCheckboxes = $state(false);
-  let showFps = $state(false);
+  let showFps = $derived(settings.current.showFps);
+  const jobs = new JobsStore();
   let activityOpen = $state(false);
   let finderSearch = $state<ReturnType<typeof FinderSearch>>();
-  const jobs = new JobsStore();
+  let sidebar = $state<ReturnType<typeof AppSidebar>>();
   let transferActivity = $derived(
     (() => {
       const active = jobs.jobs.find(isRunning);
@@ -408,23 +428,39 @@
       locations = savedLocations;
       void networkStatus.refresh().catch(() => {});
     });
-    sidebarFloating = localStorage.getItem("sidebar-floating") === "true";
     const savedWidth = Number(localStorage.getItem("sidebar-width"));
     if (savedWidth >= sidebarMinimumWidth) {
       sidebarWidth = Math.min(savedWidth, sidebarMaximumWidth);
     }
-    showHiddenFiles = localStorage.getItem("show-hidden-files") === "true";
-    void invoke("set_sidebar_floating", { floating: sidebarFloating });
-    void invoke("set_show_hidden_files", { show: showHiddenFiles });
-    const savedShowFps = localStorage.getItem("show-fps");
-    showFps = savedShowFps === null ? dev : savedShowFps === "true";
-    void invoke("set_show_fps", { show: showFps });
+    activity.publish = (event) => jobs.upsert(event);
     extraction.onExtracted = (paths) => {
       for (const controller of controllers.values()) void controller.refreshListing(controller.listingPath);
       markPasted(paths);
     };
+    const stopSettings = settings.listen();
+    // Focus rings for keyboard regions show only while the keyboard is in use.
+    const markKeyboard = () => (document.documentElement.dataset.keyboard = "");
+    const markPointer = () => delete document.documentElement.dataset.keyboard;
+    window.addEventListener("keydown", markKeyboard, true);
+    window.addEventListener("pointerdown", markPointer, true);
     const unlisteners = [
       listen<TransferEventPayload>("transfer-progress", ({ payload }) => {
+        const previousProgress = fileDownloads.jobs[payload.id];
+        const previousFile = previousProgress?.path;
+        applyDownloadProgress(payload);
+        if (payload.fileProgress?.path !== previousFile ||
+            ((payload.fileProgress?.bytesDone ?? 0) > 0 && (previousProgress?.bytesDone ?? 0) === 0)) {
+          const file = payload.fileProgress?.path ?? previousFile;
+          if (file) {
+            const parent = parentPath(file);
+            for (const controller of controllers.values()) {
+              const listing = controller.listingPath;
+              if (parent === listing || parent === `${listing}/` || parent === `${listing}\\` || listing === payload.destination) {
+                void controller.refreshListing(listing);
+              }
+            }
+          }
+        }
         jobs.upsert(payload);
         extraction.applyProgress(payload);
       }),
@@ -438,22 +474,9 @@
           if (writable && payload.paths.length) void controller.uploadToListing(payload.paths);
         }
       }),
-      listen<boolean>("sidebar-floating", ({ payload }) => {
-        sidebarFloating = payload;
-        localStorage.setItem("sidebar-floating", String(payload));
-      }),
-      listen<boolean>("show-hidden-files", ({ payload }) => {
-        showHiddenFiles = payload;
-        localStorage.setItem("show-hidden-files", String(payload));
-      }),
-      listen<boolean>("show-fps", ({ payload }) => {
-        showFps = payload;
-        localStorage.setItem("show-fps", String(payload));
-      }),
-      listen<boolean>("dev-tools", ({ payload }) => {
-        devToolsVisible.set(payload);
-        localStorage.setItem("dev-tools", String(payload));
-      }),
+      listen<boolean>("show-hidden-files", ({ payload }) => settings.set("showHiddenFiles", payload)),
+      listen<boolean>("show-fps", ({ payload }) => settings.set("showFps", payload)),
+      listen<boolean>("dev-tools", ({ payload }) => settings.set("prototypeSwitcher", payload)),
       listen<{ path: string; sizes: { path: string; size: number }[] }>(
         "directory-sizes",
         ({ payload }) => {
@@ -471,14 +494,32 @@
       listen("pane-toggle", () => panes.togglePane()),
       listen("pane-orientation", () => panes.toggleLayout()),
       listen("command-palette", () => openCommandPalette()),
+      listen("open-shortcuts", () => {
+        void getCurrentWindow().setFocus();
+        openShortcuts();
+      }),
       listen("check-for-updates", () => void updates.check({ manual: true })),
     ];
     // Development builds have no published release to compare against.
     const stopUpdates = dev ? () => {} : updates.start();
     return () => {
+      stopSettings();
+      window.removeEventListener("keydown", markKeyboard, true);
+      window.removeEventListener("pointerdown", markPointer, true);
+      activity.publish = () => {};
+      fileDownloads.jobs = {};
       stopUpdates();
       unlisteners.forEach((unlisten) => void unlisten.then((stop) => stop()));
     };
+  });
+
+  // Native menu check items follow the settings, including changes made in the Settings window.
+  $effect(() => void invoke("set_show_hidden_files", { show: settings.current.showHiddenFiles }));
+  $effect(() => void invoke("set_show_fps", { show: settings.current.showFps }));
+  $effect(() => {
+    const visible = settings.current.prototypeSwitcher;
+    devToolsVisible.set(visible);
+    if (dev) void invoke("set_prototype_switcher", { visible }).catch(() => {});
   });
 
   // Load each pane's active tab whenever its location or active tab changes. `locationKey` is a
@@ -511,73 +552,243 @@
     localStorage.setItem("sidebar-width", String(sidebarWidth));
   }
 
-  /** Enter opens the active pane's selection, unless focus is in a text field, menu or control. */
-  function handleEnterKeydown(event: KeyboardEvent) {
-    activeController.handleEnterKeydown(event);
-  }
-
-  function handleTabKeydown(event: KeyboardEvent) {
-    const modifier = platform === "macos" ? event.metaKey : event.ctrlKey;
-    if (!modifier || event.altKey) return;
-    if (event.shiftKey && event.key.toLowerCase() === "t") {
-      event.preventDefault();
-      panes.newTabInOtherPane();
-      return;
-    }
-    if (!event.shiftKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-      const index = panes.panes.findIndex((pane) => pane.id === panes.activeId);
-      const target = panes.panes[index + (event.key === "ArrowLeft" ? -1 : 1)];
-      if (target) {
-        event.preventDefault();
-        panes.setActive(target.id);
-      }
-      return;
-    }
-    if (event.shiftKey || !/^[1-9]$/.test(event.key)) return;
-    if (panes.activeTabs.selectDigit(Number(event.key))) event.preventDefault();
-  }
-
   // Multiple selection mode starts off each launch.
   function setItemCheckboxes(show: boolean) {
     itemCheckboxes = show;
   }
 
-  function handleWindowKeydown(event: KeyboardEvent) {
-    const modifier = platform === "macos" ? event.metaKey : event.ctrlKey;
-    const target = event.target instanceof Element ? event.target : null;
-    const editing = Boolean(target?.closest("input, textarea, select, [contenteditable='true'], [role='menu'], [role='dialog']"));
-    if (modifier && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "f" && !target?.closest(".monaco-editor")) {
-      event.preventDefault();
-      finderSearch?.focus();
-      return;
-    }
-    if (modifier && !event.altKey && !editing && !event.shiftKey) {
-      const key = event.key.toLowerCase();
-      if (key === "c" && activeController.enqueueSelected("copy")) event.preventDefault();
-      if (key === "x" && activeController.enqueueSelected("move")) event.preventDefault();
-      if (key === "v" && activeController.isBrowsableFolder() && transferClipboard.items.length) {
-        event.preventDefault();
-        void pasteTransferClipboard();
-      }
-    }
-    // Escape leaves checkbox selection mode; the file list then clears the selection itself.
-    if (
-      event.key === "Escape" &&
-      itemCheckboxes &&
-      !editing &&
-      !event.defaultPrevented &&
-      !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey &&
-      !activeController.contextMenuOpen &&
-      !confirmation.open
-    ) {
-      setItemCheckboxes(false);
-      activeController.clearSelection();
-      event.preventDefault();
-    }
-    handleTabKeydown(event);
-    handleEnterKeydown(event);
-    activeController.handleFileListKeydown(event, showHiddenFiles);
+  const commands = new CommandRegistry<AppContext>();
+  commands.register([...standardCommands(), ...navigationCommands()]);
+  const bindings = allBindings();
+
+  const QUICK_LOCATIONS = {
+    overview: { name: "Overview", path: "", kind: "overview" },
+    recents: { name: "Recents", path: "", kind: "recents" },
+    shared: { name: "Shared", path: "", kind: "shared" },
+  } satisfies Record<string, Location>;
+
+  function regionElement(slot: RegionSlot): HTMLElement | null {
+    if (slot.region === "sidebar") return document.querySelector<HTMLElement>("[data-key-scope='sidebar']");
+    return document.querySelector<HTMLElement>(
+      `[data-key-scope='${slot.region}'][data-pane-id='${CSS.escape(slot.paneId ?? "")}']`,
+    );
   }
+
+  /** Regions in F6 order that exist on screen right now. */
+  function regionSlots(): RegionSlot[] {
+    const slots: RegionSlot[] = sidebarOpen ? [{ region: "sidebar", paneId: null }] : [];
+    for (const pane of panes.panes) {
+      slots.push({ region: "list", paneId: pane.id }, { region: "preview", paneId: pane.id });
+    }
+    return slots.filter((slot) => regionElement(slot));
+  }
+
+  function focusedSlot(): RegionSlot {
+    const element = document.activeElement?.closest<HTMLElement>("[data-key-scope]");
+    const region = element?.dataset.keyScope;
+    if (region === "sidebar") return { region, paneId: null };
+    if ((region === "list" || region === "preview") && element?.dataset.paneId) {
+      return { region, paneId: element.dataset.paneId };
+    }
+    return { region: "list", paneId: panes.activeId };
+  }
+
+  function focusSlot(slot: RegionSlot): boolean {
+    if (slot.region === "sidebar") return sidebar?.focusItem() ?? false;
+    const element = regionElement(slot);
+    if (!element) return false;
+    if (slot.paneId) panes.setActive(slot.paneId);
+    element.focus();
+    return true;
+  }
+
+  function reportCommandError(title: string, error: unknown) {
+    void message(error instanceof Error ? error.message : String(error), {
+      title: `Couldn’t run “${title}”`,
+      kind: "error",
+    });
+  }
+
+  /** Rows whose command can't run in the active pane right now are marked in the dialog. */
+  function shortcutAvailable(row: ShortcutRow): boolean {
+    if (!row.command) return true;
+    const scope: Scope = row.scope === "global" ? "list" : row.scope;
+    return commands.available(row.command, keyboardContext(scope));
+  }
+
+  const PALETTE_COMMANDS = ["app.shortcuts", "app.settings", "app.toggleKeyboardMode", "preview.toggle", "view.list", "view.grid"];
+
+  function shortcutFor(id: string): string {
+    const keyPlatform = toKeyPlatform(platform);
+    const mode = settings.current.keyboardMode;
+    const matches = (binding: (typeof bindings)[number], wanted: "standard" | "yazi") =>
+      binding.command === id && binding.mode === wanted && appliesTo(binding, keyPlatform);
+    const binding =
+      bindings.find((candidate) => matches(candidate, mode)) ??
+      bindings.find((candidate) => matches(candidate, "standard")) ??
+      (id === "app.settings" ? bindings.find((candidate) => candidate.menuId === "open-settings") : undefined);
+    return binding ? binding.keys.map((key) => formatToken(normalizeToken(key, keyPlatform), keyPlatform)).join(" ") : "";
+  }
+
+  function paletteTitle(id: string): string {
+    if (id === "app.shortcuts") return "Keyboard Shortcuts…";
+    if (id === "app.settings") return "Settings…";
+    if (id === "app.toggleKeyboardMode") {
+      return settings.current.keyboardMode === "yazi" ? "Turn Off Yazi Mode" : "Turn On Yazi Mode";
+    }
+    return commands.get(id)?.title ?? id;
+  }
+
+  let paletteCommands = $derived<PaletteCommand[]>(
+    PALETTE_COMMANDS.map((id) => ({
+      id,
+      title: paletteTitle(id),
+      shortcut: shortcutFor(id),
+      run: () => {
+        const result = commands.run(id, keyboardContext("global"));
+        if (result instanceof Promise) result.catch((error: unknown) => reportCommandError(paletteTitle(id), error));
+      },
+    })),
+  );
+
+  /** What keyboard commands act on: the active pane at the moment of the key press. */
+  function keyboardContext(scope: Scope): AppContext {
+    const controller = activeController;
+    const showHidden = showHiddenFiles;
+    return {
+      scope,
+      list: {
+        blocked: () => controller.keyboardBlocked(),
+        view: () => controller.keyboardView(),
+        remote: () => controller.remoteListing,
+        moveFocus: (key, modifiers) => controller.moveFocus(key, modifiers, showHidden),
+        moveHalfPage: (direction) => controller.moveHalfPage(direction, showHidden),
+        enterFocused: () => controller.enterFocused(showHidden),
+        enterOrOpenFocused: () => controller.enterOrOpenFocused(showHidden),
+        openParent: () => controller.openParentFromKeyboard(),
+        selectFocused: (mode) => controller.selectFocused(mode, showHidden),
+        toggleFocusedAndNext: () => controller.toggleFocusedAndNext(showHidden),
+        selectAll: () => controller.selectAllListed(showHidden),
+        invertSelection: () => controller.invertSelection(showHidden),
+        startVisual: (mode) => controller.startVisual(mode, showHidden),
+        exitVisual: () => controller.exitVisual(),
+        clearSelection: () => controller.clearSelectionIfAny(),
+        trashSelection: (options) => controller.trashSelection(options),
+        openSelection: () => controller.openSelection(),
+        renameFocused: () => controller.renameFocused(showHidden),
+        createItem: (kind) => controller.createFromKeyboard(kind),
+        copyText: (kind) => controller.copyText(kind, showHidden),
+        enqueueSelected: (mode) => controller.enqueueSelected(mode),
+        canPaste: () => controller.isBrowsableFolder() && transferClipboard.items.length > 0,
+        paste: () => void pasteTransferClipboard(),
+        clearClipboard: () => {
+          if (transferClipboard.items.length === 0) return false;
+          transferClipboard.clear();
+          return true;
+        },
+        sort: (column, dir) => controller.sortFromKeyboard(column, dir),
+      },
+      panes: {
+        activeIndex: () => panes.panes.findIndex((pane) => pane.id === panes.activeId),
+        count: () => panes.panes.length,
+        activate: (index) => panes.setActive(panes.panes[index].id),
+        newTabInOtherPane: () => panes.newTabInOtherPane(),
+        toggleSecond: () => panes.togglePane(),
+      },
+      tabs: {
+        selectDigit: (digit) => panes.activeTabs.selectDigit(digit),
+        newTab: () => panes.newTab(),
+        cycle: (delta) => controller.tabs.cycle(delta),
+        moveActive: (delta) => {
+          const tabs = controller.tabs;
+          const index = tabs.tabs.findIndex((tab) => tab.id === tabs.activeId);
+          const target = index + delta;
+          if (target < 0 || target >= tabs.tabs.length) return false;
+          tabs.move(index, target);
+          return true;
+        },
+        history: (direction) => {
+          if (direction === "back" ? !controller.canBack : !controller.canForward) return false;
+          if (direction === "back") controller.goBack();
+          else controller.goForward();
+          return true;
+        },
+      },
+      checkboxes: { active: () => itemCheckboxes, exit: () => setItemCheckboxes(false) },
+      preview: {
+        toggle: () => (controller.previewOpen = !controller.previewOpen),
+        scroll: (direction) => {
+          const element = regionElement({ region: "preview", paneId: controller.paneId });
+          return element ? scrollPreview(element, direction) : false;
+        },
+      },
+      regions: {
+        cycle: (direction) => {
+          const target = nextRegion(regionSlots(), focusedSlot(), direction);
+          return target ? focusSlot(target) : false;
+        },
+        focus: (region) => {
+          if (region === "sidebar") {
+            if (!sidebarOpen) toggleSidebar();
+            void tick().then(() => sidebar?.focusItem());
+            return true;
+          }
+          if (focusSlot({ region: "list", paneId: panes.activeId })) return true;
+          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+          return true;
+        },
+        sidebarMove: (delta) => sidebar?.moveFocus(delta) ?? false,
+        sidebarOpen: () => sidebar?.openFocused() ?? false,
+      },
+      app: {
+        mode: () => settings.current.keyboardMode,
+        toggleKeyboardMode: () =>
+          settings.set("keyboardMode", settings.current.keyboardMode === "yazi" ? "standard" : "yazi"),
+        toggleHidden: () => settings.set("showHiddenFiles", !settings.current.showHiddenFiles),
+        toggleActivity: () => (activityOpen = !activityOpen),
+        openShortcuts: () => openShortcuts(),
+        openSettings: () => invoke<void>("open_settings"),
+        setView: (mode) => controller.tabs.update({ viewMode: mode }),
+      },
+      go: async (target) => {
+        if (target === "home" || target === "downloads") {
+          const path = target === "home" ? await homeDir() : await downloadDir();
+          openAnyLocation({ name: baseName(path) || path, path, kind: "folder" });
+          return;
+        }
+        openAnyLocation(QUICK_LOCATIONS[target]);
+      },
+      focusSearch: () => finderSearch?.focus(),
+      searchContent: () => {
+        controller.setSearchMode("content");
+        finderSearch?.focus();
+      },
+      togglePalette: () => (commandPaletteState.open = !commandPaletteState.open),
+      openPalette: (query) => openCommandPaletteWith(query),
+      currentPath: () => controller.listingPath,
+      focusInside: (selector) => Boolean(document.activeElement?.closest(selector)),
+    };
+  }
+
+  const keyboard = new KeyboardDispatcher<AppContext>({
+    registry: commands,
+    bindings: () => bindings,
+    platform: () => toKeyPlatform(platform),
+    mode: () => settings.current.keyboardMode,
+    timeoutMs: () => settings.current.chordTimeoutMs,
+    modalOpen: () => confirmation.open || activeController.contextMenuOpen,
+    context: keyboardContext,
+    onError: reportCommandError,
+  });
+
+  // Switching keyboard mode drops a half-typed chord and any visual selection.
+  $effect(() => {
+    void settings.current.keyboardMode;
+    untrack(() => {
+      keyboard.cancel();
+      for (const controller of controllers.values()) controller.exitVisual();
+    });
+  });
 
   async function pasteTransferClipboard() {
     const request = transferClipboard.beginPaste(activeController.listingPath);
@@ -623,7 +834,7 @@
 </script>
 
 <svelte:head><title>{activeController.selected} - Lite Explorer</title></svelte:head>
-<svelte:window onkeydown={handleWindowKeydown} />
+<svelte:window onkeydown={keyboard.handle} />
 
 {#if platform === "windows" || platform === "linux"}
   <TitleBar {platform} />
@@ -632,8 +843,9 @@
   bind:open={sidebarOpen}
   onToggle={toggleSidebar}
   style={`--sidebar-width: ${sidebarWidth}px;`}
-  class={`finder-window platform-${platform}${sidebarFloating ? " sidebar-floating" : ""}${sidebarResizing ? " sidebar-resizing" : ""}${sidebarOpen ? "" : " sidebar-collapsed"}`}>
+  class={`finder-window platform-${platform}${sidebarResizing ? " sidebar-resizing" : ""}${sidebarOpen ? "" : " sidebar-collapsed"}`}>
   <AppSidebar
+    bind:this={sidebar}
     selected={activeController.selected}
     {favorites}
     {locations}
@@ -653,7 +865,7 @@
     onResizeStart={() => (sidebarResizing = true)}
     onResizeEnd={() => (sidebarResizing = false)}
     onToggle={toggleSidebar}
-    variant={sidebarFloating ? "floating" : "sidebar"}
+    variant="sidebar"
     onOpenPalette={openCommandPalette}
     brand={hasTitleBar} />
   {#if !hasTitleBar}
@@ -683,7 +895,14 @@
   <ConfirmHost />
   <ConflictHost />
   <UpdateBanner />
-  <CommandPalette {favorites} {locations} recents={activeController.recents} onNavigate={(location, opts) => openAnyLocation(location, opts)} />
+  <CommandPalette commands={paletteCommands} {favorites} {locations} recents={activeController.recents} onNavigate={(location, opts) => openAnyLocation(location, opts)} />
+  <WhichKey pending={keyboard.pending} enabled={settings.current.showWhichKey} platform={toKeyPlatform(platform)} />
+  <ShortcutsDialog
+    {bindings}
+    platform={toKeyPlatform(platform)}
+    mode={settings.current.keyboardMode}
+    available={shortcutAvailable}
+    onToggleMode={() => void commands.run("app.toggleKeyboardMode", keyboardContext("global"))} />
   <Sidebar.Inset class="finder-content">
     <header class="finder-toolbar" data-tauri-drag-region="deep">
       <div class="toolbar-leading">
@@ -706,37 +925,45 @@
         >{activeController.selected}<ChevronDownIcon /></button>
       <div class="toolbar-actions">
         {#if activeController.selected !== "Overview"}
-          <button aria-label="List view" aria-pressed={activeController.viewMode === "list"} onclick={() => activeController.tabs.update({ viewMode: "list" })}><ListIcon /></button>
-          <button aria-label="Icon view" aria-pressed={activeController.viewMode === "grid"} onclick={() => activeController.tabs.update({ viewMode: "grid" })}><Grid2X2Icon /></button>
+          <div class="toolbar-group">
+            <button aria-label="List view" aria-pressed={activeController.viewMode === "list"} onclick={() => activeController.tabs.update({ viewMode: "list" })}><ListIcon /></button>
+            <button aria-label="Icon view" aria-pressed={activeController.viewMode === "grid"} onclick={() => activeController.tabs.update({ viewMode: "grid" })}><Grid2X2Icon /></button>
+          </div>
+          <div class="toolbar-group">
+            <button
+              aria-label={itemCheckboxes ? "Hide item checkboxes" : "Show item checkboxes"}
+              aria-pressed={itemCheckboxes}
+              title="Item Checkboxes"
+              onclick={() => setItemCheckboxes(!itemCheckboxes)}><ListChecksIcon /></button>
+            <button
+              aria-label={activeController.previewOpen ? "Hide preview" : "Show preview"}
+              aria-pressed={activeController.previewOpen}
+              title={activeController.previewOpen ? "Hide preview" : "Show preview"}
+              onclick={() => (activeController.previewOpen = !activeController.previewOpen)}>{#if activeController.previewOpen}<PanelRightCloseIcon />{:else}<PanelRightOpenIcon />{/if}</button>
+          </div>
+        {/if}
+        <div class="toolbar-group">
           <button
-            aria-label={itemCheckboxes ? "Hide item checkboxes" : "Show item checkboxes"}
-            aria-pressed={itemCheckboxes}
-            title="Item Checkboxes"
-            onclick={() => setItemCheckboxes(!itemCheckboxes)}><ListChecksIcon /></button>
+            aria-label="Toggle second pane"
+            aria-pressed={panes.panes.length > 1}
+            title="Show Second Pane"
+            onclick={() => panes.togglePane()}><Columns2Icon /></button>
           <button
-            aria-label={activeController.previewOpen ? "Hide preview" : "Show preview"}
-            aria-pressed={activeController.previewOpen}
-            title={activeController.previewOpen ? "Hide preview" : "Show preview"}
-            onclick={() => (activeController.previewOpen = !activeController.previewOpen)}>{#if activeController.previewOpen}<PanelRightCloseIcon />{:else}<PanelRightOpenIcon />{/if}</button>
-         {/if}
-        <button
-          aria-label="Toggle second pane"
-          aria-pressed={panes.panes.length > 1}
-          title="Show Second Pane"
-          onclick={() => panes.togglePane()}><Columns2Icon /></button>
-        <button
-          aria-label="Toggle pane orientation"
-          title="Split Horizontally/Vertically"
-          onclick={() => panes.toggleLayout()}><Rows2Icon /></button>
-        <button
-          aria-label="Activity"
-          aria-pressed={activityOpen}
-          title="Activity"
-          class="activity-toggle"
-          onclick={() => (activityOpen = !activityOpen)}>
-          <RotateCwIcon />
-          {#if jobs.activeCount > 0}<span class="activity-badge">{jobs.activeCount}</span>{/if}
-        </button>
+            aria-label="Toggle pane orientation"
+            title="Split Horizontally/Vertically"
+            onclick={() => panes.toggleLayout()}><Rows2Icon /></button>
+        </div>
+        <div class="toolbar-group">
+          <button
+            aria-label="Activity"
+            aria-pressed={activityOpen}
+            title="Activity"
+            class="activity-toggle"
+            onclick={() => (activityOpen = !activityOpen)}>
+            <RotateCwIcon />
+            {#if jobs.activeCount > 0}<span class="activity-badge">{jobs.activeCount}</span>{/if}
+          </button>
+        </div>
         <FinderSearch bind:this={finderSearch} controller={activeController} />
       </div>
     </header>
@@ -760,6 +987,10 @@
           onCrossPaneDrop={(from, to, fromIndex, toIndex) => panes.moveTab(from, to, fromIndex, toIndex)}
           {favoritePaths}
           {pastedPaths}
+          keyboardMode={settings.current.keyboardMode}
+          pendingKeys={pane.id === panes.activeId && keyboard.pending
+            ? keyboard.pending.typed.map((token) => formatToken(token, toKeyPlatform(platform))).join(" ")
+            : ""}
           onToggleFavorite={(entry, add) => (add ? addToFavorites(entry.path) : removeFromFavorites(entry.path))} />
       {/each}
     </div>

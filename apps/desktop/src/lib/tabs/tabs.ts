@@ -20,8 +20,8 @@ function newTab(id: string, location: Location, viewMode: ViewMode): Tab {
   return { id, location, back: [], forward: [], viewMode, selection: EMPTY_SELECTION };
 }
 
-export function createTabsState(id: string, location: Location = OVERVIEW): TabsState {
-  return { tabs: [newTab(id, location, "list")], activeId: id };
+export function createTabsState(id: string, location: Location = OVERVIEW, viewMode: ViewMode = "list"): TabsState {
+  return { tabs: [newTab(id, location, viewMode)], activeId: id };
 }
 
 export function activeTab(state: TabsState): Tab {
@@ -37,13 +37,13 @@ function replaceActive(state: TabsState, update: (tab: Tab) => Tab): TabsState {
   return { ...state, tabs: state.tabs.map((tab) => (tab.id === active.id ? update(tab) : tab)) };
 }
 
-export function openTab(state: TabsState, id: string, location?: Location): TabsState {
+export function openTab(state: TabsState, id: string, location?: Location, viewMode?: ViewMode): TabsState {
   const active = activeTab(state);
   const tabs = [...state.tabs];
   tabs.splice(
     tabs.indexOf(active) + 1,
     0,
-    newTab(id, location ?? active.location, active.viewMode),
+    newTab(id, location ?? active.location, viewMode ?? active.viewMode),
   );
   return { tabs, activeId: id };
 }

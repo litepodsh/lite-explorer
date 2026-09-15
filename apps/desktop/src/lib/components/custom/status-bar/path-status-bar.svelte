@@ -12,7 +12,7 @@
   import { openCommandPalette } from "$lib/state/command-palette.svelte";
   import SearchIcon from "@lucide/svelte/icons/search";
 
-  let { path = "", network = false, entries = [], selectedEntries = [], showFps = false, activity = null } = $props<{
+  let { path = "", network = false, entries = [], selectedEntries = [], showFps = false, activity = null, keyboardMode = "standard", visual = false, pendingKeys = "" } = $props<{
     path?: string;
     /** The path is inside a network location, shown as its server address. */
     network?: boolean;
@@ -22,6 +22,11 @@
     showFps?: boolean;
     /** Background work to surface, like a folder scan. Shown with a spinner while set. */
     activity?: string | null;
+    keyboardMode?: "standard" | "yazi";
+    /** Yazi visual mode is on in this pane. */
+    visual?: boolean;
+    /** Keys of a chord being typed, like `g`. */
+    pendingKeys?: string;
   }>();
 
   let copied = $state(false);
@@ -79,6 +84,13 @@
       {#if copied}<CheckIcon class="size-3.5" />{:else}<CopyIcon class="size-3.5" />{/if}
     </button>
   {/if}
+  {#if keyboardMode === "yazi" || visual || pendingKeys}
+    <span class="ml-2 inline-flex shrink-0 items-center gap-1">
+      {#if keyboardMode === "yazi"}<span class="key-pill">YAZI</span>{/if}
+      {#if visual}<span class="key-pill key-pill-visual">VISUAL</span>{/if}
+      {#if pendingKeys}<span class="key-pill key-pill-pending" aria-live="polite">{pendingKeys} …</span>{/if}
+    </span>
+  {/if}
   {#if activity}
     <span class="ml-auto inline-flex shrink-0 items-center gap-1.5 tabular-nums text-[#9c9895]" aria-live="polite">
       <LoaderCircleIcon class="size-3 animate-spin text-[#0a9bff] motion-reduce:animate-none" />{activity}
@@ -98,3 +110,26 @@
     <span class={targetCount > 0 || activity ? "" : "ml-auto"}><FpsMeter /></span>
   {/if}
 </footer>
+
+<style>
+  .key-pill {
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 6%);
+    color: #a8a4a1;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 16px;
+  }
+  .key-pill-visual {
+    background: rgb(10 155 255 / 18%);
+    color: #5cb9ff;
+  }
+  .key-pill-pending {
+    background: rgb(255 184 76 / 16%);
+    color: #ffc76b;
+    letter-spacing: 0.02em;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+</style>

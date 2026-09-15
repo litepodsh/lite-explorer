@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  trackJob,
+  formatJobDuration,
   clearCompleted,
   createJobsState,
   isRunning,
@@ -102,4 +104,47 @@ describe("removeJob / isRunning", () => {
     expect(isRunning({ ...base, state: "paused" })).toBe(true);
     expect(isRunning({ ...base, state: "done" })).toBe(false);
   });
+});
+
+test("file activities publish active and terminal states, preserving results and failures", async () => {
+  const events: TransferEventPayload[] = [];
+  const publish = (event: TransferEventPayload) => { events.push(event); };
+  let finish!: (value: string) => void;
+  const pending = trackJob(publish, "copy", "Copy: a.txt", "/dest", () => new Promise<string>((resolve) => { finish = resolve; }));
+  expect(events.map((event) => event.state)).toEqual(["active"]);
+  expect(events[0].cancellable).toBe(false);
+  finish("copied path");
+  expect(await pending).toBe("copied path");
+  expect(events.map((event) => event.state)).toEqual(["active", "done"]);
+  expect(events[1].id).toBe(events[0].id);
+  const failure = new Error("Permission denied");
+  const caught = await trackJob(publish, "delete", "Delete: b.txt", "", async () => { throw failure; }).catch((error) => error);
+  expect(caught).toBe(failure);
+  expect(events.slice(2).map((event) => event.state)).toEqual(["active", "failed"]);
+  expect(events[3].error).toBe("Permission denied");
+  expect(events[2].id === events[0].id).toBe(false);
+  const state = events.reduce(upsert, createJobsState());
+  expect(visible(state, "done").length).toBe(1);
+  expect(visible(state, "failed").length).toBe(1);
+});
+
+test("activity timestamps cover every kind and freeze on every terminal state", () => {
+  const kinds = ["copy", "move", "delete", "create", "rename", "compress", "extract", "upload", "download", "send", "receive"] as const;
+  for (const kind of kinds) {
+    const first = upsert([], event({ kind, startedAt: 1000 }));
+    const paused = upsert(first, event({ kind, state: "paused", startedAt: 2000 }));
+    expect(paused[0].startedAt).toBe(1000);
+    expect(paused[0].finishedAt).toBeUndefined();
+    expect(formatJobDuration(paused[0], 2250)).toBe("1.250s");
+    for (const state of ["done", "failed", "cancelled"] as const) {
+      const ended = upsert(paused, event({ kind, state, startedAt: 1000, finishedAt: 2123 }));
+      const duplicate = upsert(ended, event({ kind, state, finishedAt: 9000 }));
+      expect(duplicate[0].finishedAt).toBe(2123);
+      expect(formatJobDuration(duplicate[0], 99000)).toBe("1.123s");
+    }
+  }
+  const short = upsert([], event({ state: "done", startedAt: 1000, finishedAt: 1007 }))[0];
+  expect(formatJobDuration(short, 99000)).toBe("0.007s");
+  expect(formatJobDuration({ ...short, finishedAt: 3_662_007 }, 0)).toBe("1h 1m 1.007s");
+  expect(formatJobDuration({ ...short, finishedAt: 999 }, 0)).toBe("0.000s");
 });

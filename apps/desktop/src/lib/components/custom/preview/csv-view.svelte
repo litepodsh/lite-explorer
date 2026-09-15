@@ -1,0 +1,327 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+  import CopyIcon from "@lucide/svelte/icons/copy";
+  import CheckIcon from "@lucide/svelte/icons/check";
+  import { parseCsv } from "./csv.js";
+  import { RAINBOW_COLUMN_COUNT } from "./rainbow-csv.js";
+
+  type Props = { content: string };
+  let { content }: Props = $props();
+
+  // Fixed row height lets the table window rows without measuring, so a 50k-row
+  // file keeps ~30 DOM rows regardless of scroll position.
+  const ROW_HEIGHT = 30;
+  const OVERSCAN = 8;
+  const GUTTER = "3.5rem";
+  const COLUMN_MIN = "9rem";
+
+  const parsed = $derived(parseCsv(content));
+  const rows = $derived(parsed.rows);
+  const header = $derived(rows[0] ?? []);
+  const body = $derived(rows.slice(1));
+  const columnCount = $derived(rows.reduce((max, row) => Math.max(max, row.length), 0));
+
+  let root = $state<HTMLElement | null>(null);
+  let scroller = $state<HTMLElement | null>(null);
+  let scrollTop = $state(0);
+  let viewport = $state(0);
+  let selection = $state<{ x: number; y: number } | null>(null);
+  let copied = $state(false);
+  let copiedRow = $state<number | null>(null);
+  let selectionFrame = 0;
+  let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+  let rowTimer: ReturnType<typeof setTimeout> | undefined;
+
+  onMount(() => {
+    if (!scroller) return;
+    const measure = () => {
+      viewport = scroller?.clientHeight ?? 0;
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(scroller);
+    measure();
+    document.addEventListener("selectionchange", scheduleSelection);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("selectionchange", scheduleSelection);
+      cancelAnimationFrame(selectionFrame);
+      clearTimeout(copiedTimer);
+      clearTimeout(rowTimer);
+    };
+  });
+
+  const start = $derived(Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN));
+  const end = $derived(
+    Math.min(body.length, Math.ceil((scrollTop + viewport) / ROW_HEIGHT) + OVERSCAN),
+  );
+  const visibleRows = $derived(body.slice(start, end));
+
+  const gridStyle = $derived(
+    `grid-template-columns: ${GUTTER} repeat(${Math.max(columnCount, 1)}, minmax(${COLUMN_MIN}, 1fr))`,
+  );
+  const contentWidth = $derived(
+    `calc(${GUTTER} + ${Math.max(columnCount, 1)} * ${COLUMN_MIN})`,
+  );
+  const placeholders = $derived(Array.from({ length: Math.max(columnCount - header.length, 0) }));
+
+  const classFor = (column: number) => `rainbow-col-${column % RAINBOW_COLUMN_COUNT}`;
+
+  function handleScroll() {
+    scrollTop = scroller?.scrollTop ?? 0;
+    selection = null;
+  }
+
+  function scheduleSelection() {
+    if (selectionFrame) return;
+    selectionFrame = requestAnimationFrame(() => {
+      selectionFrame = 0;
+      const active = window.getSelection();
+      if (!active || active.rangeCount === 0 || active.isCollapsed) {
+        selection = null;
+        return;
+      }
+      const anchor = active.anchorNode;
+      if (!root || !anchor || !root.contains(anchor)) {
+        selection = null;
+        return;
+      }
+      const rect = active.getRangeAt(0).getBoundingClientRect();
+      if (!rect || (rect.width === 0 && rect.height === 0)) {
+        selection = null;
+        return;
+      }
+      const rootRect = root.getBoundingClientRect();
+      selection = {
+        x: rect.left + rect.width / 2 - rootRect.left,
+        y: rect.bottom - rootRect.top + 8,
+      };
+    });
+  }
+
+  // Drops the row/column gutter and emits a rectangular, tab-separated grid, so a
+  // selection pastes cleanly into a spreadsheet or another CSV.
+  function selectionText(): string | null {
+    const active = window.getSelection();
+    if (!active || active.rangeCount === 0 || active.isCollapsed) return null;
+    const range = active.getRangeAt(0);
+    const cells = scroller?.querySelectorAll<HTMLElement>("[data-cell]") ?? [];
+    const picked: { row: number; column: number; text: string }[] = [];
+    for (const cell of cells) {
+      if (range.intersectsNode(cell)) {
+        picked.push({
+          row: Number(cell.dataset.row),
+          column: Number(cell.dataset.column),
+          text: cell.textContent ?? "",
+        });
+      }
+    }
+    if (picked.length === 0) return null;
+    if (picked.length === 1) return active.toString();
+
+    const byRow = new Map<number, Map<number, string>>();
+    let minColumn = Infinity;
+    let maxColumn = -Infinity;
+    for (const item of picked) {
+      let cellsOfRow = byRow.get(item.row);
+      if (!cellsOfRow) {
+        cellsOfRow = new Map();
+        byRow.set(item.row, cellsOfRow);
+      }
+      cellsOfRow.set(item.column, item.text);
+      minColumn = Math.min(minColumn, item.column);
+      maxColumn = Math.max(maxColumn, item.column);
+    }
+    const lines: string[] = [];
+    for (const row of [...byRow.keys()].sort((a, b) => a - b)) {
+      const cellsOfRow = byRow.get(row)!;
+      const line: string[] = [];
+      for (let column = minColumn; column <= maxColumn; column++) {
+        line.push(cellsOfRow.get(column) ?? "");
+      }
+      lines.push(line.join("\t"));
+    }
+    return lines.join("\n");
+  }
+
+  function handleCopy(event: ClipboardEvent) {
+    const text = selectionText();
+    if (!text) return;
+    event.clipboardData?.setData("text/plain", text);
+    event.preventDefault();
+  }
+
+  function tsvField(value: string): string {
+    return /[\t\n\r"]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+  }
+
+  async function copyRow(rowIndex: number) {
+    const row = rows[rowIndex + 1];
+    if (!row) return;
+    const text = Array.from({ length: columnCount }, (_, column) =>
+      tsvField(row[column] ?? ""),
+    ).join("\t");
+    if (!(await writeToClipboard(text))) return;
+    copiedRow = rowIndex;
+    clearTimeout(rowTimer);
+    rowTimer = setTimeout(() => {
+      copiedRow = null;
+    }, 1100);
+  }
+
+  async function copySelection() {
+    const text = selectionText();
+    if (!text) return;
+    if (!(await writeToClipboard(text))) return;
+    copied = true;
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => {
+      copied = false;
+    }, 1100);
+  }
+
+  // `navigator.clipboard` needs a secure context and a recent WebKitGTK; the
+  // execCommand path keeps copy working on older Linux WebViews.
+  async function writeToClipboard(text: string): Promise<boolean> {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      /* fall through */
+    }
+    try {
+      const field = document.createElement("textarea");
+      field.value = text;
+      field.setAttribute("readonly", "");
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.append(field);
+      field.select();
+      const ok = document.execCommand("copy");
+      field.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+</script>
+
+<div bind:this={root} class="relative h-full min-h-0">
+  {#if rows.length === 0}
+    <div class="grid h-full place-items-center text-[13px] text-[#9c9895]">Empty file</div>
+  {:else}
+    <div class="flex h-full min-h-0 flex-col">
+      {#if parsed.truncated}
+        <p class="shrink-0 border-b border-[#3a3734] px-3 py-1 text-[11px] text-[#9c9895]">
+          Large file - showing first {rows.length.toLocaleString()} rows
+        </p>
+      {/if}
+      <div
+        bind:this={scroller}
+        onscroll={handleScroll}
+        oncopy={handleCopy}
+        class="min-h-0 flex-1 overflow-auto">
+        <div class="min-h-full" style="min-width: {contentWidth}">
+          <div class="csv-head sticky top-0 z-20 grid bg-[#2a2825]" style={gridStyle}>
+            <div
+              class="sticky left-0 z-30 bg-[#2a2825] px-3 py-1.5 text-[11px] font-medium text-[#9c9895]"
+              >#</div>
+            {#each header as cell, column}
+              <div
+                data-cell
+                data-row="0"
+                data-column={column}
+                class="{classFor(column)} overflow-hidden text-ellipsis whitespace-nowrap px-3 py-1.5 text-[12px] font-semibold"
+                title={cell}>{cell}</div>
+            {/each}
+            {#each placeholders as _}
+              <div class="px-3 py-1.5"></div>
+            {/each}
+          </div>
+          <div class="relative" style="height: {body.length * ROW_HEIGHT}px">
+            <div class="absolute inset-x-0 top-0" style="transform: translateY({start * ROW_HEIGHT}px)">
+              {#each visibleRows as row, index (start + index)}
+                {@const rowIndex = start + index}
+                <div class="csv-row grid" style={gridStyle}>
+                  <div
+                    class="csv-gutter sticky left-0 z-10 bg-[#1f1d1b] px-2 text-right text-[11px] text-[#67635f]">
+                    <span class="csv-gutter-number">{rowIndex + 2}</span>
+                    <button
+                      type="button"
+                      class="csv-row-copy size-5 place-items-center rounded border-0 bg-transparent text-[#9c9895] hover:bg-[#3b3836] hover:text-[#e8e5e2]"
+                      aria-label="Copy row {rowIndex + 2}"
+                      title="Copy row"
+                      onclick={() => void copyRow(rowIndex)}>
+                      {#if copiedRow === rowIndex}
+                        <CheckIcon class="size-3.5 text-emerald-400" />
+                      {:else}
+                        <CopyIcon class="size-3.5" />
+                      {/if}
+                    </button>
+                  </div>
+                  {#each Array.from({ length: columnCount }) as _, column}
+                    {@const value = row[column] ?? ""}
+                    <div
+                      data-cell
+                      data-row={rowIndex + 1}
+                      data-column={column}
+                      class="{classFor(column)} overflow-hidden text-ellipsis whitespace-nowrap px-3 leading-[30px] text-[12.5px]"
+                      title={value}>{value}</div>
+                  {/each}
+                </div>
+              {/each}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if selection}
+    <button
+      type="button"
+      class="absolute z-30 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgb(48_45_43/0.96)] px-3 py-1.5 text-[11.5px] font-medium text-[#f2f1f0] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.1),0_14px_30px_-12px_rgb(0_0_0/0.8)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[rgb(62_58_55/0.98)] active:scale-[0.96]"
+      style="left: {selection.x}px; top: {selection.y}px;"
+      onmousedown={(event) => event.preventDefault()}
+      onclick={() => void copySelection()}>
+      {#if copied}
+        <CheckIcon class="size-3.5" />
+        <span>Copied</span>
+      {:else}
+        <CopyIcon class="size-3.5" />
+        <span>Copy</span>
+      {/if}
+    </button>
+  {/if}
+</div>
+
+<style>
+  .csv-head {
+    box-shadow: inset 0 -1px 0 #3a3734;
+  }
+  .csv-row {
+    /* An inset line instead of a border keeps rows exactly ROW_HEIGHT tall, which
+       the windowing math relies on. */
+    box-shadow: inset 0 -1px 0 #2f2c29;
+  }
+  .csv-row:hover :global(div:not(.sticky)) {
+    background-color: rgb(255 255 255 / 0.035);
+  }
+  .csv-gutter {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 30px;
+  }
+  .csv-gutter-number {
+    line-height: 30px;
+  }
+  .csv-row-copy {
+    display: none;
+  }
+  .csv-row:hover .csv-gutter-number {
+    display: none;
+  }
+  .csv-row:hover .csv-row-copy {
+    display: grid;
+  }
+</style>

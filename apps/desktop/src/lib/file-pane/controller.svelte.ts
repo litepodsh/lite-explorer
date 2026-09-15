@@ -1,3 +1,4 @@
+import { activity } from "$lib/transfers/jobs.js";
 import { invoke } from "@tauri-apps/api/core";
 import { message, open, save } from "@tauri-apps/plugin-dialog";
 import { createArchive } from "$lib/file-ops/archive.js";
@@ -34,16 +35,25 @@ import {
   EMPTY_SELECTION,
   addRange,
   applyNav,
-  isNavKey,
+  focusAfterRemoval,
+  halfPageTarget,
+  invert,
   navTarget,
   prune,
   selectAll,
   selectOnly,
   selectRange,
   toggle,
+  visualRange,
+  type NavKey,
+  type NavLayout,
   type Selection,
+  type VisualState,
 } from "$lib/selection/selection.js";
-import { isPrimaryModifier } from "$lib/state/platform.svelte.js";
+import { settings } from "$lib/settings/settings.svelte.js";
+import type { SortColumn, SortDir } from "$lib/components/custom/file-list/sort.js";
+import type { CopyTextKind } from "$lib/keyboard/context.js";
+import { fileStem } from "$lib/keyboard/text.js";
 
 type Recent = { name: string; path: string; kind: string; opened_at: number };
 export type SearchMode = "fuzzy" | "content";
@@ -58,6 +68,8 @@ export type ListNavigator = {
   columns(): number;
   pageRows(): number;
   scrollToIndex(index: number): void;
+  /** Sorts the list by a column and remembers it for the folder. */
+  sort(column: SortColumn, dir: SortDir): void;
 };
 
 /** A click previews after this delay, so a double-click can open instead without flashing the preview. */
@@ -90,7 +102,9 @@ export class FilePaneController {
   /** Entries the open context menu acts on: the selection when the menu opened on it. */
   contextTargets = $state<DirectoryEntry[]>([]);
   previewEntryPath = $state("");
-  previewOpen = $state(true);
+  previewOpen = $state(settings.current.previewOpenByDefault);
+  /** Yazi visual mode: keyboard moves select a range from its anchor. */
+  visual = $state<VisualState | null>(null);
   contextMenuOpen = $state(false);
   remoteDropActive = $state(false);
   openWithApps = $state<OpenWithApp[]>([]);
@@ -284,6 +298,7 @@ export class FilePaneController {
 
   async loadLocation(location: Location) {
     this.clearSearch();
+    this.visual = null;
     const token = ++this.loadToken;
     this.renamingPath = "";
     this.listingError = "";
@@ -408,107 +423,6 @@ export class FilePaneController {
     }
   }
 
-  /** Enter opens the selected entries, unless focus is in a text field, menu or other control.
-   *  With several selected, folders open in new tabs. */
-  handleEnterKeydown(event: KeyboardEvent) {
-    if (event.key !== "Enter" || event.defaultPrevented || event.isComposing) return;
-    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-    if (this.renamingPath || this.contextMenuOpen) return;
-    const entries = this.selectedEntries;
-    if (entries.length === 0) return;
-    const target = event.target instanceof Element ? event.target : null;
-    if (
-      target?.closest(
-        "input, textarea, select, [contenteditable='true'], [role='menu'], [role='dialog']",
-      )
-    )
-      return;
-    if (target?.closest("button, a") && !target.closest("[data-file-list]")) return;
-    event.preventDefault();
-    if (entries.length === 1) return this.openEntry(entries[0]);
-    for (const entry of entries) this.openEntry(entry, { newTab: entry.is_directory });
-  }
-
-  /** Windows Explorer-style selection and folder navigation for the active file pane. */
-  handleFileListKeydown(event: KeyboardEvent, showHidden: boolean) {
-    if (
-      event.defaultPrevented ||
-      event.isComposing ||
-      this.renamingPath ||
-      this.contextMenuOpen ||
-      confirmation.open
-    )
-      return;
-    const target = event.target instanceof Element ? event.target : null;
-    const control = target?.closest(
-      "input, textarea, select, [contenteditable='true'], [role='menu'], [role='dialog'], button, a",
-    );
-    // Grid items are buttons but belong to the list.
-    if (control && !control.matches("[data-entry-path]")) return;
-    if (this.selected === "Overview") return;
-
-    const order =
-      this.navigator?.order() ?? this.sourceEntries.filter((entry) => showHidden || !entry.is_hidden);
-    const paths = order.map((entry) => entry.path);
-    const view = this.navigator?.view() ?? this.viewMode;
-    const primary = isPrimaryModifier(event);
-    const plain = !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
-    const focusEntry = order.find((entry) => entry.path === this.focusPath);
-
-    // In the list view Left and Right keep navigating folders.
-    if (view === "list" && event.key === "ArrowRight" && plain) {
-      if (!focusEntry?.is_directory) return;
-      event.preventDefault();
-      this.openEntry(focusEntry);
-      return;
-    }
-    if (view === "list" && event.key === "ArrowLeft" && plain) {
-      event.preventDefault();
-      this.openParent();
-      return;
-    }
-
-    if (isNavKey(event.key) && !event.altKey && (primary || !(event.metaKey || event.ctrlKey))) {
-      const index = navTarget(paths.indexOf(this.focusPath), event.key, {
-        count: paths.length,
-        columns: this.navigator?.columns() ?? 1,
-        pageRows: this.navigator?.pageRows() ?? 10,
-        view,
-      });
-      if (index === null) return;
-      event.preventDefault();
-      this.setSelection(applyNav(this.selection, paths, paths[index], { shift: event.shiftKey, primary }));
-      this.navigator?.scrollToIndex(index);
-      return;
-    }
-
-    if (event.key === " " && !event.altKey && !event.shiftKey && (primary || plain)) {
-      if (!focusEntry) return;
-      event.preventDefault();
-      this.setSelection(primary ? toggle(this.selection, focusEntry.path) : selectOnly(focusEntry.path));
-      return;
-    }
-
-    if (primary && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "a") {
-      event.preventDefault();
-      this.setSelection(selectAll(paths));
-      return;
-    }
-
-    if (event.key === "Escape" && plain && this.selection.paths.length > 0) {
-      event.preventDefault();
-      this.clearSelection();
-      return;
-    }
-
-    if ((event.key === "Delete" || event.key === "Backspace") && !event.altKey && !event.ctrlKey) {
-      const entries = this.selectedEntries;
-      if (entries.length === 0) return;
-      event.preventDefault();
-      this.deleteEntries(entries, { permanent: event.shiftKey || event.metaKey });
-    }
-  }
-
   applyDirectorySizes(payload: { path: string; sizes: { path: string; size: number }[] }) {
     if (payload.path !== this.listingPath) return;
     for (const item of payload.sizes) {
@@ -543,7 +457,7 @@ export class FilePaneController {
 
   async renameItem(oldPath: string, newName: string) {
     try {
-      await invoke("rename_item", { path: oldPath, newName });
+      await activity.track("rename", `Rename: ${baseName(oldPath)} → ${newName}`, parentPath(oldPath), () => invoke("rename_item", { path: oldPath, newName }));
     } catch (error) {
       if (isRemoteLike(oldPath)) void this.showError("Couldn’t rename", error);
       else this.listingError = error instanceof Error ? error.message : String(error);
@@ -587,6 +501,8 @@ export class FilePaneController {
     const remote = targets.some((target) => isRemoteLike(target.path));
     const irreversible = permanent || remote;
     const single = targets.length === 1 ? targets[0] : null;
+    const order = this.orderPaths();
+    const nextFocus = focusAfterRemoval(order, targets.map((target) => target.path));
     const subject = single ? `“${single.name}”` : `${targets.length} items`;
     const bucketSubject = single ? `bucket “${single.name}”` : `${targets.length} buckets`;
     confirmation.ask({
@@ -619,6 +535,9 @@ export class FilePaneController {
         } finally {
           await this.refreshListing(folder);
           this.pruneSelection();
+          if (nextFocus && this.selection.paths.length === 0) {
+            this.setSelection({ paths: [], anchor: nextFocus, focus: nextFocus });
+          }
         }
       },
     });
@@ -866,6 +785,191 @@ export class FilePaneController {
   goForward() {
     this.scrollPositions.delete(this.tabs.activeId);
     this.tabs.forward();
+  }
+
+  /** Keys that act on the file list wait while renaming, a context menu or a confirmation is open. */
+  keyboardBlocked(): boolean {
+    return Boolean(this.renamingPath) || this.contextMenuOpen || confirmation.open;
+  }
+
+  keyboardView(): "list" | "grid" {
+    return this.navigator?.view() ?? this.viewMode;
+  }
+
+  /** Entries in the order keyboard navigation follows: what the mounted list shows. */
+  private keyboardOrder(showHidden: boolean): DirectoryEntry[] {
+    return this.navigator?.order() ?? this.sourceEntries.filter((entry) => showHidden || !entry.is_hidden);
+  }
+
+  private focusedEntry(showHidden: boolean): DirectoryEntry | undefined {
+    return this.keyboardOrder(showHidden).find((entry) => entry.path === this.focusPath);
+  }
+
+  private navLayout(count: number): NavLayout {
+    return {
+      count,
+      columns: this.navigator?.columns() ?? 1,
+      pageRows: this.navigator?.pageRows() ?? 10,
+      view: this.keyboardView(),
+    };
+  }
+
+  /** Focuses `paths[index]`. In visual mode the range from the anchor is selected instead. */
+  private moveTo(paths: string[], index: number, modifiers: { shift: boolean; primary: boolean }) {
+    const target = paths[index];
+    this.setSelection(
+      this.visual ? visualRange(paths, this.visual, target) : applyNav(this.selection, paths, target, modifiers),
+    );
+    this.navigator?.scrollToIndex(index);
+  }
+
+  /** Windows Explorer rules: Shift extends the range, the primary modifier moves focus only. */
+  moveFocus(key: NavKey, modifiers: { shift: boolean; primary: boolean }, showHidden: boolean): boolean {
+    if (this.selected === "Overview") return false;
+    const paths = this.keyboardOrder(showHidden).map((entry) => entry.path);
+    const index = navTarget(paths.indexOf(this.focusPath), key, this.navLayout(paths.length));
+    if (index === null) return false;
+    this.moveTo(paths, index, modifiers);
+    return true;
+  }
+
+  moveHalfPage(direction: 1 | -1, showHidden: boolean): boolean {
+    if (this.selected === "Overview") return false;
+    const paths = this.keyboardOrder(showHidden).map((entry) => entry.path);
+    const index = halfPageTarget(paths.indexOf(this.focusPath), direction, this.navLayout(paths.length));
+    if (index === null) return false;
+    this.moveTo(paths, index, { shift: false, primary: false });
+    return true;
+  }
+
+  /** Opens the focused entry: folders in place, files with their default app. */
+  enterOrOpenFocused(showHidden: boolean): boolean {
+    if (this.selected === "Overview") return false;
+    const entry = this.focusedEntry(showHidden);
+    if (!entry) return false;
+    this.openEntry(entry);
+    return true;
+  }
+
+  toggleFocusedAndNext(showHidden: boolean): boolean {
+    this.visual = null;
+    if (!this.selectFocused("toggle", showHidden)) return false;
+    this.moveFocus("ArrowDown", { shift: false, primary: true }, showHidden);
+    return true;
+  }
+
+  invertSelection(showHidden: boolean): boolean {
+    if (this.selected === "Overview") return false;
+    this.setSelection(invert(this.selection, this.keyboardOrder(showHidden).map((entry) => entry.path)));
+    return true;
+  }
+
+  startVisual(mode: "add" | "remove", showHidden: boolean): boolean {
+    if (this.selected === "Overview") return false;
+    const paths = this.keyboardOrder(showHidden).map((entry) => entry.path);
+    const anchor = paths.includes(this.focusPath) ? this.focusPath : paths[0];
+    if (!anchor) return false;
+    this.visual = { mode, anchor, base: this.selection.paths };
+    this.setSelection(visualRange(paths, this.visual, anchor));
+    return true;
+  }
+
+  exitVisual(): boolean {
+    if (!this.visual) return false;
+    this.visual = null;
+    return true;
+  }
+
+  renameFocused(showHidden: boolean): boolean {
+    if (this.selected === "Overview" || this.remoteRoot || this.serverRoot) return false;
+    const entry =
+      this.focusedEntry(showHidden) ?? (this.selectedEntries.length === 1 ? this.selectedEntries[0] : undefined);
+    if (!entry) return false;
+    this.renamingPath = entry.path;
+    return true;
+  }
+
+  createFromKeyboard(kind: CreateKind): boolean {
+    if (!this.isBrowsableFolder()) return false;
+    void this.createItem(kind);
+    return true;
+  }
+
+  /** Copies paths or names of the selection (or the focused entry), one per line. */
+  copyText(kind: CopyTextKind, showHidden: boolean): boolean {
+    const shown = (path: string) => (isServerPath(path) ? this.displayPath(path) : toS3Uri(path));
+    let text: string;
+    if (kind === "dirPath") {
+      if (!this.listingPath) return false;
+      text = shown(this.listingPath);
+    } else {
+      const focused = this.focusedEntry(showHidden);
+      const targets = this.selectedEntries.length > 0 ? this.selectedEntries : focused ? [focused] : [];
+      if (targets.length === 0) return false;
+      text = targets
+        .map((entry) => (kind === "path" ? shown(entry.path) : kind === "name" ? entry.name : fileStem(entry.name)))
+        .join("\n");
+    }
+    void navigator.clipboard.writeText(text).catch((error: unknown) => this.showError("Couldn’t copy", error));
+    return true;
+  }
+
+  sortFromKeyboard(column: SortColumn, dir: SortDir): boolean {
+    if (!this.navigator) return false;
+    this.navigator.sort(column, dir);
+    return true;
+  }
+
+  /** Opens the focused folder; false when focus is not on a folder. */
+  enterFocused(showHidden: boolean): boolean {
+    if (this.selected === "Overview") return false;
+    const entry = this.focusedEntry(showHidden);
+    if (!entry?.is_directory) return false;
+    this.openEntry(entry);
+    return true;
+  }
+
+  selectFocused(mode: "only" | "toggle", showHidden: boolean): boolean {
+    if (this.selected === "Overview") return false;
+    const entry = this.focusedEntry(showHidden);
+    if (!entry) return false;
+    this.setSelection(mode === "toggle" ? toggle(this.selection, entry.path) : selectOnly(entry.path));
+    return true;
+  }
+
+  selectAllListed(showHidden: boolean): boolean {
+    if (this.selected === "Overview") return false;
+    this.setSelection(selectAll(this.keyboardOrder(showHidden).map((entry) => entry.path)));
+    return true;
+  }
+
+  clearSelectionIfAny(): boolean {
+    if (this.selected === "Overview" || this.selection.paths.length === 0) return false;
+    this.clearSelection();
+    return true;
+  }
+
+  trashSelection({ permanent }: { permanent: boolean }): boolean {
+    if (this.selected === "Overview") return false;
+    const entries = this.selectedEntries;
+    if (entries.length === 0) return false;
+    this.deleteEntries(entries, { permanent });
+    return true;
+  }
+
+  /** Opens the selected entries. With several selected, folders open in new tabs. */
+  openSelection(): boolean {
+    const entries = this.selectedEntries;
+    if (entries.length === 0) return false;
+    if (entries.length === 1) this.openEntry(entries[0]);
+    else for (const entry of entries) this.openEntry(entry, { newTab: entry.is_directory });
+    return true;
+  }
+
+  openParentFromKeyboard(): boolean {
+    if (this.selected === "Overview") return false;
+    this.openParent();
+    return true;
   }
 
   openCreatedBucket({ bucket, warning }: CreatedBucket) {

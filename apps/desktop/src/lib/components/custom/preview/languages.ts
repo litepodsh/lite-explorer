@@ -71,6 +71,9 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
   log: "log",
 };
 
+// Delimited data files are colored per column, not per token (see rainbow-csv.ts).
+const CSV_EXTENSIONS = ["csv", "tsv", "psv"];
+
 // No gitignore grammar ships with Shiki; shellscript colors its # comments.
 const LANGUAGE_BY_FILE_NAME: Record<string, string> = {
   dockerfile: "dockerfile",
@@ -114,6 +117,9 @@ const KIND_LABEL_BY_EXTENSION: Record<string, string> = {
   css: "CSS Stylesheet",
   py: "Python Script",
   sh: "Shell Script",
+  csv: "Comma-Separated Values",
+  tsv: "Tab-Separated Values",
+  psv: "Pipe-Separated Values",
 };
 
 function extensionOf(name: string): string {
@@ -142,6 +148,10 @@ export function isMarkdownName(name: string): boolean {
 
 export function isHtmlName(name: string): boolean {
   return ["html", "htm"].includes(extensionOf(name));
+}
+
+export function isCsvName(name: string): boolean {
+  return CSV_EXTENSIONS.includes(extensionOf(name));
 }
 
 export function kindLabel(name: string, kind: PreviewKind): string {

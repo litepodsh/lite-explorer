@@ -46,7 +46,7 @@ const KEY_LABELS: Record<string, string> = {
   ArrowRight: "Right",
 };
 
-function keyCode(key: string): string | null {
+export function keyCode(key: string): string | null {
   if (/^[a-z]$/i.test(key)) return `Key${key.toUpperCase()}`;
   if (/^[0-9]$/.test(key)) return `Digit${key}`;
   if (/^f([1-9]|1[0-9]|2[0-4])$/i.test(key)) return key.toUpperCase();

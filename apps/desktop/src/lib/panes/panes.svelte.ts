@@ -1,19 +1,14 @@
 import * as ops from "./panes.js";
 import type { PaneLayout } from "./panes.js";
 import { TabsStore } from "../tabs/tabs.svelte.js";
+import { settings } from "../settings/settings.svelte.js";
 
 type ReactivePane = { id: string; tabs: TabsStore; previewOpen: boolean };
-
-const LAYOUT_STORAGE = "panes-layout";
-
-function loadLayout(): PaneLayout {
-  return localStorage.getItem(LAYOUT_STORAGE) === "column" ? "column" : "row";
-}
 
 export class PanesStore {
   #reactive = $state<ReactivePane[]>([this.#makePane(crypto.randomUUID())]);
   #activeId = $state(this.#reactive[0].id);
-  #layout = $state<PaneLayout>(loadLayout());
+  #layout = $derived<PaneLayout>(settings.current.panesLayout);
   #pure = $derived<ops.PanesState>({
     panes: this.#reactive.map((pane) => ({ id: pane.id, tabs: pane.tabs.snapshot })),
     activeId: this.#activeId,
@@ -29,12 +24,12 @@ export class PanesStore {
   activeTabs = $derived(this.activePane.tabs);
 
   #makePane(id: string): ReactivePane {
-    return { id, tabs: new TabsStore(), previewOpen: true };
+    return { id, tabs: new TabsStore(() => settings.current.defaultViewMode), previewOpen: true };
   }
 
   #sync(state: ops.PanesState) {
     this.#activeId = state.activeId;
-    this.#layout = state.layout;
+    if (state.layout !== this.#layout) settings.set("panesLayout", state.layout);
     const sameShape =
       state.panes.length === this.#reactive.length &&
       state.panes.every((pane, index) => pane.id === this.#reactive[index].id);
@@ -80,7 +75,6 @@ export class PanesStore {
   }
 
   setLayout(layout: PaneLayout) {
-    localStorage.setItem(LAYOUT_STORAGE, layout);
     this.#sync(ops.setLayout(this.#pure, layout));
   }
 

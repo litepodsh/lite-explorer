@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { activity } from "$lib/transfers/jobs.js";
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import FolderOpenIcon from "@lucide/svelte/icons/folder-open";
@@ -104,7 +105,7 @@
     emptying = true;
     error = "";
     try {
-      const bytes = await invoke<number | null>("empty_trash");
+      const bytes = await activity.track("delete", "Empty Trash", "", () => invoke<number | null>("empty_trash"));
       onEmptied(bytes);
     } catch (reason) {
       error = reason instanceof Error ? reason.message : String(reason);

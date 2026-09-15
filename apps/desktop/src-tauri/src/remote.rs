@@ -32,8 +32,8 @@ pub mod buckets;
 pub mod write;
 
 use super::{
-    image_mime, now_secs, utf8_boundary, Database, DirectoryEntry, FilePreview, Location,
-    PreviewKind, IMAGE_MAX_BYTES, PREVIEW_MAX_BYTES, PREVIEW_SNIFF_BYTES,
+    image_mime, now_secs, set_pdf_preview, utf8_boundary, Database, DirectoryEntry, FilePreview,
+    Location, PreviewKind, IMAGE_MAX_BYTES, PDF_MAX_BYTES, PREVIEW_MAX_BYTES, PREVIEW_SNIFF_BYTES,
 };
 
 const KEYCHAIN_SERVICE: &str = "lite-explorer.s3";
@@ -687,6 +687,18 @@ pub async fn file_preview(
         return Ok(preview);
     }
 
+    if extension.is_some_and(|extension| extension.eq_ignore_ascii_case("pdf")) {
+        if preview.size > PDF_MAX_BYTES as u64 {
+            return Err(format!(
+                "PDF exceeds {} MB preview limit",
+                PDF_MAX_BYTES / (1024 * 1024)
+            ));
+        }
+        let bytes = object_bytes(&client, &bucket, &key, None, None).await?;
+        set_pdf_preview(&mut preview, bytes);
+        return Ok(preview);
+    }
+
     if preview.size == 0 {
         classify_preview_bytes(&mut preview, Vec::new());
         return Ok(preview);
@@ -745,7 +757,7 @@ pub async fn download_remote_file(
         &remote.key,
         &target,
         Some(DOWNLOAD_MAX_BYTES),
-        |_| {},
+        |_, _| {},
     )
     .await?;
     Ok(target.to_string_lossy().into_owned())

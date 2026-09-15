@@ -1,3 +1,4 @@
+import { activity } from "$lib/transfers/jobs.js";
 import { invoke } from "@tauri-apps/api/core";
 
 const ARCHIVE_EXTENSIONS = [".zip", ".tar.gz", ".tgz", ".tar"];
@@ -8,7 +9,7 @@ export function isArchive(name: string): boolean {
 }
 
 export function createArchive(paths: string[], destination: string): Promise<void> {
-  return invoke("create_archive", { paths, destination });
+  return activity.track("compress", `Compress ${paths.length} items`, destination, () => invoke<void>("create_archive", { paths, destination }));
 }
 
 export type ArchiveEntry = { path: string; isDirectory: boolean; size: number; skipped: boolean };

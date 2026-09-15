@@ -122,3 +122,43 @@ export function applyNav(
   if (primary) return { ...selection, focus: target };
   return selectOnly(target);
 }
+
+/** Index half a page away from `index` (-1 when nothing has focus), or null when the list is empty. */
+export function halfPageTarget(index: number, direction: 1 | -1, layout: NavLayout): number | null {
+  if (layout.count === 0) return null;
+  const last = layout.count - 1;
+  if (index < 0) return direction === 1 ? 0 : last;
+  const columns = layout.view === "grid" ? Math.max(1, layout.columns) : 1;
+  const step = Math.max(1, Math.floor(Math.max(1, layout.pageRows) / 2)) * columns;
+  return Math.max(0, Math.min(last, index + direction * step));
+}
+
+/** Selects every listed path that was not selected. Focus stays where it was. */
+export function invert(selection: Selection, order: string[]): Selection {
+  const selected = new Set(selection.paths);
+  const paths = order.filter((path) => !selected.has(path));
+  return { paths, anchor: paths[0] ?? "", focus: selection.focus };
+}
+
+/** Yazi visual mode: `base` is the selection when the mode started. */
+export type VisualState = { mode: "add" | "remove"; anchor: string; base: string[] };
+
+/** The range from the anchor to `focus`, added to or removed from the starting selection. */
+export function visualRange(order: string[], visual: VisualState, focus: string): Selection {
+  const covered = new Set(range(order, visual.anchor, focus));
+  const base = new Set(visual.base);
+  const paths = order.filter((path) =>
+    visual.mode === "add" ? base.has(path) || covered.has(path) : base.has(path) && !covered.has(path),
+  );
+  return { paths, anchor: visual.anchor, focus };
+}
+
+/** Where focus goes after `removed` leave the list: the next remaining item, else the previous one. */
+export function focusAfterRemoval(order: string[], removed: string[]): string {
+  const gone = new Set(removed);
+  const last = order.reduce((found, path, index) => (gone.has(path) ? index : found), -1);
+  if (last < 0) return "";
+  const after = order.slice(last + 1).find((path) => !gone.has(path));
+  if (after) return after;
+  return order.slice(0, last).reverse().find((path) => !gone.has(path)) ?? "";
+}

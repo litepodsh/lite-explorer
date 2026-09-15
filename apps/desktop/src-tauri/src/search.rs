@@ -107,7 +107,9 @@ fn entry(path: &Path) -> Option<DirectoryEntry> {
     })
 }
 
-fn files(root: &Path) -> Result<Vec<PathBuf>, String> {
+/// Every path under `root`, skipping symlinks. Directories are included only when asked:
+/// content search reads files, name search also matches folders.
+fn walk(root: &Path, include_directories: bool) -> Result<Vec<PathBuf>, String> {
     if !root.is_dir() {
         return Err(format!("{} is not a directory", root.display()));
     }
@@ -120,6 +122,9 @@ fn files(root: &Path) -> Result<Vec<PathBuf>, String> {
                 continue;
             }
             if path.is_dir() {
+                if include_directories {
+                    found.push(path.clone());
+                }
                 queue.push(path);
             } else {
                 found.push(path);
@@ -326,7 +331,7 @@ pub(crate) fn search_directory(
     query: &str,
     mode: SearchMode,
 ) -> Result<SearchResponse, String> {
-    let paths = files(root)?;
+    let paths = walk(root, matches!(mode, SearchMode::Fuzzy))?;
     let mut skipped = 0;
     let mut results = Vec::new();
     if matches!(mode, SearchMode::Fuzzy) {
@@ -336,7 +341,9 @@ pub(crate) fn search_directory(
                 .unwrap_or(&path)
                 .to_string_lossy()
                 .into_owned();
-            if matches(&relative, query) {
+            // Match the name only, so a folder match does not pull in everything inside it.
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            if matches(&name, query) {
                 if let Some(entry) = entry(&path) {
                     results.push(SearchResult {
                         entry,
@@ -542,6 +549,32 @@ mod tests {
                 ),
                 ("server.log.gz", None, "zarpa started"),
                 ("src.tar.xz", Some("readme.md"), "# Zarpa xz"),
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn fuzzy_search_matches_folders() {
+        let root = temp_dir("fuzzy");
+        fs::create_dir_all(root.join("docs/invoices")).unwrap();
+        fs::write(root.join("docs/invoices/march.pdf"), b"").unwrap();
+        fs::write(root.join("docs/old-invoices.csv"), b"").unwrap();
+        fs::write(root.join("readme.md"), b"").unwrap();
+
+        let results = search_directory(&root, "invoices", SearchMode::Fuzzy)
+            .unwrap()
+            .results;
+        let mut found: Vec<_> = results
+            .iter()
+            .map(|r| (r.relative_path.replace('\\', "/"), r.entry.is_directory))
+            .collect();
+        found.sort();
+        assert_eq!(
+            found,
+            [
+                ("docs/invoices".to_string(), true),
+                ("docs/old-invoices.csv".to_string(), false),
             ]
         );
         fs::remove_dir_all(root).unwrap();

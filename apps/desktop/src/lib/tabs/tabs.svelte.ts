@@ -1,8 +1,15 @@
 import * as ops from "./tabs.js";
-import type { Location, Tab, TabsState } from "./tabs.js";
+import type { Location, Tab, TabsState, ViewMode } from "./tabs.js";
 
 export class TabsStore {
   #state = $state.raw<TabsState>(ops.createTabsState(crypto.randomUUID()));
+  #defaultViewMode: () => ViewMode;
+
+  /** `defaultViewMode` is read for the first tab and for every tab opened later. */
+  constructor(defaultViewMode: () => ViewMode = () => "list") {
+    this.#defaultViewMode = defaultViewMode;
+    this.#state = ops.createTabsState(crypto.randomUUID(), ops.OVERVIEW, defaultViewMode());
+  }
 
   tabs = $derived(this.#state.tabs);
   activeId = $derived(this.#state.activeId);
@@ -26,7 +33,7 @@ export class TabsStore {
   }
 
   open(location?: Location) {
-    this.#state = ops.openTab(this.#state, crypto.randomUUID(), location);
+    this.#state = ops.openTab(this.#state, crypto.randomUUID(), location, this.#defaultViewMode());
   }
 
   navigate(location: Location) {

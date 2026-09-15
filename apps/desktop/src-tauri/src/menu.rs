@@ -1,35 +1,73 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 use tauri::{
     menu::{
         AboutMetadata, CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu,
         HELP_SUBMENU_ID,
     },
-    AppHandle, Emitter, Manager, Runtime, State, Wry,
+    AppHandle, Emitter, Manager, Runtime, State, WebviewUrl, WebviewWindowBuilder, Wry,
 };
 
 pub const CHECK_FOR_UPDATES: &str = "check-for-updates";
 
-/// Accelerators of the app's own menu items, by id. muda does not expose an item's accelerator
-/// after creation, and the title bar on Windows and Linux needs it to show and dispatch shortcuts.
-const ACCELERATORS: &[(&str, &str)] = &[
-    ("toggle-sidebar-floating", "CmdOrCtrl+Shift+F"),
-    ("toggle-hidden-files", "CmdOrCtrl+Shift+Period"),
-    ("new-folder", "CmdOrCtrl+Shift+N"),
-    ("new-file", "CmdOrCtrl+Shift+Alt+N"),
-    ("go-to-folder", "CmdOrCtrl+Shift+P"),
-    ("new-tab", "CmdOrCtrl+T"),
-    ("close-tab", "CmdOrCtrl+W"),
-    ("next-tab", "CmdOrCtrl+Shift+]"),
-    ("previous-tab", "CmdOrCtrl+Shift+["),
-    ("new-tab-other", "CmdOrCtrl+Shift+T"),
-    ("toggle-second-pane", "CmdOrCtrl+Shift+L"),
-];
+pub const SETTINGS_WINDOW: &str = "settings";
+const OPEN_SETTINGS: &str = "open-settings";
+
+/// Opens the Settings window, or shows and focuses it when it is already open.
+pub fn open_settings_window(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window(SETTINGS_WINDOW) {
+        window.show()?;
+        return window.set_focus();
+    }
+    let builder =
+        WebviewWindowBuilder::new(app, SETTINGS_WINDOW, WebviewUrl::App("settings".into()))
+            .title("Settings")
+            .inner_size(720.0, 520.0)
+            .min_inner_size(640.0, 460.0)
+            .resizable(true)
+            .center();
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true)
+        // Matches `trafficLightPosition` of the main window in tauri.conf.json.
+        .traffic_light_position(tauri::LogicalPosition::new(20.0, 27.0));
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.decorations(false);
+    builder.build()?;
+    Ok(())
+}
+
+/// Async so Windows creates the window off the main thread, as Tauri requires.
+#[tauri::command]
+pub async fn open_settings(app: AppHandle) -> Result<(), String> {
+    open_settings_window(&app).map_err(|error| error.to_string())
+}
+
+#[derive(Deserialize)]
+struct MenuAccelerator {
+    id: String,
+    accelerator: String,
+}
+
+/// Accelerators of the app's own menu items, by id. The keymap in the webview reads the same file
+/// to list them in the shortcuts dialog. muda does not expose an item's accelerator after creation,
+/// and the title bar on Windows and Linux needs it to show and dispatch shortcuts.
+fn accelerators() -> &'static [MenuAccelerator] {
+    static ACCELERATORS: OnceLock<Vec<MenuAccelerator>> = OnceLock::new();
+    ACCELERATORS.get_or_init(|| {
+        serde_json::from_str(include_str!(
+            "../../src/lib/keyboard/menu-accelerators.json"
+        ))
+        .expect("menu-accelerators.json is valid")
+    })
+}
 
 pub fn accelerator(id: &str) -> Option<&'static str> {
-    ACCELERATORS
+    accelerators()
         .iter()
-        .find(|(item, _)| *item == id)
-        .map(|(_, accelerator)| *accelerator)
+        .find(|item| item.id == id)
+        .map(|item| item.accelerator.as_str())
 }
 
 /// Removes `&` mnemonic markers; `&&` stays as a literal `&`.
@@ -92,15 +130,6 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         description: env!("CARGO_PKG_DESCRIPTION").to_string(),
         copyright: app.config().bundle.copyright.clone().unwrap_or_default(),
     };
-    let floating = CheckMenuItem::with_id(
-        app,
-        "toggle-sidebar-floating",
-        "Floating Sidebar",
-        true,
-        false,
-        accelerator("toggle-sidebar-floating"),
-    )?;
-    let sidebar = Submenu::with_items(app, "Sidebar", true, &[&floating])?;
     let hidden_files = CheckMenuItem::with_id(
         app,
         "toggle-hidden-files",
@@ -177,9 +206,24 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         true,
         None::<&str>,
     )?;
+    let settings_item = MenuItem::with_id(
+        app,
+        OPEN_SETTINGS,
+        "Settings…",
+        true,
+        accelerator(OPEN_SETTINGS),
+    )?;
     set_about_icon(app, &menu, &info)?;
     add_check_for_updates(app, &menu)?;
     let items = menu.items()?;
+    // macOS keeps Settings in the app menu, after About.
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(MenuItemKind::Submenu(app_submenu)) = items.first() {
+            app_submenu.insert(&settings_item, 2)?;
+            app_submenu.insert(&PredefinedMenuItem::separator(app)?, 3)?;
+        }
+    }
     let file_index = items.iter().position(|item| match item {
         MenuItemKind::Submenu(submenu) if submenu.text().ok().as_deref() == Some("File") => true,
         _ => false,
@@ -195,6 +239,10 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
                 file_submenu.insert(&PredefinedMenuItem::separator(app)?, 4)?;
                 file_submenu.insert(&open_item, 5)?;
                 file_submenu.insert(&go_to_folder, 6)?;
+                #[cfg(not(target_os = "macos"))]
+                {
+                    file_submenu.insert(&settings_item, 7)?;
+                }
                 file_submenu.append(&PredefinedMenuItem::separator(app)?)?;
                 file_submenu.append(&close_tab)?;
             }
@@ -204,7 +252,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
                 app,
                 "File",
                 true,
-                &[&new_tab, &new_tab_other, &new_folder, &new_file, &close_tab],
+                &[&new_tab, &new_tab_other, &new_folder, &new_file, &settings_item, &close_tab],
             )?;
             let view_index = items.iter().position(|item| match item {
                 MenuItemKind::Submenu(submenu)
@@ -230,10 +278,9 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         Some(view_menu) => {
             view_menu.prepend(&hidden_files)?;
             view_menu.insert(&show_fps, 1)?;
-            view_menu.insert(&sidebar, 2)?;
-            view_menu.insert(&show_second_pane, 3)?;
-            view_menu.insert(&split_orientation, 4)?;
-            view_menu.insert(&PredefinedMenuItem::separator(app)?, 5)?;
+            view_menu.insert(&show_second_pane, 2)?;
+            view_menu.insert(&split_orientation, 3)?;
+            view_menu.insert(&PredefinedMenuItem::separator(app)?, 4)?;
         }
         None => menu.append(&Submenu::with_items(
             app,
@@ -242,7 +289,6 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &[
                 &hidden_files,
                 &show_fps,
-                &sidebar,
                 &show_second_pane,
                 &split_orientation,
             ],
@@ -268,7 +314,6 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &[&next_tab, &previous_tab],
         )?)?,
     }
-    app.manage(SidebarMenu(floating));
     app.manage(HiddenFilesMenu(hidden_files));
     app.manage(ShowFpsMenu(show_fps));
     app.manage(OpenMenuItem(open_item));
@@ -349,10 +394,22 @@ pub fn handle(app: &AppHandle, id: &str) {
             return;
         }
     }
-    if id == "toggle-sidebar-floating" {
-        let floating = app.state::<SidebarMenu>().0.is_checked().unwrap_or(false);
-        let _ = app.emit("sidebar-floating", floating);
-    } else if id == "toggle-hidden-files" {
+    // With Settings focused, Close Tab closes that window instead of a tab behind it.
+    if id == "close-tab" {
+        if let Some(window) = app.get_webview_window(SETTINGS_WINDOW) {
+            if window.is_focused().unwrap_or(false) {
+                let _ = window.close();
+                return;
+            }
+        }
+    }
+    if id == OPEN_SETTINGS {
+        if let Err(error) = open_settings_window(app) {
+            eprintln!("Couldn't open Settings: {error}");
+        }
+        return;
+    }
+    if id == "toggle-hidden-files" {
         let show = app
             .state::<HiddenFilesMenu>()
             .0
@@ -479,14 +536,6 @@ fn add_check_for_updates<R: Runtime>(app: &AppHandle<R>, menu: &Menu<R>) -> taur
     }
 }
 
-pub struct SidebarMenu(pub CheckMenuItem<Wry>);
-
-#[tauri::command]
-pub fn set_sidebar_floating(app: AppHandle, menu: State<'_, SidebarMenu>, floating: bool) {
-    let _ = menu.0.set_checked(floating);
-    let _ = app.emit(MENU_CHANGED, ());
-}
-
 pub struct HiddenFilesMenu(pub CheckMenuItem<Wry>);
 
 #[tauri::command]
@@ -501,6 +550,22 @@ pub struct ShowFpsMenu(pub CheckMenuItem<Wry>);
 pub fn set_show_fps(app: AppHandle, menu: State<'_, ShowFpsMenu>, show: bool) {
     let _ = menu.0.set_checked(show);
     let _ = app.emit(MENU_CHANGED, ());
+}
+
+/// Keeps the Debug menu check in sync with the Settings window. Does nothing in release builds.
+#[tauri::command]
+pub fn set_prototype_switcher(app: AppHandle, visible: bool) {
+    #[cfg(debug_assertions)]
+    {
+        if let Some(menu) = app.try_state::<PrototypeSwitcherMenu>() {
+            let _ = menu.0.set_checked(visible);
+            let _ = app.emit(MENU_CHANGED, ());
+        }
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, visible);
+    }
 }
 
 #[cfg(debug_assertions)]
@@ -758,6 +823,7 @@ mod tests {
             Some("CmdOrCtrl+Shift+Period")
         );
         assert_eq!(accelerator("toggle-show-fps"), None);
+        assert_eq!(accelerator("open-settings"), Some("CmdOrCtrl+Comma"));
     }
 
     #[test]
