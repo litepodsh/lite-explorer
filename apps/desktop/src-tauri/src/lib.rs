@@ -20,6 +20,7 @@ use tauri::{
 use trash::macos::{DeleteMethod, TrashContextExtMacos};
 
 mod archive;
+mod icons;
 mod menu;
 mod network;
 mod remote;
@@ -765,12 +766,22 @@ async fn read_directory(
 }
 
 #[tauri::command]
-async fn search_directory(path: String, query: String, mode: search::SearchMode) -> Result<search::SearchResponse, String> {
-    if remote::is_remote_path(&path) || network::is_network_path(&path) || network::servers::is_server_path(&path) {
+async fn search_directory(
+    path: String,
+    query: String,
+    mode: search::SearchMode,
+) -> Result<search::SearchResponse, String> {
+    if remote::is_remote_path(&path)
+        || network::is_network_path(&path)
+        || network::servers::is_server_path(&path)
+    {
         return Err("Search is available for local folders and mounted volumes only.".into());
     }
-    tauri::async_runtime::spawn_blocking(move || search::search_directory(&PathBuf::from(path), &query, mode))
-        .await.map_err(|error| error.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        search::search_directory(&PathBuf::from(path), &query, mode)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 fn single_entry(path: &Path) -> Result<DirectoryEntry, String> {
@@ -795,7 +806,10 @@ fn unique_name(parent: &Path, base: &str) -> String {
         return base.to_string();
     }
     let path = Path::new(base);
-    let stem = path.file_stem().and_then(|name| name.to_str()).unwrap_or(base);
+    let stem = path
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or(base);
     let extension = path
         .extension()
         .and_then(|extension| extension.to_str())
@@ -1056,116 +1070,9 @@ fn default_app(path: String) -> Option<AppInfo> {
     }
 }
 
-/// PNG data URL of the Finder icon for `path` (an app bundle), cached per path.
-#[cfg(target_os = "macos")]
+/// PNG data URL of the OS icon for `path`, cached per path.
 fn app_icon_data_url(path: &str) -> Option<String> {
-    use objc2::{
-        class,
-        encode::{Encode, Encoding, RefEncode},
-        msg_send,
-        rc::autoreleasepool,
-        runtime::AnyObject,
-    };
-    use std::{
-        collections::HashMap,
-        ffi::{c_void, CString},
-        sync::{Mutex, OnceLock},
-    };
-
-    #[repr(C)]
-    struct CGSize {
-        width: f64,
-        height: f64,
-    }
-    unsafe impl Encode for CGSize {
-        const ENCODING: Encoding = Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
-    }
-
-    #[repr(C)]
-    struct CGPoint {
-        x: f64,
-        y: f64,
-    }
-    unsafe impl Encode for CGPoint {
-        const ENCODING: Encoding = Encoding::Struct("CGPoint", &[f64::ENCODING, f64::ENCODING]);
-    }
-
-    #[repr(C)]
-    struct CGRect {
-        origin: CGPoint,
-        size: CGSize,
-    }
-    unsafe impl Encode for CGRect {
-        const ENCODING: Encoding =
-            Encoding::Struct("CGRect", &[CGPoint::ENCODING, CGSize::ENCODING]);
-    }
-    unsafe impl RefEncode for CGRect {
-        const ENCODING_REF: Encoding = Encoding::Pointer(&Self::ENCODING);
-    }
-
-    #[repr(C)]
-    struct CGImage {
-        _private: [u8; 0],
-    }
-    unsafe impl RefEncode for CGImage {
-        const ENCODING_REF: Encoding = Encoding::Pointer(&Encoding::Struct("CGImage", &[]));
-    }
-
-    static CACHE: OnceLock<Mutex<HashMap<String, Option<String>>>> = OnceLock::new();
-    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    if let Some(icon) = cache.lock().ok()?.get(path) {
-        return icon.clone();
-    }
-
-    let c_path = CString::new(path).ok()?;
-    let icon = autoreleasepool(|_| unsafe {
-        let string: *mut AnyObject =
-            msg_send![class!(NSString), stringWithUTF8String: c_path.as_ptr()];
-        let workspace: *mut AnyObject = msg_send![class!(NSWorkspace), sharedWorkspace];
-        let image: *mut AnyObject = msg_send![workspace, iconForFile: string];
-        if image.is_null() {
-            return None;
-        }
-        // 32pt at 2x keeps the 16px menu icon sharp on Retina displays.
-        let _: () = msg_send![image, setSize: CGSize { width: 32.0, height: 32.0 }];
-        let null_object: *mut AnyObject = std::ptr::null_mut();
-        let cg_image: *mut CGImage = msg_send![
-            image,
-            CGImageForProposedRect: std::ptr::null_mut::<CGRect>(),
-            context: null_object,
-            hints: null_object
-        ];
-        if cg_image.is_null() {
-            return None;
-        }
-        let rep: *mut AnyObject = msg_send![class!(NSBitmapImageRep), alloc];
-        let rep: *mut AnyObject = msg_send![rep, initWithCGImage: cg_image];
-        if rep.is_null() {
-            return None;
-        }
-        let properties: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
-        // NSBitmapImageFileTypePNG
-        let data: *mut AnyObject =
-            msg_send![rep, representationUsingType: 4usize, properties: properties];
-        let encoded = if data.is_null() {
-            None
-        } else {
-            let bytes: *const c_void = msg_send![data, bytes];
-            let length: usize = msg_send![data, length];
-            let slice = std::slice::from_raw_parts(bytes as *const u8, length);
-            Some(format!(
-                "data:image/png;base64,{}",
-                base64::engine::general_purpose::STANDARD.encode(slice)
-            ))
-        };
-        let _: () = msg_send![rep, release];
-        encoded
-    });
-
-    if let Ok(mut cache) = cache.lock() {
-        cache.insert(path.to_owned(), icon.clone());
-    }
-    icon
+    icons::icon_data_url(path)
 }
 
 #[tauri::command]
@@ -2788,6 +2695,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             os_detection,
+            icons::file_icons,
             menu::set_sidebar_floating,
             menu::set_show_hidden_files,
             menu::set_show_fps,

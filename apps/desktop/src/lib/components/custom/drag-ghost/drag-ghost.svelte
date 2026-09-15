@@ -21,15 +21,22 @@
   {@const ghost = drag.ghost}
   {@const Icon = icons[ghost.icon]}
   <div class="drag-ghost" style:transform={`translate3d(${ghost.x + 14}px, ${ghost.y + 12}px, 0)`} aria-hidden="true">
-    <div class="drag-ghost-card">
-      <span class="drag-ghost-icon" data-icon={ghost.icon}><Icon /></span>
-      <span class="drag-ghost-name">{ghost.name}</span>
-      {#if ghost.action}
-        {@const action = actions[ghost.action]}
-        {#key ghost.action}
-          <span class="drag-ghost-action" data-action={ghost.action}><action.icon />{action.label}</span>
-        {/key}
+    <div class="drag-ghost-stack">
+      {#if (ghost.count ?? 1) > 1}
+        <span class="drag-ghost-layer" data-depth="2"></span>
+        <span class="drag-ghost-layer" data-depth="1"></span>
       {/if}
+      <div class="drag-ghost-card">
+        <span class="drag-ghost-icon" data-icon={ghost.icon}><Icon /></span>
+        <span class="drag-ghost-name">{ghost.name}</span>
+        {#if (ghost.count ?? 1) > 1}<span class="drag-ghost-count">{ghost.count}</span>{/if}
+        {#if ghost.action}
+          {@const action = actions[ghost.action]}
+          {#key ghost.action}
+            <span class="drag-ghost-action" data-action={ghost.action}><action.icon />{action.label}</span>
+          {/key}
+        {/if}
+      </div>
     </div>
   </div>
 {/if}

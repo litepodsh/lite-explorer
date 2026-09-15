@@ -31,7 +31,9 @@ pub(super) fn kind_for(extension: &str) -> Option<DocumentKind> {
         "pptx" | "pptm" | "potx" | "potm" | "ppsx" | "ppsm" => Some(DocumentKind::Presentation),
         "odt" | "ott" | "odp" | "otp" | "odg" | "otg" => Some(DocumentKind::OpenDocument),
         "epub" => Some(DocumentKind::Epub),
-        "xlsx" | "xlsm" | "xltx" | "xltm" | "xlsb" | "xls" | "xla" | "xlam" | "ods" | "ots" => Some(DocumentKind::Spreadsheet),
+        "xlsx" | "xlsm" | "xltx" | "xltm" | "xlsb" | "xls" | "xla" | "xlam" | "ods" | "ots" => {
+            Some(DocumentKind::Spreadsheet)
+        }
         "fodt" | "fods" | "fodp" | "fodg" => Some(DocumentKind::FlatOpenDocument),
         _ => None,
     }
@@ -48,10 +50,17 @@ pub(super) fn max_bytes(kind: DocumentKind) -> u64 {
 
 /// First text line of the document containing `needle` (already lowercased).
 /// `Err` when the file cannot be read as that kind.
-pub(super) fn document_match(bytes: &[u8], kind: DocumentKind, needle: &str) -> Result<Option<String>, ()> {
+pub(super) fn document_match(
+    bytes: &[u8],
+    kind: DocumentKind,
+    needle: &str,
+) -> Result<Option<String>, ()> {
     match kind {
         DocumentKind::Spreadsheet => spreadsheet_match(bytes, needle),
-        DocumentKind::FlatOpenDocument => Ok(matching_line(&xml_text(&text::decode(bytes).ok_or(())?), needle)),
+        DocumentKind::FlatOpenDocument => Ok(matching_line(
+            &xml_text(&text::decode(bytes).ok_or(())?),
+            needle,
+        )),
         _ => zipped_match(Cursor::new(bytes), kind, needle),
     }
 }
@@ -61,7 +70,11 @@ fn spreadsheet_match(bytes: &[u8], needle: &str) -> Result<Option<String>, ()> {
     let mut workbook = calamine::open_workbook_auto_from_rs(Cursor::new(bytes)).map_err(|_| ())?;
     for (_, range) in workbook.worksheets() {
         for row in range.rows() {
-            let cells: Vec<String> = row.iter().map(ToString::to_string).filter(|cell| !cell.is_empty()).collect();
+            let cells: Vec<String> = row
+                .iter()
+                .map(ToString::to_string)
+                .filter(|cell| !cell.is_empty())
+                .collect();
             if let Some(line) = matching_line(&cells.join(" | "), needle) {
                 return Ok(Some(line));
             }
@@ -74,9 +87,16 @@ fn is_text_part(kind: DocumentKind, name: &str) -> bool {
     match kind {
         DocumentKind::Word => name.strip_prefix("word/").is_some_and(|part| {
             part.ends_with(".xml")
-                && ["document", "header", "footer", "footnotes", "endnotes", "comments"]
-                    .iter()
-                    .any(|prefix| part.starts_with(prefix))
+                && [
+                    "document",
+                    "header",
+                    "footer",
+                    "footnotes",
+                    "endnotes",
+                    "comments",
+                ]
+                .iter()
+                .any(|prefix| part.starts_with(prefix))
         }),
         DocumentKind::Presentation => {
             (name.starts_with("ppt/slides/slide") || name.starts_with("ppt/notesSlides/notesSlide"))
@@ -85,16 +105,25 @@ fn is_text_part(kind: DocumentKind, name: &str) -> bool {
         DocumentKind::OpenDocument => name == "content.xml",
         DocumentKind::Epub => {
             let lower = name.to_ascii_lowercase();
-            !lower.starts_with("meta-inf/") && [".xhtml", ".html", ".htm"].iter().any(|extension| lower.ends_with(extension))
+            !lower.starts_with("meta-inf/")
+                && [".xhtml", ".html", ".htm"]
+                    .iter()
+                    .any(|extension| lower.ends_with(extension))
         }
         DocumentKind::Spreadsheet | DocumentKind::FlatOpenDocument => false,
     }
 }
 
-fn zipped_match<R: Read + Seek>(reader: R, kind: DocumentKind, needle: &str) -> Result<Option<String>, ()> {
+fn zipped_match<R: Read + Seek>(
+    reader: R,
+    kind: DocumentKind,
+    needle: &str,
+) -> Result<Option<String>, ()> {
     let mut zip = ZipArchive::new(reader).map_err(|_| ())?;
     for index in 0..zip.len() {
-        let Ok(part) = zip.by_index(index) else { continue };
+        let Ok(part) = zip.by_index(index) else {
+            continue;
+        };
         if !is_text_part(kind, part.name()) {
             continue;
         }
@@ -125,7 +154,11 @@ pub(super) fn xml_text(xml: &str) -> String {
         let tag = &rest[open + 1..open + length];
         rest = &rest[open + length + 1..];
         let closing = tag.starts_with('/');
-        let name = tag.trim_start_matches('/').split(|c: char| c.is_whitespace() || c == '/').next().unwrap_or("");
+        let name = tag
+            .trim_start_matches('/')
+            .split(|c: char| c.is_whitespace() || c == '/')
+            .next()
+            .unwrap_or("");
         let local = name.rsplit(':').next().unwrap_or(name).to_ascii_lowercase();
         if !closing && !tag.ends_with('/') && (local == "script" || local == "style") {
             let end = format!("</{name}");
@@ -146,7 +179,10 @@ pub(super) fn xml_text(xml: &str) -> String {
                 }
                 out.push('\n');
             }
-            "p" | "h" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "li" | "div" | "title" | "blockquote" | "dt" | "dd" | "si" if closing => {
+            "p" | "h" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "li" | "div" | "title"
+            | "blockquote" | "dt" | "dd" | "si"
+                if closing =>
+            {
                 if cell_depth == 0 {
                     out.push('\n');
                 } else if !out.ends_with(' ') {
@@ -167,7 +203,10 @@ fn push_decoded(out: &mut String, text: &str) {
     while let Some(amp) = rest.find('&') {
         out.push_str(&rest[..amp]);
         rest = &rest[amp..];
-        let decoded = rest.find(';').filter(|&end| end <= 10).and_then(|end| decode_entity(&rest[1..end]).map(|c| (c, end)));
+        let decoded = rest
+            .find(';')
+            .filter(|&end| end <= 10)
+            .and_then(|end| decode_entity(&rest[1..end]).map(|c| (c, end)));
         match decoded {
             Some((c, end)) => {
                 out.push(c);
@@ -244,13 +283,32 @@ mod tests {
     fn searches_word_spreadsheet_and_opendocument_parts() {
         let docx = zip_bytes(&[
             ("word/styles.xml", "<w:t>Invoice style</w:t>"),
-            ("word/document.xml", "<w:p><w:t>Total due: </w:t><w:t>Invoice 42</w:t></w:p>"),
+            (
+                "word/document.xml",
+                "<w:p><w:t>Total due: </w:t><w:t>Invoice 42</w:t></w:p>",
+            ),
         ]);
-        assert_eq!(document_match(&docx, DocumentKind::Word, "invoice").unwrap().as_deref(), Some("Total due: Invoice 42"));
+        assert_eq!(
+            document_match(&docx, DocumentKind::Word, "invoice")
+                .unwrap()
+                .as_deref(),
+            Some("Total due: Invoice 42")
+        );
 
-        let odt = zip_bytes(&[("content.xml", "<text:p>Hola <text:span>Zarpa</text:span></text:p>")]);
-        assert_eq!(document_match(&odt, DocumentKind::OpenDocument, "hola zarpa").unwrap().as_deref(), Some("Hola Zarpa"));
-        assert_eq!(document_match(&odt, DocumentKind::OpenDocument, "missing").unwrap(), None);
+        let odt = zip_bytes(&[(
+            "content.xml",
+            "<text:p>Hola <text:span>Zarpa</text:span></text:p>",
+        )]);
+        assert_eq!(
+            document_match(&odt, DocumentKind::OpenDocument, "hola zarpa")
+                .unwrap()
+                .as_deref(),
+            Some("Hola Zarpa")
+        );
+        assert_eq!(
+            document_match(&odt, DocumentKind::OpenDocument, "missing").unwrap(),
+            None
+        );
 
         assert!(document_match(b"not a zip", DocumentKind::Word, "x").is_err());
     }
@@ -261,23 +319,58 @@ mod tests {
             ("META-INF/container.xml", "<rootfile>zarpa</rootfile>"),
             ("OEBPS/ch1.xhtml", "<html><head><style>.zarpa{}</style></head><body><h1>Chapter&nbsp;1</h1><p>The Zarpa &mdash; story</p></body></html>"),
         ]);
-        assert_eq!(document_match(&epub, DocumentKind::Epub, "zarpa").unwrap().as_deref(), Some("The Zarpa — story"));
+        assert_eq!(
+            document_match(&epub, DocumentKind::Epub, "zarpa")
+                .unwrap()
+                .as_deref(),
+            Some("The Zarpa — story")
+        );
 
         let fodt = "<?xml version=\"1.0\"?><office:document><office:body><text:p>Flat Zarpa</text:p></office:body></office:document>";
-        assert_eq!(document_match(fodt.as_bytes(), DocumentKind::FlatOpenDocument, "zarpa").unwrap().as_deref(), Some("Flat Zarpa"));
+        assert_eq!(
+            document_match(fodt.as_bytes(), DocumentKind::FlatOpenDocument, "zarpa")
+                .unwrap()
+                .as_deref(),
+            Some("Flat Zarpa")
+        );
     }
 
     #[test]
     fn searches_spreadsheet_text_and_numbers() {
         let xlsx = zip_bytes(&[
-            ("[Content_Types].xml", r#"<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>"#),
-            ("_rels/.rels", r#"<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>"#),
-            ("xl/workbook.xml", r#"<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>"#),
-            ("xl/_rels/workbook.xml.rels", r#"<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>"#),
-            ("xl/worksheets/sheet1.xml", r#"<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Name</t></is></c><c r="B1" t="inlineStr"><is><t>Total</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Zarpa API</t></is></c><c r="B2"><v>4217.5</v></c></row></sheetData></worksheet>"#),
+            (
+                "[Content_Types].xml",
+                r#"<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>"#,
+            ),
+            (
+                "_rels/.rels",
+                r#"<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>"#,
+            ),
+            (
+                "xl/workbook.xml",
+                r#"<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>"#,
+            ),
+            (
+                "xl/_rels/workbook.xml.rels",
+                r#"<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>"#,
+            ),
+            (
+                "xl/worksheets/sheet1.xml",
+                r#"<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Name</t></is></c><c r="B1" t="inlineStr"><is><t>Total</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Zarpa API</t></is></c><c r="B2"><v>4217.5</v></c></row></sheetData></worksheet>"#,
+            ),
         ]);
-        assert_eq!(document_match(&xlsx, DocumentKind::Spreadsheet, "zarpa").unwrap().as_deref(), Some("Zarpa API | 4217.5"));
-        assert_eq!(document_match(&xlsx, DocumentKind::Spreadsheet, "4217").unwrap().as_deref(), Some("Zarpa API | 4217.5"));
+        assert_eq!(
+            document_match(&xlsx, DocumentKind::Spreadsheet, "zarpa")
+                .unwrap()
+                .as_deref(),
+            Some("Zarpa API | 4217.5")
+        );
+        assert_eq!(
+            document_match(&xlsx, DocumentKind::Spreadsheet, "4217")
+                .unwrap()
+                .as_deref(),
+            Some("Zarpa API | 4217.5")
+        );
         assert!(document_match(b"plain", DocumentKind::Spreadsheet, "x").is_err());
     }
 }

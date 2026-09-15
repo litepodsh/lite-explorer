@@ -32,7 +32,12 @@ fn utf16_without_bom(bytes: &[u8]) -> Option<&'static Encoding> {
         return None;
     }
     let even_zeros = sample.iter().step_by(2).filter(|&&b| b == 0).count();
-    let odd_zeros = sample.iter().skip(1).step_by(2).filter(|&&b| b == 0).count();
+    let odd_zeros = sample
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .filter(|&&b| b == 0)
+        .count();
     if odd_zeros * 10 >= pairs * 4 && even_zeros * 20 < pairs {
         Some(UTF_16LE)
     } else if even_zeros * 10 >= pairs * 4 && odd_zeros * 20 < pairs {
@@ -44,9 +49,25 @@ fn utf16_without_bom(bytes: &[u8]) -> Option<&'static Encoding> {
 
 /// Groups whose content is formatting data rather than document text.
 const RTF_SKIPPED_DESTINATIONS: &[&str] = &[
-    "fonttbl", "colortbl", "stylesheet", "info", "pict", "object", "themedata", "colorschememapping",
-    "latentstyles", "datastore", "xmlnstbl", "listtable", "listoverridetable", "rsidtbl", "generator",
-    "filetbl", "revtbl", "pgdsctbl", "fldinst",
+    "fonttbl",
+    "colortbl",
+    "stylesheet",
+    "info",
+    "pict",
+    "object",
+    "themedata",
+    "colorschememapping",
+    "latentstyles",
+    "datastore",
+    "xmlnstbl",
+    "listtable",
+    "listoverridetable",
+    "rsidtbl",
+    "generator",
+    "filetbl",
+    "revtbl",
+    "pgdsctbl",
+    "fldinst",
 ];
 
 #[derive(Clone, Copy)]
@@ -86,7 +107,8 @@ impl RtfWriter {
 
     fn flush(&mut self) {
         if !self.bytes.is_empty() {
-            self.out.push_str(&self.encoding.decode_without_bom_handling(&self.bytes).0);
+            self.out
+                .push_str(&self.encoding.decode_without_bom_handling(&self.bytes).0);
             self.bytes.clear();
         }
     }
@@ -94,8 +116,16 @@ impl RtfWriter {
 
 /// Extracts the visible text of an RTF document, one paragraph per line.
 pub(super) fn rtf_text(rtf: &[u8]) -> String {
-    let mut writer = RtfWriter { out: String::new(), bytes: Vec::new(), encoding: WINDOWS_1252, pending_skip: 0 };
-    let mut group = RtfGroup { skip: false, fallback_chars: 1 };
+    let mut writer = RtfWriter {
+        out: String::new(),
+        bytes: Vec::new(),
+        encoding: WINDOWS_1252,
+        pending_skip: 0,
+    };
+    let mut group = RtfGroup {
+        skip: false,
+        fallback_chars: 1,
+    };
     let mut stack = Vec::new();
     let mut i = 0;
     while i < rtf.len() {
@@ -119,7 +149,9 @@ pub(super) fn rtf_text(rtf: &[u8]) -> String {
                         writer.byte(&group, next);
                     }
                     b'\'' => {
-                        let hex = rtf.get(i + 1..i + 3).and_then(|hex| std::str::from_utf8(hex).ok());
+                        let hex = rtf
+                            .get(i + 1..i + 3)
+                            .and_then(|hex| std::str::from_utf8(hex).ok());
                         i += 3;
                         if let Some(code) = hex.and_then(|hex| u8::from_str_radix(hex, 16).ok()) {
                             writer.byte(&group, code);
@@ -150,7 +182,9 @@ pub(super) fn rtf_text(rtf: &[u8]) -> String {
                         while rtf.get(i).is_some_and(u8::is_ascii_digit) {
                             i += 1;
                         }
-                        let param: Option<i32> = std::str::from_utf8(&rtf[param_start..i]).ok().and_then(|p| p.parse().ok());
+                        let param: Option<i32> = std::str::from_utf8(&rtf[param_start..i])
+                            .ok()
+                            .and_then(|p| p.parse().ok());
                         if rtf.get(i) == Some(&b' ') {
                             i += 1;
                         }
@@ -166,7 +200,10 @@ pub(super) fn rtf_text(rtf: &[u8]) -> String {
                             }
                             "ansicpg" => {
                                 writer.flush();
-                                if let Some(encoding) = param.and_then(|cp| u16::try_from(cp).ok()).and_then(codepage::to_encoding) {
+                                if let Some(encoding) = param
+                                    .and_then(|cp| u16::try_from(cp).ok())
+                                    .and_then(codepage::to_encoding)
+                                {
                                     writer.encoding = encoding;
                                 }
                             }
@@ -196,9 +233,18 @@ mod tests {
 
     #[test]
     fn decodes_utf16_with_and_without_bom() {
-        assert_eq!(decode(&utf16le("id,name\r\n1,Zarpa", true)).as_deref(), Some("id,name\r\n1,Zarpa"));
-        assert_eq!(decode(&utf16le("id,name\r\n1,Zarpa", false)).as_deref(), Some("id,name\r\n1,Zarpa"));
-        let be: Vec<u8> = "hello world".encode_utf16().flat_map(u16::to_be_bytes).collect();
+        assert_eq!(
+            decode(&utf16le("id,name\r\n1,Zarpa", true)).as_deref(),
+            Some("id,name\r\n1,Zarpa")
+        );
+        assert_eq!(
+            decode(&utf16le("id,name\r\n1,Zarpa", false)).as_deref(),
+            Some("id,name\r\n1,Zarpa")
+        );
+        let be: Vec<u8> = "hello world"
+            .encode_utf16()
+            .flat_map(u16::to_be_bytes)
+            .collect();
         assert_eq!(decode(&be).as_deref(), Some("hello world"));
     }
 

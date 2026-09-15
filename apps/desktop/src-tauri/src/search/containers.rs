@@ -42,11 +42,16 @@ pub(super) fn archive_kind(lower_name: &str) -> Option<ArchiveKind> {
         (&[".tar.xz", ".txz"], Some(Codec::Xz)),
         (&[".tar.zst", ".tar.zstd", ".tzst"], Some(Codec::Zstd)),
     ];
-    if let Some((_, codec)) = TARS.iter().find(|(suffixes, _)| suffixes.iter().any(|suffix| lower_name.ends_with(suffix))) {
+    if let Some((_, codec)) = TARS
+        .iter()
+        .find(|(suffixes, _)| suffixes.iter().any(|suffix| lower_name.ends_with(suffix)))
+    {
         return Some(ArchiveKind::Tar(*codec));
     }
     let (_, extension) = lower_name.rsplit_once('.')?;
-    ZIP_EXTENSIONS.contains(&extension).then_some(ArchiveKind::Zip)
+    ZIP_EXTENSIONS
+        .contains(&extension)
+        .then_some(ArchiveKind::Zip)
 }
 
 /// Codec and inner file name of a single compressed file, e.g. `app.log.gz` -> (Gzip, `app.log`).
@@ -94,8 +99,14 @@ mod tests {
     #[test]
     fn detects_archives_and_compressed_files() {
         assert_eq!(archive_kind("app.jar"), Some(ArchiveKind::Zip));
-        assert_eq!(archive_kind("backup.tar.zst"), Some(ArchiveKind::Tar(Some(Codec::Zstd))));
-        assert_eq!(archive_kind("src.tbz2"), Some(ArchiveKind::Tar(Some(Codec::Bzip2))));
+        assert_eq!(
+            archive_kind("backup.tar.zst"),
+            Some(ArchiveKind::Tar(Some(Codec::Zstd)))
+        );
+        assert_eq!(
+            archive_kind("src.tbz2"),
+            Some(ArchiveKind::Tar(Some(Codec::Bzip2)))
+        );
         assert_eq!(archive_kind("notes.txt"), None);
         assert_eq!(compressed("App.Log.GZ"), Some((Codec::Gzip, "App.Log")));
         assert_eq!(compressed("dump.sql.xz"), Some((Codec::Xz, "dump.sql")));

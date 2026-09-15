@@ -12,6 +12,7 @@
   import Columns2Icon from "@lucide/svelte/icons/columns-2";
   import Grid2X2Icon from "@lucide/svelte/icons/grid-2x2";
   import ListIcon from "@lucide/svelte/icons/list";
+  import ListChecksIcon from "@lucide/svelte/icons/list-checks";
   import PanelLeftIcon from "@lucide/svelte/icons/panel-left";
   import PanelRightCloseIcon from "@lucide/svelte/icons/panel-right-close";
   import PanelRightOpenIcon from "@lucide/svelte/icons/panel-right-open";
@@ -22,6 +23,7 @@
   import { DragGhost } from "$lib/components/custom/drag-ghost/index.js";
   import TitleBar from "$lib/components/custom/titlebar/title-bar.svelte";
   import CommandPalette from "$lib/components/custom/command-palette.svelte";
+  import { platformState } from "$lib/state/platform.svelte.js";
   import { openCommandPalette } from "$lib/state/command-palette.svelte";
   import AddLocationDialog from "$lib/components/custom/sidebar/add-location/add-location-dialog.svelte";
   import PasswordPrompt from "$lib/components/custom/sidebar/add-location/password-prompt.svelte";
@@ -113,6 +115,7 @@
   let bucketSettingsOpen = $state(false);
   let bucketSettingsTarget = $state<DirectoryEntry | null>(null);
   let showHiddenFiles = $state(false);
+  let itemCheckboxes = $state(false);
   let showFps = $state(false);
   let activityOpen = $state(false);
   let finderSearch = $state<ReturnType<typeof FinderSearch>>();
@@ -368,13 +371,15 @@
     setTimeout(() => (pastedPaths = new Set([...pastedPaths].filter((path) => !paths.includes(path)))), 2800);
   }
 
-  async function handleExternalDrop(targetPaneId: string, path: string, options: { move: boolean }) {
+  async function handleExternalDrop(targetPaneId: string, paths: string[], options: { move: boolean }) {
     const target = controllerFor(targetPaneId);
     const destination = target.listingPath;
     if (!destination || target.remoteListing) return;
     try {
-      if (options.move) await moveItem(path, destination);
-      else await copyItem(path, destination);
+      for (const path of paths) {
+        if (options.move) await moveItem(path, destination);
+        else await copyItem(path, destination);
+      }
     } catch (error) {
       await message(error instanceof Error ? error.message : String(error), {
         title: "Couldn’t transfer",
@@ -395,6 +400,7 @@
   onMount(() => {
     void invoke<string>("os_detection").then((detected) => {
       platform = detected as typeof platform;
+      platformState.current = platform;
       document.documentElement.dataset.platform = detected;
     });
     void fetchFavorites().then((savedFavorites) => (favorites = savedFavorites));
@@ -488,7 +494,7 @@
   // The menu's Open item follows the active pane's selection.
   $effect(() => {
     const controller = activeController;
-    const entry = controller.entries.find((candidate) => candidate.path === controller.selectedEntryPath);
+    const entry = controller.selectedEntries.length === 1 ? controller.selectedEntries[0] : undefined;
     void invoke("set_open_target", {
       path: entry?.path ?? "",
       isDirectory: entry?.is_directory ?? false,
@@ -531,6 +537,11 @@
     if (panes.activeTabs.selectDigit(Number(event.key))) event.preventDefault();
   }
 
+  // Multiple selection mode starts off each launch.
+  function setItemCheckboxes(show: boolean) {
+    itemCheckboxes = show;
+  }
+
   function handleWindowKeydown(event: KeyboardEvent) {
     const modifier = platform === "macos" ? event.metaKey : event.ctrlKey;
     const target = event.target instanceof Element ? event.target : null;
@@ -548,6 +559,20 @@
         event.preventDefault();
         void pasteTransferClipboard();
       }
+    }
+    // Escape leaves checkbox selection mode; the file list then clears the selection itself.
+    if (
+      event.key === "Escape" &&
+      itemCheckboxes &&
+      !editing &&
+      !event.defaultPrevented &&
+      !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey &&
+      !activeController.contextMenuOpen &&
+      !confirmation.open
+    ) {
+      setItemCheckboxes(false);
+      activeController.clearSelection();
+      event.preventDefault();
     }
     handleTabKeydown(event);
     handleEnterKeydown(event);
@@ -684,6 +709,11 @@
           <button aria-label="List view" aria-pressed={activeController.viewMode === "list"} onclick={() => activeController.tabs.update({ viewMode: "list" })}><ListIcon /></button>
           <button aria-label="Icon view" aria-pressed={activeController.viewMode === "grid"} onclick={() => activeController.tabs.update({ viewMode: "grid" })}><Grid2X2Icon /></button>
           <button
+            aria-label={itemCheckboxes ? "Hide item checkboxes" : "Show item checkboxes"}
+            aria-pressed={itemCheckboxes}
+            title="Item Checkboxes"
+            onclick={() => setItemCheckboxes(!itemCheckboxes)}><ListChecksIcon /></button>
+          <button
             aria-label={activeController.previewOpen ? "Hide preview" : "Show preview"}
             aria-pressed={activeController.previewOpen}
             title={activeController.previewOpen ? "Hide preview" : "Show preview"}
@@ -718,13 +748,15 @@
           active={pane.id === panes.activeId}
           onActivate={() => panes.setActive(pane.id)}
           {showHiddenFiles}
+          {itemCheckboxes}
+          onEnableCheckboxes={() => setItemCheckboxes(true)}
           {showFps}
           {revealLabel}
           {transferActivity}
           onOpenBucketSettings={openBucketSettings}
           onNewBucket={() => (newBucketOpen = true)}
           onReconnect={(location) => reconnect(controllerFor(pane.id), location)}
-          onExternalDrop={(path, options) => handleExternalDrop(pane.id, path, options)}
+          onExternalDrop={(paths, options) => handleExternalDrop(pane.id, paths, options)}
           onCrossPaneDrop={(from, to, fromIndex, toIndex) => panes.moveTab(from, to, fromIndex, toIndex)}
           {favoritePaths}
           {pastedPaths}

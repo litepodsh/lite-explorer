@@ -92,6 +92,7 @@
 
   let externalDroppable = $derived(
     drag.entry !== null &&
+      drag.entries.length <= 1 &&
       canFavorite({ is_directory: drag.entry.isDirectory, path: drag.entry.path, kind: drag.entry.kind }),
   );
   let draggedFavoriteIndex = $derived(
@@ -133,7 +134,7 @@
         // At the window edge the drag becomes a native one, so the folder can be dropped in other apps.
         if (atWindowEdge(move.clientX, move.clientY, window.innerWidth, window.innerHeight)) {
           cancelReorder();
-          startNativeDrag(favorite.path, favorite.name, "folder");
+          startNativeDrag([favorite.path], favorite.name, "folder");
           return;
         }
         drag.favoriteDropAt = favoriteDropIndexAt(move.clientX, move.clientY);

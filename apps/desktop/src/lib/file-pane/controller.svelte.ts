@@ -30,16 +30,47 @@ import {
 import type { Location } from "$lib/tabs/tabs.js";
 import type { TabsStore } from "$lib/tabs/tabs.svelte.js";
 import type { ClipboardMode, QueueEntry } from "$lib/transfer-clipboard/queue.js";
+import {
+  EMPTY_SELECTION,
+  addRange,
+  applyNav,
+  isNavKey,
+  navTarget,
+  prune,
+  selectAll,
+  selectOnly,
+  selectRange,
+  toggle,
+  type Selection,
+} from "$lib/selection/selection.js";
+import { isPrimaryModifier } from "$lib/state/platform.svelte.js";
 
 type Recent = { name: string; path: string; kind: string; opened_at: number };
 export type SearchMode = "fuzzy" | "content";
 export type SearchEntry = DirectoryEntry & { relative_path: string; snippet?: string; inner_path?: string };
 type SearchResponse = { results: SearchEntry[]; skipped: number; limited: boolean };
 
+/** What the mounted file list exposes so keyboard selection follows its visible order and layout. */
+export type ListNavigator = {
+  /** Visible entries in display order (sorted, hidden files filtered). */
+  order(): DirectoryEntry[];
+  view(): "list" | "grid";
+  columns(): number;
+  pageRows(): number;
+  scrollToIndex(index: number): void;
+};
+
+/** A click previews after this delay, so a double-click can open instead without flashing the preview. */
+const PREVIEW_CLICK_DELAY = 250;
+
 /** S3 objects and SFTP/FTP files: changed through backend commands and opened from a cached download. */
 function isRemoteLike(path: string): boolean {
   return isRemotePath(path) || isServerPath(path);
 }
+function targetLabel(targets: DirectoryEntry[]): string {
+  return targets.length === 1 ? targets[0].name : `${targets.length} items`;
+}
+
 export class FilePaneController {
   entries = $state<DirectoryEntry[]>([]);
   searchQuery = $state("");
@@ -56,7 +87,8 @@ export class FilePaneController {
   /** Saved network location whose share or session is gone, shown with a Reconnect button. */
   disconnected = $state<Location | null>(null);
   renamingPath = $state("");
-  contextTarget = $state<DirectoryEntry | null>(null);
+  /** Entries the open context menu acts on: the selection when the menu opened on it. */
+  contextTargets = $state<DirectoryEntry[]>([]);
   previewEntryPath = $state("");
   previewOpen = $state(true);
   contextMenuOpen = $state(false);
@@ -67,6 +99,9 @@ export class FilePaneController {
   onTransferClipboard: (entry: QueueEntry) => void = () => {};
 
   scrollPositions = new Map<string, number>();
+  /** Registered by the mounted file list. */
+  navigator: ListNavigator | null = null;
+  #previewTimer: ReturnType<typeof setTimeout> | undefined;
 
   recentEntries = $derived(
     this.recents.map((recent) => ({
@@ -105,8 +140,25 @@ export class FilePaneController {
   }
   /** Opens a share that isn't mounted yet (`smb://<id>/<share>`). Set by the page. */
   openShare: (path: string, options: { newTab?: boolean }) => void = () => {};
-  get selectedEntryPath() {
-    return this.tabs.active.selectedEntryPath;
+  get selection(): Selection {
+    return this.tabs.active.selection;
+  }
+  get focusPath() {
+    return this.tabs.active.selection.focus;
+  }
+  /** Single entry the context menu acts on; null when it opened on several. */
+  get contextTarget(): DirectoryEntry | null {
+    return this.contextTargets.length === 1 ? this.contextTargets[0] : null;
+  }
+  selectedSet = $derived(new Set(this.selection.paths));
+  /** Selected entries in listing order. */
+  selectedEntries = $derived.by(() => {
+    const selected = this.selectedSet;
+    if (selected.size === 0) return [];
+    return this.sourceEntries.filter((entry) => selected.has(entry.path));
+  });
+  get sourceEntries(): DirectoryEntry[] {
+    return this.selected === "Recents" ? this.recentEntries : this.visibleEntries;
   }
   get selected() {
     return this.tabs.active.location.name;
@@ -129,29 +181,84 @@ export class FilePaneController {
     private readonly onWindowClose: () => void,
   ) {}
 
+  /** Called by the mounted file list; returns its unregister function. */
+  registerNavigator(navigator: ListNavigator): () => void {
+    this.navigator = navigator;
+    return () => {
+      if (this.navigator === navigator) this.navigator = null;
+    };
+  }
+
+  /** Stores the selection on the tab. One selected entry is previewed; several show a summary. */
+  setSelection(selection: Selection, { delayPreview = false }: { delayPreview?: boolean } = {}) {
+    this.tabs.update({ selection });
+    clearTimeout(this.#previewTimer);
+    const path = selection.paths.length === 1 ? selection.paths[0] : "";
+    if (delayPreview && path && path !== this.previewEntryPath) {
+      this.#previewTimer = setTimeout(() => (this.previewEntryPath = path), PREVIEW_CLICK_DELAY);
+    } else {
+      this.previewEntryPath = path;
+    }
+  }
+
   selectEntry(entry: DirectoryEntry) {
-    this.tabs.update({ selectedEntryPath: entry.path });
-    this.previewEntryPath = entry.path;
+    this.setSelection(selectOnly(entry.path));
   }
 
   clearSelection() {
-    this.tabs.update({ selectedEntryPath: "" });
-    this.previewEntryPath = "";
+    this.setSelection(EMPTY_SELECTION);
+  }
+
+  /** Paths of the listed entries in display order. */
+  private orderPaths(): string[] {
+    return (this.navigator?.order() ?? this.sourceEntries).map((entry) => entry.path);
+  }
+
+  /** Click with Explorer modifiers: primary toggles, Shift selects a range, both add a range. */
+  clickEntry(entry: DirectoryEntry, { primary, shift }: { primary: boolean; shift: boolean }) {
+    const current = this.selection;
+    let next: Selection;
+    if (shift && primary) next = addRange(current, this.orderPaths(), entry.path);
+    else if (shift) next = selectRange(current, this.orderPaths(), entry.path);
+    else if (primary) next = toggle(current, entry.path);
+    else next = selectOnly(entry.path);
+    this.setSelection(next, { delayPreview: !shift && !primary });
+  }
+
+  toggleEntry(entry: DirectoryEntry) {
+    this.setSelection(toggle(this.selection, entry.path));
+  }
+
+  /** Header checkbox: selects everything unless everything is already selected. */
+  toggleAll() {
+    const order = this.orderPaths();
+    const all = order.length > 0 && order.every((path) => this.selectedSet.has(path));
+    this.setSelection(all ? EMPTY_SELECTION : selectAll(order));
+  }
+
+  /** Keeps only selected paths that are still listed. */
+  pruneSelection() {
+    const next = prune(this.selection, this.sourceEntries.map((entry) => entry.path));
+    if (next !== this.selection) this.setSelection(next);
   }
 
   enqueueSelected(mode: ClipboardMode): boolean {
-    if (this.serverRoot || !this.selectedEntryPath) return false;
-    const entries = this.selected === "Recents" ? this.recentEntries : this.entries;
-    const entry = entries.find((candidate) => candidate.path === this.selectedEntryPath);
-    if (!entry) return false;
-    this.onTransferClipboard({ path: entry.path, name: entry.name, isDirectory: entry.is_directory, mode });
+    if (this.serverRoot) return false;
+    const entries = this.selectedEntries;
+    if (entries.length === 0) return false;
+    this.enqueue(entries, mode);
     return true;
   }
 
-  enqueueContextTarget(mode: ClipboardMode) {
-    const entry = this.contextTarget;
-    if (!entry || this.serverRoot) return;
-    this.onTransferClipboard({ path: entry.path, name: entry.name, isDirectory: entry.is_directory, mode });
+  enqueueContextTargets(mode: ClipboardMode) {
+    if (this.serverRoot) return;
+    this.enqueue(this.contextTargets, mode);
+  }
+
+  private enqueue(entries: DirectoryEntry[], mode: ClipboardMode) {
+    for (const entry of entries) {
+      this.onTransferClipboard({ path: entry.path, name: entry.name, isDirectory: entry.is_directory, mode });
+    }
   }
 
   openLocation(location: Location, options: { newTab?: boolean } = {}) {
@@ -185,7 +292,10 @@ export class FilePaneController {
       this.listing = false;
       this.entries = [];
       const result = await invoke<Recent[]>("recents");
-      if (token === this.loadToken) this.recents = result;
+      if (token === this.loadToken) {
+        this.recents = result;
+        this.pruneSelection();
+      }
       return;
     }
     if (!location.path) {
@@ -198,6 +308,7 @@ export class FilePaneController {
       const result = await invoke<DirectoryEntry[]>("read_directory", { path: location.path });
       if (token !== this.loadToken) return;
       this.entries = result;
+      this.pruneSelection();
       const owner = isNetworkPath(location.path) ? networkStatus.ownerOf(location.path) : null;
       if (owner && !isServerPath(location.path)) {
         const mounted = result.filter((entry) => !isNetworkPath(entry.path));
@@ -256,6 +367,7 @@ export class FilePaneController {
   }
 
   openEntry(entry: DirectoryEntry, options: { newTab?: boolean } = {}) {
+    clearTimeout(this.#previewTimer);
     if (entry.kind === "share" && isNetworkPath(entry.path)) {
       this.openShare(entry.path, options);
       return;
@@ -296,11 +408,14 @@ export class FilePaneController {
     }
   }
 
-  /** Enter opens the selected entry, unless focus is in a text field, menu or other control. */
+  /** Enter opens the selected entries, unless focus is in a text field, menu or other control.
+   *  With several selected, folders open in new tabs. */
   handleEnterKeydown(event: KeyboardEvent) {
     if (event.key !== "Enter" || event.defaultPrevented || event.isComposing) return;
     if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-    if (this.renamingPath || this.contextMenuOpen || !this.selectedEntryPath) return;
+    if (this.renamingPath || this.contextMenuOpen) return;
+    const entries = this.selectedEntries;
+    if (entries.length === 0) return;
     const target = event.target instanceof Element ? event.target : null;
     if (
       target?.closest(
@@ -309,14 +424,12 @@ export class FilePaneController {
     )
       return;
     if (target?.closest("button, a") && !target.closest("[data-file-list]")) return;
-    const list = this.selected === "Recents" ? this.recentEntries : this.entries;
-    const entry = list.find((candidate) => candidate.path === this.selectedEntryPath);
-    if (!entry) return;
     event.preventDefault();
-    this.openEntry(entry);
+    if (entries.length === 1) return this.openEntry(entries[0]);
+    for (const entry of entries) this.openEntry(entry, { newTab: entry.is_directory });
   }
 
-  /** Finder/Explorer-style selection and folder navigation for the active file pane. */
+  /** Windows Explorer-style selection and folder navigation for the active file pane. */
   handleFileListKeydown(event: KeyboardEvent, showHidden: boolean) {
     if (
       event.defaultPrevented ||
@@ -327,51 +440,72 @@ export class FilePaneController {
     )
       return;
     const target = event.target instanceof Element ? event.target : null;
-    if (
-      target?.closest(
-        "input, textarea, select, [contenteditable='true'], [role='menu'], [role='dialog'], button, a",
-      )
-    )
-      return;
-
-    const entries = (this.selected === "Recents" ? this.recentEntries : this.entries).filter(
-      (entry) => showHidden || !entry.is_hidden,
+    const control = target?.closest(
+      "input, textarea, select, [contenteditable='true'], [role='menu'], [role='dialog'], button, a",
     );
-    const selectedIndex = entries.findIndex((entry) => entry.path === this.selectedEntryPath);
+    // Grid items are buttons but belong to the list.
+    if (control && !control.matches("[data-entry-path]")) return;
+    if (this.selected === "Overview") return;
 
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      if (event.metaKey || event.ctrlKey || event.altKey || entries.length === 0) return;
+    const order =
+      this.navigator?.order() ?? this.sourceEntries.filter((entry) => showHidden || !entry.is_hidden);
+    const paths = order.map((entry) => entry.path);
+    const view = this.navigator?.view() ?? this.viewMode;
+    const primary = isPrimaryModifier(event);
+    const plain = !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
+    const focusEntry = order.find((entry) => entry.path === this.focusPath);
+
+    // In the list view Left and Right keep navigating folders.
+    if (view === "list" && event.key === "ArrowRight" && plain) {
+      if (!focusEntry?.is_directory) return;
       event.preventDefault();
-      const delta = event.key === "ArrowDown" ? 1 : -1;
-      const index =
-        selectedIndex < 0
-          ? delta > 0
-            ? 0
-            : entries.length - 1
-          : Math.max(0, Math.min(entries.length - 1, selectedIndex + delta));
-      this.selectEntry(entries[index]);
+      this.openEntry(focusEntry);
       return;
     }
-
-    if (event.key === "ArrowRight" && !event.metaKey && !event.ctrlKey && !event.altKey) {
-      const entry = entries[selectedIndex];
-      if (!entry?.is_directory) return;
-      event.preventDefault();
-      this.openEntry(entry);
-      return;
-    }
-
-    if (event.key === "ArrowLeft" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    if (view === "list" && event.key === "ArrowLeft" && plain) {
       event.preventDefault();
       this.openParent();
       return;
     }
 
-    if ((event.key === "Delete" || event.key === "Backspace") && !event.altKey && !event.ctrlKey) {
-      const entry = entries[selectedIndex];
-      if (!entry) return;
+    if (isNavKey(event.key) && !event.altKey && (primary || !(event.metaKey || event.ctrlKey))) {
+      const index = navTarget(paths.indexOf(this.focusPath), event.key, {
+        count: paths.length,
+        columns: this.navigator?.columns() ?? 1,
+        pageRows: this.navigator?.pageRows() ?? 10,
+        view,
+      });
+      if (index === null) return;
       event.preventDefault();
-      this.deleteEntry(entry, { permanent: event.shiftKey || event.metaKey });
+      this.setSelection(applyNav(this.selection, paths, paths[index], { shift: event.shiftKey, primary }));
+      this.navigator?.scrollToIndex(index);
+      return;
+    }
+
+    if (event.key === " " && !event.altKey && !event.shiftKey && (primary || plain)) {
+      if (!focusEntry) return;
+      event.preventDefault();
+      this.setSelection(primary ? toggle(this.selection, focusEntry.path) : selectOnly(focusEntry.path));
+      return;
+    }
+
+    if (primary && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "a") {
+      event.preventDefault();
+      this.setSelection(selectAll(paths));
+      return;
+    }
+
+    if (event.key === "Escape" && plain && this.selection.paths.length > 0) {
+      event.preventDefault();
+      this.clearSelection();
+      return;
+    }
+
+    if ((event.key === "Delete" || event.key === "Backspace") && !event.altKey && !event.ctrlKey) {
+      const entries = this.selectedEntries;
+      if (entries.length === 0) return;
+      event.preventDefault();
+      this.deleteEntries(entries, { permanent: event.shiftKey || event.metaKey });
     }
   }
 
@@ -429,7 +563,10 @@ export class FilePaneController {
     if (this.listingPath !== path || !path || this.selected === "Recents") return;
     try {
       const result = await invoke<DirectoryEntry[]>("read_directory", { path });
-      if (this.listingPath === path) this.entries = result;
+      if (this.listingPath === path) {
+        this.entries = result;
+        this.pruneSelection();
+      }
     } catch (error) {
       this.listingError = error instanceof Error ? error.message : String(error);
     }
@@ -439,38 +576,50 @@ export class FilePaneController {
     if (this.contextTarget) this.renamingPath = this.contextTarget.path;
   }
 
-  deleteContextTarget() {
-    if (this.contextTarget) this.deleteEntry(this.contextTarget, { permanent: true });
+  deleteContextTargets() {
+    if (this.contextTargets.length) this.deleteEntries(this.contextTargets, { permanent: true });
   }
 
-  deleteEntry(target: DirectoryEntry, { permanent }: { permanent: boolean }) {
+  deleteEntries(targets: DirectoryEntry[], { permanent }: { permanent: boolean }) {
+    if (targets.length === 0) return;
     const folder = this.listingPath;
     const bucket = this.remoteRoot;
-    const remote = isRemoteLike(target.path);
+    const remote = targets.some((target) => isRemoteLike(target.path));
     const irreversible = permanent || remote;
+    const single = targets.length === 1 ? targets[0] : null;
+    const subject = single ? `“${single.name}”` : `${targets.length} items`;
+    const bucketSubject = single ? `bucket “${single.name}”` : `${targets.length} buckets`;
     confirmation.ask({
       title: bucket
-        ? `Delete bucket “${target.name}”?`
+        ? `Delete ${bucketSubject}?`
         : irreversible
-          ? `Permanently delete “${target.name}”?`
-          : `Move “${target.name}” to the Trash?`,
+          ? `Permanently delete ${subject}?`
+          : `Move ${subject} to the Trash?`,
       description: bucket
         ? "Only empty buckets can be deleted. This can’t be undone."
         : !irreversible
-          ? "You can restore it later from the Trash."
-          : target.is_directory
-            ? "The folder and everything inside it are deleted from storage. This can’t be undone."
-            : "The file is deleted from storage. This can’t be undone.",
+          ? single
+            ? "You can restore it later from the Trash."
+            : "You can restore them later from the Trash."
+          : !single
+            ? "The items and everything inside them are deleted from storage. This can’t be undone."
+            : single.is_directory
+              ? "The folder and everything inside it are deleted from storage. This can’t be undone."
+              : "The file is deleted from storage. This can’t be undone.",
       confirmLabel: irreversible ? "Delete" : "Move to Trash",
       pendingLabel: irreversible ? "Deleting…" : "Moving…",
       globalHoldKeys: ["Delete", "Backspace"],
       onconfirm: async () => {
-        if (bucket) await deleteRemoteBucket(target.path);
-        else if (remote) await deleteRemoteItems([target.path]);
-        else if (irreversible) await deleteItem(target.path);
-        else await trashItem(target.path);
-        if (this.selectedEntryPath === target.path) this.clearSelection();
-        await this.refreshListing(folder);
+        const paths = targets.map((target) => target.path);
+        try {
+          if (bucket) for (const path of paths) await deleteRemoteBucket(path);
+          else if (remote) await deleteRemoteItems(paths);
+          else if (irreversible) for (const path of paths) await deleteItem(path);
+          else for (const path of paths) await trashItem(path);
+        } finally {
+          await this.refreshListing(folder);
+          this.pruneSelection();
+        }
       },
     });
   }
@@ -491,15 +640,15 @@ export class FilePaneController {
     this.openLocation({ name, path, kind: "folder" });
   }
 
-  async downloadContextTarget() {
-    const target = this.contextTarget;
-    if (!target) return;
+  async downloadContextTargets() {
+    const targets = this.contextTargets;
+    if (targets.length === 0) return;
     const destination = await open({ directory: true, title: "Download to…" });
     if (typeof destination !== "string") return;
     try {
-      await downloadRemoteItems([target.path], destination);
+      await downloadRemoteItems(targets.map((target) => target.path), destination);
     } catch (error) {
-      await this.showError(`Couldn’t download ${target.name}`, error);
+      await this.showError(`Couldn’t download ${targetLabel(targets)}`, error);
     }
   }
 
@@ -523,9 +672,16 @@ export class FilePaneController {
     this.renamingPath = "";
   }
 
+  /** Right-click on a selected entry acts on the whole selection; on another entry it selects only that one. */
   handleContextMenu(entry: DirectoryEntry) {
-    this.contextTarget = entry;
-    this.tabs.update({ selectedEntryPath: entry.path });
+    if (this.selectedSet.has(entry.path)) {
+      this.contextTargets = this.selectedEntries;
+      this.tabs.update({ selection: { ...this.selection, focus: entry.path } });
+      return;
+    }
+    this.contextTargets = [entry];
+    // Highlight without previewing, like before multiple selection.
+    this.tabs.update({ selection: selectOnly(entry.path) });
   }
 
   async refreshOpenWithApps() {
@@ -549,7 +705,7 @@ export class FilePaneController {
     if (open) {
       void this.refreshOpenWithApps();
     } else {
-      this.contextTarget = null;
+      this.contextTargets = [];
       this.openWithApps = [];
       this.defaultApp = null;
     }
@@ -625,81 +781,61 @@ export class FilePaneController {
     if (appPath) await openWithTarget(path, appPath);
   }
 
-  copyContextPath() {
-    const path = this.contextTarget?.path;
-    if (!path) return;
+  copyContextPaths() {
+    if (this.contextTargets.length === 0) return;
     // Files inside a mount copy their local path, which other apps can open.
-    const copied = isServerPath(path) ? this.displayPath(path) : toS3Uri(path);
+    const copied = this.contextTargets
+      .map(({ path }) => (isServerPath(path) ? this.displayPath(path) : toS3Uri(path)))
+      .join("\n");
     void navigator.clipboard.writeText(copied);
   }
 
-  async duplicateContextTarget() {
-    const target = this.contextTarget;
-    if (!target) return;
-    const parent = parentPath(target.path);
-    try {
-      await copyItem(target.path, parent);
-      if (this.isBrowsableFolder()) {
-        this.entries = await invoke<DirectoryEntry[]>("read_directory", { path: this.listingPath });
+  async duplicateContextTargets() {
+    const targets = this.contextTargets;
+    for (const target of targets) {
+      try {
+        await copyItem(target.path, parentPath(target.path));
+      } catch (error) {
+        if (isRemoteLike(target.path)) void this.showError(`Couldn’t duplicate ${target.name}`, error);
+        else this.listingError = error instanceof Error ? error.message : String(error);
+        break;
       }
-    } catch (error) {
-      if (isRemoteLike(target.path))
-        return this.showError(`Couldn’t duplicate ${target.name}`, error);
-      this.listingError = error instanceof Error ? error.message : String(error);
     }
+    if (targets.length && this.isBrowsableFolder()) await this.refreshListing(this.listingPath);
   }
 
-  async moveContextTargetTo() {
-    const target = this.contextTarget;
-    if (!target) return;
-    const destination = await open({
-      directory: true,
-      title: "Move to…",
-      defaultPath: this.listingPath,
-    });
-    if (typeof destination !== "string") return;
-    try {
-      await moveItem(target.path, destination);
-      if (this.isBrowsableFolder()) {
-        this.entries = await invoke<DirectoryEntry[]>("read_directory", { path: this.listingPath });
-      }
-    } catch (error) {
-      this.listingError = error instanceof Error ? error.message : String(error);
-    }
+  async moveContextTargetsTo() {
+    await this.transferContextTargets("Move to…", moveItem);
   }
 
-  async copyContextTargetTo() {
-    const target = this.contextTarget;
-    if (!target) return;
-    const destination = await open({
-      directory: true,
-      title: "Copy to…",
-      defaultPath: this.listingPath,
-    });
+  async copyContextTargetsTo() {
+    await this.transferContextTargets("Copy to…", copyItem);
+  }
+
+  private async transferContextTargets(title: string, transfer: (path: string, destination: string) => Promise<unknown>) {
+    const targets = this.contextTargets;
+    if (targets.length === 0) return;
+    const destination = await open({ directory: true, title, defaultPath: this.listingPath });
     if (typeof destination !== "string") return;
     try {
-      await copyItem(target.path, destination);
-      if (this.isBrowsableFolder()) {
-        this.entries = await invoke<DirectoryEntry[]>("read_directory", { path: this.listingPath });
-      }
+      for (const target of targets) await transfer(target.path, destination);
     } catch (error) {
       this.listingError = error instanceof Error ? error.message : String(error);
     }
+    if (this.isBrowsableFolder()) await this.refreshListing(this.listingPath);
   }
 
-  async compressContextTarget() {
-    const target = this.contextTarget;
-    if (!target || isRemoteLike(target.path)) return;
-    const parent = parentPath(target.path) || target.path;
-    const destination = await save({
-      title: "Compress",
-      defaultPath: `${parent}${target.name}.zip`,
-    });
+  async compressContextTargets() {
+    const targets = this.contextTargets;
+    if (targets.length === 0 || targets.some((target) => isRemoteLike(target.path))) return;
+    const parent = parentPath(targets[0].path) || targets[0].path;
+    const name = targets.length === 1 ? targets[0].name : "Archive";
+    const destination = await save({ title: "Compress", defaultPath: `${parent}${name}.zip` });
     if (typeof destination !== "string") return;
     try {
-      await createArchive([target.path], destination);
+      await createArchive(targets.map((target) => target.path), destination);
     } catch (error) {
-      await this.showError(`Couldn’t compress ${target.name}`, error);
+      await this.showError(`Couldn’t compress ${targetLabel(targets)}`, error);
     }
     await this.refreshListing(this.listingPath);
   }

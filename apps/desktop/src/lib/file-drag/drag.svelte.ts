@@ -15,10 +15,15 @@ export type DragGhost = {
   name: string;
   icon: "folder" | "file" | "drive";
   action: "favorite" | "copy" | "move" | "extract" | null;
+  /** Number of items dragged together; the card stacks when more than one. */
+  count?: number;
 };
 
 class DragState {
+  /** The entry the drag started on. */
   entry = $state<DraggedEntry | null>(null);
+  /** Every entry being dragged: the selection when the drag started on a selected entry. */
+  entries = $state<DraggedEntry[]>([]);
   tab = $state<{ paneId: string; id: string } | null>(null);
   /** Path of a favorite being reordered in the sidebar. */
   favorite = $state<string | null>(null);
@@ -30,7 +35,7 @@ class DragState {
   overEntryPath = $state<string | null>(null);
   ghost = $state<DragGhost | null>(null);
   /** Drop handlers of the mounted file lists, by pane id. */
-  readonly paneDrops = new Map<string, (path: string, options: { move: boolean }) => void>();
+  readonly paneDrops = new Map<string, (paths: string[], options: { move: boolean }) => void>();
   /** Current folders of the mounted panes, for drops that extract archive entries. */
   readonly paneFolders = new Map<string, PaneFolder>();
   /** Drop handler of the sidebar favorites. */

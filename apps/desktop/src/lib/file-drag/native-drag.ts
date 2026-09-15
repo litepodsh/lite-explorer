@@ -66,7 +66,7 @@ const ICON_PATHS: Record<DragIcon, string[]> = {
 };
 
 /** Draws the drag card (the same look as the in-app drag ghost) as a PNG data URL. */
-function dragCardImage(name: string, icon: DragIcon): string {
+function dragCardImage(name: string, icon: DragIcon, count = 1): string {
   const scale = Math.max(1, Math.round(window.devicePixelRatio || 1));
   const font = `13px ${getComputedStyle(document.body).fontFamily}`;
   const shadow = 14;
@@ -82,6 +82,14 @@ function dragCardImage(name: string, icon: DragIcon): string {
   const context = canvas.getContext("2d")!;
   context.scale(scale, scale);
   context.translate(shadow, shadow - 4);
+
+  // Several items: two cards peek out behind the front one.
+  for (const [offset, alpha] of count > 1 ? ([[6, 0.35], [3, 0.6]] as const) : []) {
+    context.fillStyle = `rgb(44 41 39 / ${alpha})`;
+    context.beginPath();
+    context.roundRect(offset, offset, width, height, 10);
+    context.fill();
+  }
 
   context.save();
   context.shadowColor = "rgb(0 0 0 / 0.45)";
@@ -128,9 +136,10 @@ function fitText(context: CanvasRenderingContext2D, text: string, maxWidth: numb
   return `${text.slice(0, end)}…`;
 }
 
-/** Hands a drag of a local file or folder to the OS, so it can be dropped in other apps. */
-export function startNativeDrag(path: string, name: string, icon: DragIcon) {
-  startDrag({ item: [path], icon: dragCardImage(name, icon), mode: "copy" }).catch((error) =>
+/** Hands a drag of local files or folders to the OS, so they can be dropped in other apps. */
+export function startNativeDrag(paths: string[], name: string, icon: DragIcon) {
+  const label = paths.length > 1 ? `${paths.length} items` : name;
+  startDrag({ item: paths, icon: dragCardImage(label, icon, paths.length), mode: "copy" }).catch((error) =>
     console.error("Couldn't start dragging out of the app", error),
   );
 }

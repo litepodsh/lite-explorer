@@ -12,11 +12,13 @@
   import { openCommandPalette } from "$lib/state/command-palette.svelte";
   import SearchIcon from "@lucide/svelte/icons/search";
 
-  let { path = "", network = false, entries = [], showFps = false, activity = null } = $props<{
+  let { path = "", network = false, entries = [], selectedEntries = [], showFps = false, activity = null } = $props<{
     path?: string;
     /** The path is inside a network location, shown as its server address. */
     network?: boolean;
     entries?: DirectoryEntry[];
+    /** Selected entries; with any, the count and size describe them instead of the whole folder. */
+    selectedEntries?: DirectoryEntry[];
     showFps?: boolean;
     /** Background work to surface, like a folder scan. Shown with a spinner while set. */
     activity?: string | null;
@@ -25,10 +27,15 @@
   let copied = $state(false);
   let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
+  const selecting = $derived(selectedEntries.length > 0);
   const targetCount = $derived(entries.length);
   const targetBytes = $derived(
-    entries.reduce((sum: number, entry: DirectoryEntry) => sum + (entry.size ?? 0), 0),
+    (selecting ? selectedEntries : entries).reduce((sum: number, entry: DirectoryEntry) => sum + (entry.size ?? 0), 0),
   );
+  const selectedTween = new Tween(0, { duration: 420, easing: cubicOut });
+  $effect(() => {
+    selectedTween.target = selectedEntries.length;
+  });
 
   const count = new Tween(0, { duration: 650, easing: cubicOut });
   const bytes = new Tween(0, { duration: 650, easing: cubicOut });
@@ -81,8 +88,8 @@
     <span
       class="{activity ? 'pl-3' : 'ml-auto'} shrink-0 tabular-nums text-[#9c9895]"
       aria-live="polite"
-      aria-label={`${targetCount} items${targetBytes > 0 ? `, ${formatSize(targetBytes)}` : ""}`}>
-      {Math.round(count.current)} item{targetCount === 1 ? "" : "s"}{#if targetBytes > 0}<span
+      aria-label={`${selecting ? `${selectedEntries.length} of ` : ""}${targetCount} items${selecting ? " selected" : ""}${targetBytes > 0 ? `, ${formatSize(targetBytes)}` : ""}`}>
+      {#if selecting}<span class="text-[#5cb9ff]">{Math.round(selectedTween.current)}</span> of {/if}{Math.round(count.current)} item{targetCount === 1 ? "" : "s"}{#if selecting} selected{/if}{#if targetBytes > 0}<span
           class="px-1 text-[#5c5854]">·</span
         >{formatSize(bytes.current)}{/if}
     </span>
