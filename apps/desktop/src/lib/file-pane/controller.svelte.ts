@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { message, open, save } from "@tauri-apps/plugin-dialog";
-import { createArchive, extractArchive } from "$lib/file-ops/archive.js";
+import { createArchive } from "$lib/file-ops/archive.js";
+import { extraction } from "$lib/archive/extraction.svelte.js";
 import { confirmation } from "$lib/components/custom/dialog/index.js";
 import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
 import {
@@ -31,6 +32,9 @@ import type { TabsStore } from "$lib/tabs/tabs.svelte.js";
 import type { ClipboardMode, QueueEntry } from "$lib/transfer-clipboard/queue.js";
 
 type Recent = { name: string; path: string; kind: string; opened_at: number };
+export type SearchMode = "fuzzy" | "content";
+export type SearchEntry = DirectoryEntry & { relative_path: string; snippet?: string; inner_path?: string };
+type SearchResponse = { results: SearchEntry[]; skipped: number; limited: boolean };
 
 /** S3 objects and SFTP/FTP files: changed through backend commands and opened from a cached download. */
 function isRemoteLike(path: string): boolean {
@@ -38,6 +42,14 @@ function isRemoteLike(path: string): boolean {
 }
 export class FilePaneController {
   entries = $state<DirectoryEntry[]>([]);
+  searchQuery = $state("");
+  searchMode = $state<SearchMode>("fuzzy");
+  searchResults = $state<SearchEntry[] | null>(null);
+  searchPending = $state(false);
+  searchSkipped = $state(0);
+  searchLimited = $state(false);
+  #searchRequest = 0;
+  #searchTimer: ReturnType<typeof setTimeout> | undefined;
   recents = $state<Recent[]>([]);
   listing = $state(false);
   listingError = $state("");
@@ -99,6 +111,17 @@ export class FilePaneController {
   get selected() {
     return this.tabs.active.location.name;
   }
+  get visibleEntries(): DirectoryEntry[] { return this.searchResults ?? this.entries; }
+
+  setSearchQuery(query: string) { this.searchQuery = query; this.runSearch(); }
+  setSearchMode(mode: SearchMode) { this.searchMode = mode; this.runSearch(); }
+  clearSearch() { clearTimeout(this.#searchTimer); this.#searchRequest++; this.searchQuery = ""; this.searchResults = null; this.searchPending = false; this.searchSkipped = 0; this.searchLimited = false; }
+  private runSearch() {
+    clearTimeout(this.#searchTimer); const query = this.searchQuery.trim(); const path = this.listingPath; const request = ++this.#searchRequest;
+    if (!query || !path || this.remoteListing || this.serverRoot) { this.searchResults = null; this.searchPending = false; return; }
+    this.searchPending = true;
+    this.#searchTimer = setTimeout(async () => { try { const response = await invoke<SearchResponse>("search_directory", { path, query, mode: this.searchMode }); if (request === this.#searchRequest && path === this.listingPath && query === this.searchQuery.trim()) { this.searchResults = response.results; this.searchSkipped = response.skipped; this.searchLimited = response.limited; } } finally { if (request === this.#searchRequest) this.searchPending = false; } }, 120);
+  }
 
   constructor(
     readonly paneId: string,
@@ -153,6 +176,7 @@ export class FilePaneController {
   }
 
   async loadLocation(location: Location) {
+    this.clearSearch();
     const token = ++this.loadToken;
     this.renamingPath = "";
     this.listingError = "";
@@ -680,34 +704,22 @@ export class FilePaneController {
     await this.refreshListing(this.listingPath);
   }
 
-  async extractContextTargetHere() {
+  extractContextTargetHere() {
     const target = this.contextTarget;
     if (!target || isRemoteLike(target.path)) return;
-    const parent = parentPath(target.path) || target.path;
-    try {
-      await extractArchive(target.path, parent);
-    } catch (error) {
-      await this.showError(`Couldn’t extract ${target.name}`, error);
-    }
-    await this.refreshListing(this.listingPath);
+    void extraction.run({ archive: target.path, destination: parentPath(target.path) || target.path });
   }
 
   async extractContextTargetTo() {
     const target = this.contextTarget;
     if (!target || isRemoteLike(target.path)) return;
-    const fallback = parentPath(target.path) || target.path;
     const destination = await open({
       directory: true,
       title: "Extract to…",
-      defaultPath: fallback,
+      defaultPath: parentPath(target.path) || target.path,
     });
     if (typeof destination !== "string") return;
-    try {
-      await extractArchive(target.path, destination);
-    } catch (error) {
-      await this.showError(`Couldn’t extract ${target.name}`, error);
-    }
-    await this.refreshListing(this.listingPath);
+    void extraction.run({ archive: target.path, destination });
   }
 
   goBack() {

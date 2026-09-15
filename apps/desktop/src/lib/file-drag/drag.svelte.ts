@@ -1,3 +1,5 @@
+import type { PaneFolder } from "$lib/archive/drop-destination.js";
+
 export type DraggedEntry = {
   path: string;
   name: string;
@@ -12,7 +14,7 @@ export type DragGhost = {
   y: number;
   name: string;
   icon: "folder" | "file" | "drive";
-  action: "favorite" | "copy" | "move" | null;
+  action: "favorite" | "copy" | "move" | "extract" | null;
 };
 
 class DragState {
@@ -29,6 +31,8 @@ class DragState {
   ghost = $state<DragGhost | null>(null);
   /** Drop handlers of the mounted file lists, by pane id. */
   readonly paneDrops = new Map<string, (path: string, options: { move: boolean }) => void>();
+  /** Current folders of the mounted panes, for drops that extract archive entries. */
+  readonly paneFolders = new Map<string, PaneFolder>();
   /** Drop handler of the sidebar favorites. */
   favoritesDrop: ((path: string, index: number) => void) | null = null;
 }

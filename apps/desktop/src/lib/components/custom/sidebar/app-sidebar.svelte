@@ -217,7 +217,8 @@
                   role="listitem"
                   class="location-row favorite-row"
                   class:dragging={drag.favorite === favorite.path}
-                  data-favorite-index={index}>
+                  data-favorite-index={index}
+                  data-favorite-path={favorite.path}>
                   <button
                     aria-label={favorite.name}
                     title={favorite.path}

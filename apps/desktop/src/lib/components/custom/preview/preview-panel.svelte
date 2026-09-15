@@ -17,6 +17,7 @@
   import HtmlView from "./html-view.svelte";
   import ImageView from "./image-view.svelte";
   import BinaryView from "./binary-view.svelte";
+  import ArchiveView from "$lib/archive/archive-view.svelte";
   import { fontSizeForShortcut, lineHeightFor, parseFontSize } from "./font-size.js";
   import { isHtmlName, isMarkdownName, languageFor } from "./languages.js";
   import { analyzeHtmlSafety } from "./html-safety.js";
@@ -125,11 +126,9 @@
       }
     }
     if (event.key.toLowerCase() !== "f" || !(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
-    if (preview?.kind !== "text" || !preview.content) return;
+    if (preview?.kind !== "text" || !preview.content || !codeView?.hasTextFocus()) return;
     event.preventDefault();
-    if (!showRendered && codeView?.openFind()) return;
-    if (findOpen) findBar?.focus();
-    else findOpen = true;
+    void codeView.openFind();
   }
 </script>
 
@@ -150,6 +149,8 @@
       <div class="flex-1"></div>
     {:else if preview.kind === "directory"}
       <div class="grid flex-1 place-items-center"><FolderIcon class="size-20 stroke-[1.2] text-blue-400" /></div>
+    {:else if preview.kind === "archive"}
+      <ArchiveView path={previewPath} name={preview.name} />
     {:else if preview.kind === "binary"}
       <BinaryView name={preview.name} />
     {:else if preview.kind === "image"}

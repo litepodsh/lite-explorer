@@ -36,6 +36,7 @@
     onScroll,
     sortKey = "",
     pastedPaths = new Set<string>(),
+    searchQuery = "",
   } = $props<{
     entries?: DirectoryEntry[];
     view?: "list" | "grid";
@@ -58,6 +59,8 @@
     /** Folder the sort is remembered for; empty to not remember it. */
     sortKey?: string;
     pastedPaths?: Set<string>;
+    /** Content-search query to highlight inside result snippets. */
+    searchQuery?: string;
   }>();
 
   let sortColumn = $state<SortColumn | null>(null);
@@ -273,6 +276,7 @@
   }
 
   const LIST_ROW_H = 36; // h-9
+  const SEARCH_ROW_H = 50; // name plus a path/snippet line
   const GRID_ITEM_H = 96; // h-24
   const GRID_GAP = 4; // gap-1
   const GRID_ROW_H = GRID_ITEM_H + GRID_GAP;
@@ -289,7 +293,7 @@
 
   const rows = createRowVirtualizer({
     count: () => (view === "list" ? visibleEntries.length : gridRowCount),
-    estimateSize: () => (view === "list" ? LIST_ROW_H : GRID_ROW_H),
+    estimateSize: () => (view === "list" ? (visibleEntries[0]?.relative_path != null ? SEARCH_ROW_H : LIST_ROW_H) : GRID_ROW_H),
     scrollMargin: () => scrollMargin,
     overscan: 10,
     getScrollElement: () => scrollEl ?? null,
@@ -412,6 +416,7 @@
                     {onContextMenu}
                     dropTarget={entry.path === drag.overEntryPath}
                     pasted={pastedPaths.has(entry.path)}
+                    {searchQuery}
                     onPointerDown={startEntryDrag} />
                 {/if}
               {/each}
@@ -438,6 +443,7 @@
                     {onContextMenu}
                     dropTarget={entry.path === drag.overEntryPath}
                     pasted={pastedPaths.has(entry.path)}
+                    {searchQuery}
                     onPointerDown={startEntryDrag} />
                 {/each}
               </div>

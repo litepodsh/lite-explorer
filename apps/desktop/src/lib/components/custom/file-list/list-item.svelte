@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type DirectoryEntry = { name: string; path: string; is_directory: boolean; is_hidden: boolean; size?: number; opened_at?: number; created?: number; kind?: "bucket" | "share" };
+  export type DirectoryEntry = { name: string; path: string; is_directory: boolean; is_hidden: boolean; size?: number; opened_at?: number; created?: number; kind?: "bucket" | "share"; relative_path?: string; snippet?: string; inner_path?: string };
 </script>
 
 <script lang="ts">
@@ -24,6 +24,7 @@
     onRenameCancel,
     onContextMenu,
     style = "",
+    searchQuery = "",
   } = $props<{
     entry: DirectoryEntry;
     view?: "list" | "grid";
@@ -40,6 +41,8 @@
     onRename?: (oldPath: string, newName: string) => void;
     onRenameCancel?: () => void;
     onContextMenu?: (entry: DirectoryEntry) => void;
+    /** Content-search query to highlight inside the snippet. */
+    searchQuery?: string;
     style?: string;
   }>();
 
@@ -88,6 +91,25 @@
     }
   }
 
+  // Folder part of a search result's path; empty for results directly in the searched folder.
+  const resultFolder = $derived.by(() => {
+    const path = entry.relative_path?.replaceAll("\\", "/") ?? "";
+    const slash = path.lastIndexOf("/");
+    return slash > 0 ? path.slice(0, slash) : "";
+  });
+
+  // Splits the snippet around the first case-insensitive query match so it can be highlighted.
+  const snippetParts = $derived.by(() => {
+    const text = entry.snippet ?? "";
+    const lower = text.toLowerCase();
+    // Lowercasing can change string length (e.g. "İ"); offsets would then not map back, so skip the highlight.
+    const at = searchQuery && lower.length === text.length ? lower.indexOf(searchQuery.toLowerCase()) : -1;
+    if (at < 0) return { before: text, match: "", after: "" };
+    // Keep the match visible when the line is long: drop leading text far before it.
+    const cut = Math.max(0, at - 40);
+    return { before: (cut > 0 ? "…" : "") + text.slice(cut, at), match: text.slice(at, at + searchQuery.length), after: text.slice(at + searchQuery.length) };
+  });
+
   function commitRename() {
     const value = editName.trim();
     if (value === "" || value === entry.name) onRenameCancel?.();
@@ -131,7 +153,18 @@
           }}
           onblur={commitRename} />
       {:else}
-        {entry.name}
+        {#if entry.relative_path != null}
+          <span class="search-result">
+            <span class="search-result-name">{entry.name}</span>
+            <span class="search-result-meta">
+              {#if resultFolder}<span class="search-result-folder">{resultFolder}</span>{/if}
+              {#if entry.inner_path}<span class="search-result-inner" title={entry.inner_path}>{entry.inner_path}</span>{/if}
+              {#if entry.snippet}<span class="search-result-snippet">{snippetParts.before}{#if snippetParts.match}<mark>{snippetParts.match}</mark>{/if}{snippetParts.after}</span>{/if}
+            </span>
+          </span>
+        {:else}
+          {entry.name}
+        {/if}
       {/if}
     </div>
     <div role="gridcell" class="px-2 text-xs text-[#9c9895]">{entryType(entry)}</div>

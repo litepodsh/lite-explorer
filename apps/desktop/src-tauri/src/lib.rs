@@ -23,6 +23,7 @@ mod archive;
 mod menu;
 mod network;
 mod remote;
+mod search;
 mod transfer;
 
 struct Database(SqlitePool);
@@ -142,6 +143,7 @@ enum PreviewKind {
     Binary,
     Directory,
     Image,
+    Archive,
 }
 
 #[derive(Serialize, Debug)]
@@ -762,6 +764,15 @@ async fn read_directory(
     .map_err(|error| error.to_string())?
 }
 
+#[tauri::command]
+async fn search_directory(path: String, query: String, mode: search::SearchMode) -> Result<search::SearchResponse, String> {
+    if remote::is_remote_path(&path) || network::is_network_path(&path) || network::servers::is_server_path(&path) {
+        return Err("Search is available for local folders and mounted volumes only.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || search::search_directory(&PathBuf::from(path), &query, mode))
+        .await.map_err(|error| error.to_string())?
+}
+
 fn single_entry(path: &Path) -> Result<DirectoryEntry, String> {
     let metadata = fs::metadata(path).map_err(|error| error.to_string())?;
     let name = path
@@ -1317,6 +1328,11 @@ fn file_preview(path: &Path) -> Result<FilePreview, String> {
         truncated: false,
     };
     if metadata.is_dir() {
+        return Ok(preview);
+    }
+
+    if archive::is_archive_path(path) {
+        preview.kind = PreviewKind::Archive;
         return Ok(preview);
     }
 
@@ -2799,6 +2815,8 @@ pub fn run() {
             transfer::cancel_transfer,
             archive::create_archive,
             archive::extract_archive,
+            archive::list_archive,
+            archive::plan_extraction,
             remote::buckets::create_remote_bucket,
             remote::buckets::delete_remote_bucket,
             remote::buckets::remote_provider,
@@ -2810,6 +2828,7 @@ pub fn run() {
             remove_favorite,
             reorder_favorites,
             read_directory,
+            search_directory,
             create_item,
             rename_item,
             open_with_apps,
@@ -3089,6 +3108,17 @@ mod tests {
         let path = directory.join(name);
         fs::write(&path, bytes).unwrap();
         path
+    }
+
+    #[test]
+    fn file_preview_marks_archives_without_reading_them() {
+        let path = preview_fixture("bundle.zip", b"not really a zip");
+
+        let preview = file_preview(&path).unwrap();
+
+        assert_eq!(preview.kind, PreviewKind::Archive);
+        assert_eq!(preview.content, None);
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
     }
 
     #[test]

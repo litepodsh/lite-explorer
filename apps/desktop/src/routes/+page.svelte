@@ -16,7 +16,7 @@
   import PanelRightCloseIcon from "@lucide/svelte/icons/panel-right-close";
   import PanelRightOpenIcon from "@lucide/svelte/icons/panel-right-open";
   import Rows2Icon from "@lucide/svelte/icons/rows-2";
-  import SearchIcon from "@lucide/svelte/icons/search";
+  import FinderSearch from "$lib/components/custom/finder-search.svelte";
   import AppSidebar from "$lib/components/custom/sidebar/app-sidebar.svelte";
   import { addFavorite, fetchFavorites, removeFavorite, reorderFavorites } from "$lib/favorites/favorites.js";
   import { DragGhost } from "$lib/components/custom/drag-ghost/index.js";
@@ -28,6 +28,8 @@
   import NewBucketDialog from "$lib/components/custom/remote/new-bucket-dialog.svelte";
   import BucketSettingsDialog from "$lib/components/custom/remote/bucket-settings-dialog.svelte";
   import { ConfirmHost, confirmation } from "$lib/components/custom/dialog/index.js";
+  import ConflictHost from "$lib/archive/conflict-host.svelte";
+  import { extraction } from "$lib/archive/extraction.svelte.js";
   import { FilePane } from "$lib/file-pane/index.js";
   import { FilePaneController } from "$lib/file-pane/controller.svelte.js";
   import { PanesStore } from "$lib/panes/panes.svelte.js";
@@ -113,6 +115,7 @@
   let showHiddenFiles = $state(false);
   let showFps = $state(false);
   let activityOpen = $state(false);
+  let finderSearch = $state<ReturnType<typeof FinderSearch>>();
   const jobs = new JobsStore();
   let transferActivity = $derived(
     (() => {
@@ -359,6 +362,12 @@
     bucketSettingsOpen = true;
   }
 
+  /** Briefly highlights new rows, as after a paste. */
+  function markPasted(paths: string[]) {
+    pastedPaths = new Set([...pastedPaths, ...paths]);
+    setTimeout(() => (pastedPaths = new Set([...pastedPaths].filter((path) => !paths.includes(path)))), 2800);
+  }
+
   async function handleExternalDrop(targetPaneId: string, path: string, options: { move: boolean }) {
     const target = controllerFor(targetPaneId);
     const destination = target.listingPath;
@@ -404,8 +413,15 @@
     const savedShowFps = localStorage.getItem("show-fps");
     showFps = savedShowFps === null ? dev : savedShowFps === "true";
     void invoke("set_show_fps", { show: showFps });
+    extraction.onExtracted = (paths) => {
+      for (const controller of controllers.values()) void controller.refreshListing(controller.listingPath);
+      markPasted(paths);
+    };
     const unlisteners = [
-      listen<TransferEventPayload>("transfer-progress", ({ payload }) => jobs.upsert(payload)),
+      listen<TransferEventPayload>("transfer-progress", ({ payload }) => {
+        jobs.upsert(payload);
+        extraction.applyProgress(payload);
+      }),
       getCurrentWebview().onDragDropEvent(({ payload }) => {
         const controller = activeController;
         const writable = controller.remoteListing && !controller.remoteRoot;
@@ -519,6 +535,11 @@
     const modifier = platform === "macos" ? event.metaKey : event.ctrlKey;
     const target = event.target instanceof Element ? event.target : null;
     const editing = Boolean(target?.closest("input, textarea, select, [contenteditable='true'], [role='menu'], [role='dialog']"));
+    if (modifier && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "f" && !target?.closest(".monaco-editor")) {
+      event.preventDefault();
+      finderSearch?.focus();
+      return;
+    }
     if (modifier && !event.altKey && !editing && !event.shiftKey) {
       const key = event.key.toLowerCase();
       if (key === "c" && activeController.enqueueSelected("copy")) event.preventDefault();
@@ -540,8 +561,7 @@
       try {
         transferClipboard.applyProgress({ jobId: "clipboard", itemId: entry.id, state: "transferring" });
         const pasted = entry.mode === "copy" ? await copyItem(entry.path, request.destination) : await moveItem(entry.path, request.destination);
-        pastedPaths = new Set([...pastedPaths, pasted.path]);
-        setTimeout(() => (pastedPaths = new Set([...pastedPaths].filter((path) => path !== pasted.path))), 2800);
+        markPasted([pasted.path]);
         transferClipboard.remove(entry.id);
       } catch (error) {
         transferClipboard.applyProgress({
@@ -636,6 +656,7 @@
       name={bucketSettingsTarget.name} />
   {/if}
   <ConfirmHost />
+  <ConflictHost />
   <UpdateBanner />
   <CommandPalette {favorites} {locations} recents={activeController.recents} onNavigate={(location, opts) => openAnyLocation(location, opts)} />
   <Sidebar.Inset class="finder-content">
@@ -686,8 +707,7 @@
           <RotateCwIcon />
           {#if jobs.activeCount > 0}<span class="activity-badge">{jobs.activeCount}</span>{/if}
         </button>
-        <label class="finder-search"
-          ><SearchIcon /><input aria-label="Search" placeholder="Search" /></label>
+        <FinderSearch bind:this={finderSearch} controller={activeController} />
       </div>
     </header>
 

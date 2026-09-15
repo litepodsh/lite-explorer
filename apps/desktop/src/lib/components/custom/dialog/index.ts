@@ -5,3 +5,4 @@ export { default as DialogShell } from "./dialog-shell.svelte";
 export { default as DialogSwitch } from "./dialog-switch.svelte";
 export { default as HoldToConfirm } from "./hold-to-confirm.svelte";
 export { confirmation, type ConfirmRequest } from "./confirmation.svelte.js";
+export { default as ConflictDialog } from "./conflict-dialog.svelte";

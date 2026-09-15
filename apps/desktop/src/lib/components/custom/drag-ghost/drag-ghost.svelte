@@ -4,6 +4,7 @@
   import FolderIcon from "@lucide/svelte/icons/folder";
   import FolderInputIcon from "@lucide/svelte/icons/folder-input";
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
+  import PackageOpenIcon from "@lucide/svelte/icons/package-open";
   import StarIcon from "@lucide/svelte/icons/star";
   import { drag } from "$lib/file-drag/drag.svelte.js";
 
@@ -11,6 +12,7 @@
     favorite: { label: "Favorites", icon: StarIcon },
     copy: { label: "Copy", icon: CopyIcon },
     move: { label: "Move", icon: FolderInputIcon },
+    extract: { label: "Extract", icon: PackageOpenIcon },
   };
   const icons = { folder: FolderIcon, file: FileIcon, drive: HardDriveIcon };
 </script>

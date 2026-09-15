@@ -25,6 +25,8 @@
   import type { Location } from "$lib/tabs/tabs.js";
   import { networkStatus } from "$lib/remote/network-status.svelte.js";
   import { isArchive } from "$lib/file-ops/archive.js";
+  import { drag } from "$lib/file-drag/drag.svelte.js";
+  import { isNetworkPath } from "$lib/remote/network-locations.js";
   import { canFavorite } from "$lib/favorites/favorites.js";
   import PathStatusBar from "$lib/components/custom/status-bar/path-status-bar.svelte";
   import { ListPanel, type DirectoryEntry } from "$lib/components/custom/file-list/index.js";
@@ -70,6 +72,26 @@
   } = $props();
 
   let statusPath = $derived(controller.selected === "Overview" ? "" : controller.listingPath);
+
+  // Lets archive entries dragged from any preview extract into this pane.
+  $effect(() => {
+    const id = controller.paneId;
+    const localListing = () =>
+      controller.selected !== "Overview" &&
+      controller.selected !== "Recents" &&
+      !!controller.listingPath &&
+      !controller.remoteListing &&
+      !isNetworkPath(controller.listingPath);
+    const handle = {
+      folder: () => (localListing() ? controller.listingPath : null),
+      isFolder: (path: string) =>
+        localListing() && controller.entries.some((entry) => entry.path === path && entry.is_directory && !entry.kind),
+    };
+    drag.paneFolders.set(id, handle);
+    return () => {
+      if (drag.paneFolders.get(id) === handle) drag.paneFolders.delete(id);
+    };
+  });
   let reconnecting = $derived(
     controller.disconnected ? networkStatus.status(controller.disconnected.path).state === "connecting" : false,
   );
@@ -186,7 +208,8 @@
     <ContextMenu.Root bind:open={controller.contextMenuOpen} onOpenChange={(open) => controller.onContextMenuOpenChange(open)}>
       <ContextMenu.Trigger class={`flex min-h-0 min-w-0 flex-1${controller.remoteDropActive ? " remote-drop-active" : ""}`}>
         <ListPanel
-          entries={controller.entries}
+          entries={controller.visibleEntries}
+          searchQuery={controller.searchMode === "content" ? controller.searchQuery.trim() : ""}
           sortKey={controller.listingPath}
           view={controller.viewMode}
           showHidden={showHiddenFiles}

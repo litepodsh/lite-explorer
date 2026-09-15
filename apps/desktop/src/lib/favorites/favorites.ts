@@ -36,6 +36,11 @@ export function favoriteDropIndexAt(x: number, y: number): number | null {
   return list ? Number(list.dataset.favoritesDrop) : null;
 }
 
+/** Path of the sidebar favorite row under the viewport point, or `null`. */
+export function favoritePathAt(x: number, y: number): string | null {
+  return document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-favorite-path]")?.dataset.favoritePath ?? null;
+}
+
 /** Moves `from` to the insertion index `to`, which counts positions in the original list. */
 export function moveTo<T>(items: T[], from: number, to: number): T[] {
   const result = [...items];
