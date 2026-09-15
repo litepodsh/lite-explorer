@@ -21,23 +21,19 @@ use aws_sdk_s3::{
     primitives::DateTime,
     Client,
 };
-use base64::Engine;
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqlitePool};
 use tauri::{AppHandle, Manager, State};
 use tokio::sync::OnceCell;
 
-pub mod bucket_settings;
-pub mod buckets;
-pub mod write;
-
-use super::{
-    image_mime, now_secs, set_pdf_preview, utf8_boundary, Database, DirectoryEntry, FilePreview,
-    Location, PreviewKind, IMAGE_MAX_BYTES, PDF_MAX_BYTES, PREVIEW_MAX_BYTES, PREVIEW_SNIFF_BYTES,
+use super::write;
+use crate::{
+    media_preview_kind, now_secs, utf8_boundary, Database, DirectoryEntry, FilePreview, Location,
+    PreviewKind, PREVIEW_MAX_BYTES, PREVIEW_SNIFF_BYTES,
 };
 
 const KEYCHAIN_SERVICE: &str = "lite-explorer.s3";
-const SCHEME: &str = "s3://";
+pub(crate) const SCHEME: &str = "s3://";
 /// Listing stops after this many entries so huge prefixes stay responsive.
 const MAX_LISTING_ENTRIES: usize = 10_000;
 /// Largest object "Open" downloads to the local cache.
@@ -100,11 +96,11 @@ pub struct RemoteLocationInput {
 
 /// Validated, normalized connection settings.
 #[derive(Debug, Clone, PartialEq)]
-struct Connection {
-    provider: Provider,
+pub(crate) struct Connection {
+    pub(crate) provider: Provider,
     name: String,
     endpoint: Option<String>,
-    region: String,
+    pub(crate) region: String,
     bucket: Option<String>,
     prefix: Option<String>,
     access_key_id: String,
@@ -225,7 +221,7 @@ fn client(connection: &Connection, secret: &str) -> Client {
     Client::from_conf(config.build())
 }
 
-fn describe_error<E, R>(error: SdkError<E, R>) -> String
+pub(crate) fn describe_error<E, R>(error: SdkError<E, R>) -> String
 where
     E: ProvideErrorMetadata + std::error::Error + 'static,
     R: std::fmt::Debug,
@@ -390,7 +386,7 @@ pub fn is_remote_path(path: &str) -> bool {
     path.starts_with(SCHEME)
 }
 
-fn bucket_error<E>(bucket: &str, error: SdkError<E, HttpResponse>) -> String
+pub(crate) fn bucket_error<E>(bucket: &str, error: SdkError<E, HttpResponse>) -> String
 where
     E: ProvideErrorMetadata + std::error::Error + 'static,
 {
@@ -402,7 +398,7 @@ where
     }
 }
 
-fn object_error<E>(key: &str, error: SdkError<E, HttpResponse>) -> String
+pub(crate) fn object_error<E>(key: &str, error: SdkError<E, HttpResponse>) -> String
 where
     E: ProvideErrorMetadata + std::error::Error + 'static,
 {
@@ -413,7 +409,7 @@ where
     }
 }
 
-async fn load_connection(pool: &SqlitePool, id: &str) -> Result<Connection, String> {
+pub(crate) async fn load_connection(pool: &SqlitePool, id: &str) -> Result<Connection, String> {
     let row = sqlx::query(
         "SELECT name, provider, endpoint, region, bucket, prefix, access_key_id, path_style FROM remote_locations WHERE id = ?",
     )
@@ -454,7 +450,7 @@ async fn read_secret(id: String) -> Result<String, String> {
     })
 }
 
-async fn client_for(
+pub(crate) async fn client_for(
     pool: &SqlitePool,
     clients: &RemoteClients,
     id: &str,
@@ -481,7 +477,7 @@ fn millis(time: Option<&DateTime>) -> Option<u64> {
 }
 
 /// Last path segment of an object key or prefix: `a/b/` and `a/b` both name `b`.
-fn entry_name(key: &str) -> &str {
+pub(crate) fn entry_name(key: &str) -> &str {
     key.trim_end_matches('/').rsplit('/').next().unwrap_or("")
 }
 
@@ -611,6 +607,43 @@ async fn object_bytes(
     Ok(bytes.into_bytes().to_vec())
 }
 
+/// Size in bytes of a single remote object, for the media protocol's `Content-Length`.
+pub async fn object_size(
+    pool: &SqlitePool,
+    clients: &RemoteClients,
+    path: &str,
+) -> Result<(String, String, String, u64), String> {
+    let remote = parse_remote_path(path).ok_or("Not a remote path")?;
+    let bucket = remote.bucket.ok_or("Buckets can't be opened as files")?;
+    let client = client_for(pool, clients, &remote.id).await?;
+    let head = client
+        .head_object()
+        .bucket(&bucket)
+        .key(&remote.key)
+        .send()
+        .await
+        .map_err(|error| object_error(&remote.key, error))?;
+    let size = head
+        .content_length()
+        .and_then(|size| u64::try_from(size).ok())
+        .unwrap_or(0);
+    Ok((remote.id, bucket, remote.key, size))
+}
+
+/// Reads a byte range of a remote object, for the media protocol. `range` is an HTTP
+/// range header value like `bytes=0-1023`.
+pub async fn read_object_range(
+    pool: &SqlitePool,
+    clients: &RemoteClients,
+    id: &str,
+    bucket: &str,
+    key: &str,
+    range: Option<String>,
+) -> Result<Vec<u8>, String> {
+    let client = client_for(pool, clients, id).await?;
+    object_bytes(&client, bucket, key, range, None).await
+}
+
 /// Same text/binary rules as local previews: NUL in the sniffed head means binary,
 /// text is cut at `PREVIEW_MAX_BYTES` on a UTF-8 boundary.
 pub(crate) fn classify_preview_bytes(preview: &mut FilePreview, mut bytes: Vec<u8>) {
@@ -670,32 +703,13 @@ pub async fn file_preview(
         .unwrap_or(0);
     preview.modified = millis(head.last_modified());
 
-    let extension = Path::new(&key)
+    if let Some(kind) = Path::new(&key)
         .extension()
-        .and_then(|extension| extension.to_str());
-    if let Some(mime) = extension.and_then(image_mime) {
-        if preview.size >= IMAGE_MAX_BYTES as u64 {
-            return Err(format!(
-                "Image exceeds {} MB preview limit",
-                IMAGE_MAX_BYTES / (1024 * 1024)
-            ));
-        }
-        let bytes = object_bytes(&client, &bucket, &key, None, None).await?;
-        let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
-        preview.kind = PreviewKind::Image;
-        preview.src = Some(format!("data:{mime};base64,{encoded}"));
-        return Ok(preview);
-    }
-
-    if extension.is_some_and(|extension| extension.eq_ignore_ascii_case("pdf")) {
-        if preview.size > PDF_MAX_BYTES as u64 {
-            return Err(format!(
-                "PDF exceeds {} MB preview limit",
-                PDF_MAX_BYTES / (1024 * 1024)
-            ));
-        }
-        let bytes = object_bytes(&client, &bucket, &key, None, None).await?;
-        set_pdf_preview(&mut preview, bytes);
+        .and_then(|extension| extension.to_str())
+        .and_then(media_preview_kind)
+    {
+        // Media streams through the `media://` protocol; report the kind only.
+        preview.kind = kind;
         return Ok(preview);
     }
 
@@ -992,7 +1006,7 @@ mod tests {
                 .connect("sqlite::memory:")
                 .await
                 .unwrap();
-            super::super::apply_migrations(&pool).await.unwrap();
+            crate::app::db::apply_migrations(&pool).await.unwrap();
 
             let mut aws = input(Provider::Aws);
             aws.bucket = "assets".into();

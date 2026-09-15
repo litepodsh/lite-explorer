@@ -23,8 +23,8 @@ use tokio_util::sync::CancellationToken;
 use super::{
     bucket_error, client_for, entry_name, object_error, parse_remote_path, RemoteClients, SCHEME,
 };
-use crate::transfer::{TransferEvent, TransferRegistry};
-use crate::{image_mime, transfer, unique_name, Database, DirectoryEntry};
+use crate::remote::transfer::{self, TransferEvent, TransferRegistry};
+use crate::{image_mime, unique_name, Database, DirectoryEntry};
 
 /// S3 rejects single PUT and CopyObject requests above 5 GiB.
 const SINGLE_REQUEST_MAX_BYTES: u64 = 5 * 1024 * 1024 * 1024;

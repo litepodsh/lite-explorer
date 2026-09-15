@@ -75,6 +75,14 @@ fmt:
 lint:
     bunx oxlint src
 
+# Lint Rust sources with clippy. Warnings are errors.
+clippy:
+    cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+# Run Rust tests.
+test:
+    cargo test --manifest-path src-tauri/Cargo.toml
+
 # Remove generated dependencies and build artifacts.
 [unix]
 clean:

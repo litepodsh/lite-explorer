@@ -3,19 +3,27 @@ import { invoke } from "@tauri-apps/api/core";
 import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
 
 export function copyItem(path: string, destination: string): Promise<DirectoryEntry> {
-  return activity.track("copy", `Copy: ${baseName(path)}`, destination, () => invoke<DirectoryEntry>("copy_item", { path, destination }));
+  return activity.track("copy", `Copy: ${baseName(path)}`, destination, () =>
+    invoke<DirectoryEntry>("copy_item", { path, destination }),
+  );
 }
 
 export function moveItem(path: string, destination: string): Promise<DirectoryEntry> {
-  return activity.track("move", `Move: ${baseName(path)}`, destination, () => invoke<DirectoryEntry>("move_item", { path, destination }));
+  return activity.track("move", `Move: ${baseName(path)}`, destination, () =>
+    invoke<DirectoryEntry>("move_item", { path, destination }),
+  );
 }
 
 export function trashItem(path: string): Promise<void> {
-  return activity.track("delete", `Move to Trash: ${baseName(path)}`, "", () => invoke<void>("trash_item", { path }));
+  return activity.track("delete", `Move to Trash: ${baseName(path)}`, "", () =>
+    invoke<void>("trash_item", { path }),
+  );
 }
 
 export function deleteItem(path: string): Promise<void> {
-  return activity.track("delete", `Delete: ${baseName(path)}`, "", () => invoke<void>("delete_item", { path }));
+  return activity.track("delete", `Delete: ${baseName(path)}`, "", () =>
+    invoke<void>("delete_item", { path }),
+  );
 }
 
 const isSeparator = (character: string) => character === "/" || character === "\\";

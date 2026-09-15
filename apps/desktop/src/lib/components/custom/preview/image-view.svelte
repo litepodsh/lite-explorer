@@ -1,15 +1,40 @@
 <script lang="ts">
   import DOMPurify from "dompurify";
+  import MaximizeIcon from "@lucide/svelte/icons/maximize-2";
 
-  type Props = { src: string; name: string };
-  let { src, name }: Props = $props();
+  type Props = {
+    src: string;
+    name: string;
+    /** Shows the “open in a separate window” button when provided. */
+    onMaximize?: () => void;
+  };
+  let { src, name, onMaximize }: Props = $props();
 
   const isSvg = $derived(/\.svg$/i.test(name));
   // SVG is inlined as live vector geometry so WebKit re-rasterizes crisply on
   // CSS transform zoom (an <img> with an SVG src gets bitmap-scaled instead).
-  const cleanSvg = $derived(
-    isSvg ? DOMPurify.sanitize(atob(src.slice(src.indexOf(",") + 1)), { USE_PROFILES: { svg: true, svgFilters: true } }) : "",
-  );
+  let cleanSvg = $state("");
+
+  $effect(() => {
+    if (!isSvg) {
+      cleanSvg = "";
+      return;
+    }
+    let cancelled = false;
+    void fetch(src)
+      .then((response) => response.text())
+      .then((text) => {
+        if (!cancelled) {
+          cleanSvg = DOMPurify.sanitize(text, { USE_PROFILES: { svg: true, svgFilters: true } });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) cleanSvg = "";
+      });
+    return () => {
+      cancelled = true;
+    };
+  });
 
   const MIN_SCALE = 0.1;
   const MAX_SCALE = 8;
@@ -167,6 +192,14 @@
       class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#e8e5e2] hover:bg-[#3b3836]"
       aria-label="Zoom in"
       onclick={() => zoomBy(1 + BUTTON_STEP)}>+</button>
+    {#if onMaximize}
+      <span class="mx-0.5 h-4 w-px bg-[#3a3734]"></span>
+      <button
+        class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#e8e5e2] hover:bg-[#3b3836]"
+        aria-label="Open in a separate window"
+        title="Open in a separate window"
+        onclick={onMaximize}><MaximizeIcon class="size-3.5" /></button>
+    {/if}
   </div>
 </div>
 

@@ -12,7 +12,9 @@ const facts = (overrides: Partial<ScopeFacts> = {}): ScopeFacts => ({
 
 describe("scopeFromFacts", () => {
   test("dialog wins over everything", () => {
-    expect(scopeFromFacts(facts({ dialog: true, input: true, monaco: true, region: "list" }))).toBe("dialog");
+    expect(scopeFromFacts(facts({ dialog: true, input: true, monaco: true, region: "list" }))).toBe(
+      "dialog",
+    );
   });
 
   test("monaco wins over its own text area", () => {

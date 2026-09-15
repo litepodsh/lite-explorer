@@ -27,7 +27,10 @@ class AppMenuStore {
   /** Remembers the focused page element so Edit items act on it after the menu takes focus. */
   rememberFocus() {
     const active = document.activeElement;
-    if (active instanceof HTMLElement && !active.closest(".title-bar, [data-slot='menubar-content']")) {
+    if (
+      active instanceof HTMLElement &&
+      !active.closest(".title-bar, [data-slot='menubar-content']")
+    ) {
       this.#focus = active;
     }
   }

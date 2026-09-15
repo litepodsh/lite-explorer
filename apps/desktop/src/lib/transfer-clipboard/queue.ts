@@ -1,5 +1,11 @@
 export type ClipboardMode = "copy" | "move";
-export type ClipboardItemState = "queued" | "transferring" | "conflict" | "done" | "failed" | "skipped";
+export type ClipboardItemState =
+  | "queued"
+  | "transferring"
+  | "conflict"
+  | "done"
+  | "failed"
+  | "skipped";
 
 export type QueueEntry = {
   path: string;
@@ -56,7 +62,10 @@ export function removeItem(state: QueueState, id: string): QueueState {
 }
 
 export function clearFinished(state: QueueState): QueueState {
-  return { ...state, items: state.items.filter((item) => item.state !== "done" && item.state !== "skipped") };
+  return {
+    ...state,
+    items: state.items.filter((item) => item.state !== "done" && item.state !== "skipped"),
+  };
 }
 
 export function batchRequest(state: QueueState, destination: string): ClipboardBatchRequest | null {
@@ -66,7 +75,11 @@ export function batchRequest(state: QueueState, destination: string): ClipboardB
   return entries.length ? { destination, entries } : null;
 }
 
-export function applyTransferEvent(state: QueueState, event: ClipboardTransferEvent, now: number): QueueState {
+export function applyTransferEvent(
+  state: QueueState,
+  event: ClipboardTransferEvent,
+  now: number,
+): QueueState {
   const previousBytes = totalBytes(state.items);
   const items = state.items.map((item) =>
     item.id === event.itemId
@@ -80,7 +93,12 @@ export function applyTransferEvent(state: QueueState, event: ClipboardTransferEv
       : item,
   );
   const startedAt = state.startedAt ?? (event.state === "transferring" ? now : null);
-  return { ...state, items, startedAt, bytesAtStart: state.startedAt === null ? previousBytes : state.bytesAtStart };
+  return {
+    ...state,
+    items,
+    startedAt,
+    bytesAtStart: state.startedAt === null ? previousBytes : state.bytesAtStart,
+  };
 }
 
 export function totalBytes(items: ClipboardItem[]): number {

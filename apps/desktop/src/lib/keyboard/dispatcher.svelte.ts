@@ -1,7 +1,13 @@
 import type { CommandRegistry, CommandResult } from "./commands.js";
 import { eventToken, type KeyPlatform } from "./keys.js";
 import type { Binding, Mode } from "./keymap.js";
-import { buildIndex, resolve, type ChordState, type KeymapIndex, type ResolvedBinding } from "./resolve.js";
+import {
+  buildIndex,
+  resolve,
+  type ChordState,
+  type KeymapIndex,
+  type ResolvedBinding,
+} from "./resolve.js";
 import { readScopeFacts, scopeFromFacts, type Scope } from "./scope.js";
 
 export type DispatcherOptions<C> = {
@@ -82,7 +88,12 @@ export class KeyboardDispatcher<C> {
     this.#timer = setTimeout(() => this.cancel(), this.options.timeoutMs());
   }
 
-  #run(binding: ResolvedBinding, args: Record<string, unknown>, scope: Scope, event: KeyboardEvent) {
+  #run(
+    binding: ResolvedBinding,
+    args: Record<string, unknown>,
+    scope: Scope,
+    event: KeyboardEvent,
+  ) {
     const command = binding.command ? this.options.registry.get(binding.command) : undefined;
     if (!command) return;
     const context = this.options.context(scope);
@@ -97,6 +108,7 @@ export class KeyboardDispatcher<C> {
     }
     if (result === false) return;
     event.preventDefault();
-    if (result instanceof Promise) result.catch((error: unknown) => this.options.onError(command.title, error));
+    if (result instanceof Promise)
+      result.catch((error: unknown) => this.options.onError(command.title, error));
   }
 }

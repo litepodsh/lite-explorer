@@ -7,6 +7,7 @@
   import PlusIcon from "@lucide/svelte/icons/plus";
   import PanelLeftIcon from "@lucide/svelte/icons/panel-left";
   import MoveHorizontalIcon from "@lucide/svelte/icons/move-horizontal";
+  import MaximizeIcon from "@lucide/svelte/icons/maximize-2";
   import FileIcon from "@lucide/svelte/icons/file";
   import LockIcon from "@lucide/svelte/icons/lock";
   import CopyIcon from "@lucide/svelte/icons/copy";
@@ -16,8 +17,13 @@
   import PdfThumb from "./pdf-thumb.svelte";
   import { loadPdfjs, openPdf, type PdfLoadingTask } from "./pdf.js";
 
-  type Props = { src: string; name: string };
-  let { src, name }: Props = $props();
+  type Props = {
+    src: string;
+    name: string;
+    /** Shows the “open in a separate window” button when provided. */
+    onMaximize?: () => void;
+  };
+  let { src, name, onMaximize }: Props = $props();
 
   type PageMeta = { width: number; height: number };
 
@@ -435,6 +441,16 @@
           aria-pressed={fitWidth}
           onclick={toggleFitWidth}><MoveHorizontalIcon class="size-[15px] stroke-[1.7]" /></button
         >
+        {#if onMaximize}
+          <span class="mx-0.5 h-4 w-px shrink-0 bg-white/10"></span>
+          <button
+            type="button"
+            class="pdf-tool"
+            aria-label="Open in a separate window"
+            title="Open in a separate window"
+            onclick={onMaximize}><MaximizeIcon class="size-[15px] stroke-[1.7]" /></button
+          >
+        {/if}
       </div>
     {/if}
 

@@ -14,7 +14,14 @@ import {
   revealPath,
   type OpenWithApp,
 } from "$lib/file-ops/open.js";
-import { baseName, copyItem, deleteItem, moveItem, parentPath, trashItem } from "$lib/file-ops/files.js";
+import {
+  baseName,
+  copyItem,
+  deleteItem,
+  moveItem,
+  parentPath,
+  trashItem,
+} from "$lib/file-ops/files.js";
 import { createItemActions, nextDefaultName, type CreateKind } from "$lib/file-ops/items.js";
 import { isNetworkPath, isServerPath } from "$lib/remote/network-locations.js";
 import { networkStatus } from "$lib/remote/network-status.svelte.js";
@@ -57,7 +64,11 @@ import { fileStem } from "$lib/keyboard/text.js";
 
 type Recent = { name: string; path: string; kind: string; opened_at: number };
 export type SearchMode = "fuzzy" | "content";
-export type SearchEntry = DirectoryEntry & { relative_path: string; snippet?: string; inner_path?: string };
+export type SearchEntry = DirectoryEntry & {
+  relative_path: string;
+  snippet?: string;
+  inner_path?: string;
+};
 type SearchResponse = { results: SearchEntry[]; skipped: number; limited: boolean };
 
 /** What the mounted file list exposes so keyboard selection follows its visible order and layout. */
@@ -177,16 +188,58 @@ export class FilePaneController {
   get selected() {
     return this.tabs.active.location.name;
   }
-  get visibleEntries(): DirectoryEntry[] { return this.searchResults ?? this.entries; }
+  get visibleEntries(): DirectoryEntry[] {
+    return this.searchResults ?? this.entries;
+  }
 
-  setSearchQuery(query: string) { this.searchQuery = query; this.runSearch(); }
-  setSearchMode(mode: SearchMode) { this.searchMode = mode; this.runSearch(); }
-  clearSearch() { clearTimeout(this.#searchTimer); this.#searchRequest++; this.searchQuery = ""; this.searchResults = null; this.searchPending = false; this.searchSkipped = 0; this.searchLimited = false; }
+  setSearchQuery(query: string) {
+    this.searchQuery = query;
+    this.runSearch();
+  }
+  setSearchMode(mode: SearchMode) {
+    this.searchMode = mode;
+    this.runSearch();
+  }
+  clearSearch() {
+    clearTimeout(this.#searchTimer);
+    this.#searchRequest++;
+    this.searchQuery = "";
+    this.searchResults = null;
+    this.searchPending = false;
+    this.searchSkipped = 0;
+    this.searchLimited = false;
+  }
   private runSearch() {
-    clearTimeout(this.#searchTimer); const query = this.searchQuery.trim(); const path = this.listingPath; const request = ++this.#searchRequest;
-    if (!query || !path || this.remoteListing || this.serverRoot) { this.searchResults = null; this.searchPending = false; return; }
+    clearTimeout(this.#searchTimer);
+    const query = this.searchQuery.trim();
+    const path = this.listingPath;
+    const request = ++this.#searchRequest;
+    if (!query || !path || this.remoteListing || this.serverRoot) {
+      this.searchResults = null;
+      this.searchPending = false;
+      return;
+    }
     this.searchPending = true;
-    this.#searchTimer = setTimeout(async () => { try { const response = await invoke<SearchResponse>("search_directory", { path, query, mode: this.searchMode }); if (request === this.#searchRequest && path === this.listingPath && query === this.searchQuery.trim()) { this.searchResults = response.results; this.searchSkipped = response.skipped; this.searchLimited = response.limited; } } finally { if (request === this.#searchRequest) this.searchPending = false; } }, 120);
+    this.#searchTimer = setTimeout(async () => {
+      try {
+        const response = await invoke<SearchResponse>("search_directory", {
+          path,
+          query,
+          mode: this.searchMode,
+        });
+        if (
+          request === this.#searchRequest &&
+          path === this.listingPath &&
+          query === this.searchQuery.trim()
+        ) {
+          this.searchResults = response.results;
+          this.searchSkipped = response.skipped;
+          this.searchLimited = response.limited;
+        }
+      } finally {
+        if (request === this.#searchRequest) this.searchPending = false;
+      }
+    }, 120);
   }
 
   constructor(
@@ -252,7 +305,10 @@ export class FilePaneController {
 
   /** Keeps only selected paths that are still listed. */
   pruneSelection() {
-    const next = prune(this.selection, this.sourceEntries.map((entry) => entry.path));
+    const next = prune(
+      this.selection,
+      this.sourceEntries.map((entry) => entry.path),
+    );
     if (next !== this.selection) this.setSelection(next);
   }
 
@@ -271,7 +327,12 @@ export class FilePaneController {
 
   private enqueue(entries: DirectoryEntry[], mode: ClipboardMode) {
     for (const entry of entries) {
-      this.onTransferClipboard({ path: entry.path, name: entry.name, isDirectory: entry.is_directory, mode });
+      this.onTransferClipboard({
+        path: entry.path,
+        name: entry.name,
+        isDirectory: entry.is_directory,
+        mode,
+      });
     }
   }
 
@@ -457,7 +518,12 @@ export class FilePaneController {
 
   async renameItem(oldPath: string, newName: string) {
     try {
-      await activity.track("rename", `Rename: ${baseName(oldPath)} → ${newName}`, parentPath(oldPath), () => invoke("rename_item", { path: oldPath, newName }));
+      await activity.track(
+        "rename",
+        `Rename: ${baseName(oldPath)} → ${newName}`,
+        parentPath(oldPath),
+        () => invoke("rename_item", { path: oldPath, newName }),
+      );
     } catch (error) {
       if (isRemoteLike(oldPath)) void this.showError("Couldn’t rename", error);
       else this.listingError = error instanceof Error ? error.message : String(error);
@@ -502,7 +568,10 @@ export class FilePaneController {
     const irreversible = permanent || remote;
     const single = targets.length === 1 ? targets[0] : null;
     const order = this.orderPaths();
-    const nextFocus = focusAfterRemoval(order, targets.map((target) => target.path));
+    const nextFocus = focusAfterRemoval(
+      order,
+      targets.map((target) => target.path),
+    );
     const subject = single ? `“${single.name}”` : `${targets.length} items`;
     const bucketSubject = single ? `bucket “${single.name}”` : `${targets.length} buckets`;
     confirmation.ask({
@@ -565,7 +634,10 @@ export class FilePaneController {
     const destination = await open({ directory: true, title: "Download to…" });
     if (typeof destination !== "string") return;
     try {
-      await downloadRemoteItems(targets.map((target) => target.path), destination);
+      await downloadRemoteItems(
+        targets.map((target) => target.path),
+        destination,
+      );
     } catch (error) {
       await this.showError(`Couldn’t download ${targetLabel(targets)}`, error);
     }
@@ -715,7 +787,8 @@ export class FilePaneController {
       try {
         await copyItem(target.path, parentPath(target.path));
       } catch (error) {
-        if (isRemoteLike(target.path)) void this.showError(`Couldn’t duplicate ${target.name}`, error);
+        if (isRemoteLike(target.path))
+          void this.showError(`Couldn’t duplicate ${target.name}`, error);
         else this.listingError = error instanceof Error ? error.message : String(error);
         break;
       }
@@ -731,7 +804,10 @@ export class FilePaneController {
     await this.transferContextTargets("Copy to…", copyItem);
   }
 
-  private async transferContextTargets(title: string, transfer: (path: string, destination: string) => Promise<unknown>) {
+  private async transferContextTargets(
+    title: string,
+    transfer: (path: string, destination: string) => Promise<unknown>,
+  ) {
     const targets = this.contextTargets;
     if (targets.length === 0) return;
     const destination = await open({ directory: true, title, defaultPath: this.listingPath });
@@ -752,7 +828,10 @@ export class FilePaneController {
     const destination = await save({ title: "Compress", defaultPath: `${parent}${name}.zip` });
     if (typeof destination !== "string") return;
     try {
-      await createArchive(targets.map((target) => target.path), destination);
+      await createArchive(
+        targets.map((target) => target.path),
+        destination,
+      );
     } catch (error) {
       await this.showError(`Couldn’t compress ${targetLabel(targets)}`, error);
     }
@@ -762,7 +841,10 @@ export class FilePaneController {
   extractContextTargetHere() {
     const target = this.contextTarget;
     if (!target || isRemoteLike(target.path)) return;
-    void extraction.run({ archive: target.path, destination: parentPath(target.path) || target.path });
+    void extraction.run({
+      archive: target.path,
+      destination: parentPath(target.path) || target.path,
+    });
   }
 
   async extractContextTargetTo() {
@@ -798,7 +880,10 @@ export class FilePaneController {
 
   /** Entries in the order keyboard navigation follows: what the mounted list shows. */
   private keyboardOrder(showHidden: boolean): DirectoryEntry[] {
-    return this.navigator?.order() ?? this.sourceEntries.filter((entry) => showHidden || !entry.is_hidden);
+    return (
+      this.navigator?.order() ??
+      this.sourceEntries.filter((entry) => showHidden || !entry.is_hidden)
+    );
   }
 
   private focusedEntry(showHidden: boolean): DirectoryEntry | undefined {
@@ -818,13 +903,19 @@ export class FilePaneController {
   private moveTo(paths: string[], index: number, modifiers: { shift: boolean; primary: boolean }) {
     const target = paths[index];
     this.setSelection(
-      this.visual ? visualRange(paths, this.visual, target) : applyNav(this.selection, paths, target, modifiers),
+      this.visual
+        ? visualRange(paths, this.visual, target)
+        : applyNav(this.selection, paths, target, modifiers),
     );
     this.navigator?.scrollToIndex(index);
   }
 
   /** Windows Explorer rules: Shift extends the range, the primary modifier moves focus only. */
-  moveFocus(key: NavKey, modifiers: { shift: boolean; primary: boolean }, showHidden: boolean): boolean {
+  moveFocus(
+    key: NavKey,
+    modifiers: { shift: boolean; primary: boolean },
+    showHidden: boolean,
+  ): boolean {
     if (this.selected === "Overview") return false;
     const paths = this.keyboardOrder(showHidden).map((entry) => entry.path);
     const index = navTarget(paths.indexOf(this.focusPath), key, this.navLayout(paths.length));
@@ -836,7 +927,11 @@ export class FilePaneController {
   moveHalfPage(direction: 1 | -1, showHidden: boolean): boolean {
     if (this.selected === "Overview") return false;
     const paths = this.keyboardOrder(showHidden).map((entry) => entry.path);
-    const index = halfPageTarget(paths.indexOf(this.focusPath), direction, this.navLayout(paths.length));
+    const index = halfPageTarget(
+      paths.indexOf(this.focusPath),
+      direction,
+      this.navLayout(paths.length),
+    );
     if (index === null) return false;
     this.moveTo(paths, index, { shift: false, primary: false });
     return true;
@@ -860,7 +955,12 @@ export class FilePaneController {
 
   invertSelection(showHidden: boolean): boolean {
     if (this.selected === "Overview") return false;
-    this.setSelection(invert(this.selection, this.keyboardOrder(showHidden).map((entry) => entry.path)));
+    this.setSelection(
+      invert(
+        this.selection,
+        this.keyboardOrder(showHidden).map((entry) => entry.path),
+      ),
+    );
     return true;
   }
 
@@ -883,7 +983,8 @@ export class FilePaneController {
   renameFocused(showHidden: boolean): boolean {
     if (this.selected === "Overview" || this.remoteRoot || this.serverRoot) return false;
     const entry =
-      this.focusedEntry(showHidden) ?? (this.selectedEntries.length === 1 ? this.selectedEntries[0] : undefined);
+      this.focusedEntry(showHidden) ??
+      (this.selectedEntries.length === 1 ? this.selectedEntries[0] : undefined);
     if (!entry) return false;
     this.renamingPath = entry.path;
     return true;
@@ -904,13 +1005,18 @@ export class FilePaneController {
       text = shown(this.listingPath);
     } else {
       const focused = this.focusedEntry(showHidden);
-      const targets = this.selectedEntries.length > 0 ? this.selectedEntries : focused ? [focused] : [];
+      const targets =
+        this.selectedEntries.length > 0 ? this.selectedEntries : focused ? [focused] : [];
       if (targets.length === 0) return false;
       text = targets
-        .map((entry) => (kind === "path" ? shown(entry.path) : kind === "name" ? entry.name : fileStem(entry.name)))
+        .map((entry) =>
+          kind === "path" ? shown(entry.path) : kind === "name" ? entry.name : fileStem(entry.name),
+        )
         .join("\n");
     }
-    void navigator.clipboard.writeText(text).catch((error: unknown) => this.showError("Couldn’t copy", error));
+    void navigator.clipboard
+      .writeText(text)
+      .catch((error: unknown) => this.showError("Couldn’t copy", error));
     return true;
   }
 
@@ -933,7 +1039,9 @@ export class FilePaneController {
     if (this.selected === "Overview") return false;
     const entry = this.focusedEntry(showHidden);
     if (!entry) return false;
-    this.setSelection(mode === "toggle" ? toggle(this.selection, entry.path) : selectOnly(entry.path));
+    this.setSelection(
+      mode === "toggle" ? toggle(this.selection, entry.path) : selectOnly(entry.path),
+    );
     return true;
   }
 

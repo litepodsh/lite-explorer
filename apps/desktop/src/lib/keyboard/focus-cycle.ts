@@ -7,7 +7,11 @@ function sameSlot(a: RegionSlot, b: RegionSlot): boolean {
 }
 
 /** The region `F6` (1) or `Shift+F6` (-1) moves to. */
-export function nextRegion(slots: RegionSlot[], current: RegionSlot | null, direction: 1 | -1): RegionSlot | null {
+export function nextRegion(
+  slots: RegionSlot[],
+  current: RegionSlot | null,
+  direction: 1 | -1,
+): RegionSlot | null {
   if (slots.length === 0) return null;
   const index = current ? slots.findIndex((slot) => sameSlot(slot, current)) : -1;
   if (index < 0) return direction === 1 ? slots[0] : slots[slots.length - 1];

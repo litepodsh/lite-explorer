@@ -744,7 +744,7 @@ pub async fn plan_extraction(
 #[tauri::command]
 pub async fn extract_archive(
     app: tauri::AppHandle,
-    registry: tauri::State<'_, crate::transfer::TransferRegistry>,
+    registry: tauri::State<'_, crate::remote::transfer::TransferRegistry>,
     job_id: String,
     archive: String,
     destination: String,
@@ -756,7 +756,7 @@ pub async fn extract_archive(
     let result = tauri::async_runtime::spawn_blocking(move || {
         let archive_path = PathBuf::from(&archive);
         let mut event =
-            crate::transfer::TransferEvent::new(id, "extract", destination.clone(), 0, 0);
+            crate::remote::transfer::TransferEvent::new(id, "extract", destination.clone(), 0, 0);
         event.label = archive_path
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
@@ -778,7 +778,7 @@ pub async fn extract_archive(
                 event.files_done = counts.files_done;
                 event.bytes_total = counts.bytes_total;
                 event.bytes_done = counts.bytes_done;
-                crate::transfer::emit(&app, &event);
+                crate::remote::transfer::emit(&app, &event);
             },
         );
         event.state = match &outcome {
@@ -800,7 +800,7 @@ pub async fn extract_archive(
                 event.bytes_done = event.bytes_total;
             }
         }
-        crate::transfer::emit(&app, &event);
+        crate::remote::transfer::emit(&app, &event);
         outcome
     })
     .await
@@ -923,7 +923,7 @@ mod tests {
         let source = dir.join("hello.txt");
         fs::write(&source, b"hi there").unwrap();
         let archive = dir.join("out.zip");
-        create(&[source.clone()], &archive).unwrap();
+        create(std::slice::from_ref(&source), &archive).unwrap();
         let out = dir.join("out");
         let outcome = extract_all(&archive, &out, &[]);
         assert_eq!(fs::read(out.join("hello.txt")).unwrap(), b"hi there");

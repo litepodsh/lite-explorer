@@ -13,14 +13,11 @@ use sqlx::{sqlite::SqliteRow, Row, SqlitePool};
 
 use tauri::State;
 
-use super::{now_secs, Database, Location};
+use super::{mount, servers};
 use crate::remote::{delete_secret, read_optional_secret, store_secret};
+use crate::{now_secs, Database, Location};
 
-pub mod discovery;
-mod mount;
-pub mod servers;
-
-const KEYCHAIN_SERVICE: &str = "lite-explorer.network";
+pub(crate) const KEYCHAIN_SERVICE: &str = "lite-explorer.network";
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq)]
@@ -78,20 +75,20 @@ pub struct NetworkLocationInput {
 
 /// Validated, normalized settings, as stored in `network_locations`.
 #[derive(Debug, Clone, PartialEq)]
-struct Settings {
-    protocol: Protocol,
+pub(crate) struct Settings {
+    pub(crate) protocol: Protocol,
     name: String,
-    host: String,
+    pub(crate) host: String,
     port: Option<u16>,
     path: String,
-    auth: Auth,
-    username: Option<String>,
-    security: Option<Security>,
+    pub(crate) auth: Auth,
+    pub(crate) username: Option<String>,
+    pub(crate) security: Option<Security>,
     remember_password: bool,
 }
 
 impl Settings {
-    fn port(&self) -> u16 {
+    pub(crate) fn port(&self) -> u16 {
         self.port.unwrap_or(match (self.protocol, self.security) {
             (Protocol::Smb, _) => 445,
             (Protocol::Nfs, _) => 2049,
@@ -193,15 +190,15 @@ pub enum ErrorKind {
 /// Error returned by network commands. The frontend maps `kind` to copy and UI.
 #[derive(Serialize, Debug, PartialEq)]
 pub struct ConnectError {
-    kind: ErrorKind,
-    message: String,
+    pub(crate) kind: ErrorKind,
+    pub(crate) message: String,
     /// Key or certificate to confirm before connecting again.
     #[serde(skip_serializing_if = "Option::is_none")]
-    trust: Option<servers::TrustRequest>,
+    pub(crate) trust: Option<servers::TrustRequest>,
 }
 
 impl ConnectError {
-    fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
+    pub(crate) fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
             message: message.into(),
@@ -209,11 +206,11 @@ impl ConnectError {
         }
     }
 
-    fn invalid(message: impl Into<String>) -> Self {
+    pub(crate) fn invalid(message: impl Into<String>) -> Self {
         Self::new(ErrorKind::Invalid, message)
     }
 
-    fn other(error: impl ToString) -> Self {
+    pub(crate) fn other(error: impl ToString) -> Self {
         Self::new(ErrorKind::Other, error.to_string())
     }
 }
@@ -237,7 +234,7 @@ pub struct NetworkPath {
 }
 
 /// Serde's lowercase name of a unit enum, for the text columns.
-fn to_db<T: Serialize>(value: T) -> String {
+pub(crate) fn to_db<T: Serialize>(value: T) -> String {
     serde_json::to_value(value)
         .ok()
         .and_then(|value| value.as_str().map(str::to_string))
@@ -341,7 +338,7 @@ fn resolve(input: &NetworkLocationInput) -> Result<Settings, ConnectError> {
     })
 }
 
-fn network_path(protocol: Protocol, id: &str, path: &str) -> String {
+pub(crate) fn network_path(protocol: Protocol, id: &str, path: &str) -> String {
     format!(
         "{}://{id}/{}",
         to_db(protocol),
@@ -469,7 +466,10 @@ fn settings_from_row(row: &SqliteRow) -> Option<Settings> {
     })
 }
 
-async fn load_settings(pool: &SqlitePool, id: &str) -> Result<Option<Settings>, sqlx::Error> {
+pub(crate) async fn load_settings(
+    pool: &SqlitePool,
+    id: &str,
+) -> Result<Option<Settings>, sqlx::Error> {
     let row = sqlx::query(
         "SELECT name, protocol, host, port, path, username, auth, security, remember_password
          FROM network_locations WHERE id = ?",
@@ -560,7 +560,7 @@ fn saved_id(path: &str) -> Result<String, ConnectError> {
         .ok_or_else(|| ConnectError::new(ErrorKind::NotFound, "Not a network location."))
 }
 
-fn gone() -> ConnectError {
+pub(crate) fn gone() -> ConnectError {
     ConnectError::new(ErrorKind::NotFound, "This location no longer exists.")
 }
 
@@ -1317,7 +1317,7 @@ mod tests {
                 .connect("sqlite::memory:")
                 .await
                 .unwrap();
-            super::super::apply_migrations(&pool).await.unwrap();
+            crate::app::db::apply_migrations(&pool).await.unwrap();
 
             let mut smb = input(Protocol::Smb);
             smb.path = "Photos".into();

@@ -26,20 +26,38 @@ export type AboutInfo = { name: string; version: string; description: string; co
 export type MenuNode =
   | { type: "submenu"; label: string; children: MenuNode[] }
   | { type: "item"; id: string; label: string; accelerator: string | null; enabled: boolean }
-  | { type: "check"; id: string; label: string; accelerator: string | null; enabled: boolean; checked: boolean }
+  | {
+      type: "check";
+      id: string;
+      label: string;
+      accelerator: string | null;
+      enabled: boolean;
+      checked: boolean;
+    }
   | { type: "separator" }
-  | { type: "predefined"; kind: PredefinedKind; label: string; accelerator: string | null; info: AboutInfo | null };
+  | {
+      type: "predefined";
+      kind: PredefinedKind;
+      label: string;
+      accelerator: string | null;
+      info: AboutInfo | null;
+    };
 
 /** Predefined items whose shortcut the title bar dispatches. Edit shortcuts stay with the webview. */
 const DISPATCHED_PREDEFINED: readonly PredefinedKind[] = ["minimize"];
 
 function acceleratorOf(node: MenuNode): string | null {
   if (node.type === "item" || node.type === "check") return node.enabled ? node.accelerator : null;
-  if (node.type === "predefined") return DISPATCHED_PREDEFINED.includes(node.kind) ? node.accelerator : null;
+  if (node.type === "predefined")
+    return DISPATCHED_PREDEFINED.includes(node.kind) ? node.accelerator : null;
   return null;
 }
 
-export function findShortcut(nodes: MenuNode[], event: KeyInput, platform: Platform): MenuNode | null {
+export function findShortcut(
+  nodes: MenuNode[],
+  event: KeyInput,
+  platform: Platform,
+): MenuNode | null {
   for (const node of nodes) {
     if (node.type === "submenu") {
       const found = findShortcut(node.children, event, platform);

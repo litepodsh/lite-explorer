@@ -58,8 +58,12 @@ describe("parseAccelerator", () => {
 
 describe("formatAccelerator", () => {
   test("formats in Ctrl, Shift, Alt order with readable keys", () => {
-    expect(formatAccelerator(parseAccelerator("CmdOrCtrl+Shift+Period", "windows")!)).toBe("Ctrl+Shift+.");
-    expect(formatAccelerator(parseAccelerator("CmdOrCtrl+Shift+Alt+N", "windows")!)).toBe("Ctrl+Shift+Alt+N");
+    expect(formatAccelerator(parseAccelerator("CmdOrCtrl+Shift+Period", "windows")!)).toBe(
+      "Ctrl+Shift+.",
+    );
+    expect(formatAccelerator(parseAccelerator("CmdOrCtrl+Shift+Alt+N", "windows")!)).toBe(
+      "Ctrl+Shift+Alt+N",
+    );
     expect(formatAccelerator(parseAccelerator("CmdOrCtrl+Shift+]", "linux")!)).toBe("Ctrl+Shift+]");
   });
 });

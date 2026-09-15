@@ -1,7 +1,13 @@
 export type Platform = "macos" | "windows" | "linux";
 
 /** A Tauri accelerator resolved for one platform. `code` is a `KeyboardEvent.code` value. */
-export type Accelerator = { ctrl: boolean; meta: boolean; alt: boolean; shift: boolean; code: string };
+export type Accelerator = {
+  ctrl: boolean;
+  meta: boolean;
+  alt: boolean;
+  shift: boolean;
+  code: string;
+};
 
 export type KeyInput = Pick<KeyboardEvent, "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">;
 

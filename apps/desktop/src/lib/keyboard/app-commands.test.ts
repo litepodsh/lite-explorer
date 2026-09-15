@@ -16,7 +16,9 @@ function setup() {
 describe("standardCommands", () => {
   test("every standard binding points at a registered command", () => {
     const registry = setup();
-    const missing = STANDARD_BINDINGS.filter((binding) => binding.command && !registry.has(binding.command)).map((binding) => binding.command);
+    const missing = STANDARD_BINDINGS.filter(
+      (binding) => binding.command && !registry.has(binding.command),
+    ).map((binding) => binding.command);
     expect(missing).toEqual([]);
   });
 
@@ -28,7 +30,11 @@ describe("standardCommands", () => {
 
   test("list commands wait while the list is blocked", () => {
     const calls: Calls = [];
-    const result = setup().run("list.next", fakeContext(calls, { list: { blocked: () => true } }), {});
+    const result = setup().run(
+      "list.next",
+      fakeContext(calls, { list: { blocked: () => true } }),
+      {},
+    );
     expect(result).toBe(false);
     expect(calls).toEqual([]);
   });
@@ -37,7 +43,9 @@ describe("standardCommands", () => {
     const calls: Calls = [];
     const registry = setup();
     registry.run("list.left", fakeContext(calls), {});
-    registry.run("list.left", fakeContext(calls, { list: { view: () => "grid" } }), { shift: true });
+    registry.run("list.left", fakeContext(calls, { list: { view: () => "grid" } }), {
+      shift: true,
+    });
     expect(calls).toEqual(["parent", "move ArrowLeft true false"]);
   });
 
@@ -49,7 +57,13 @@ describe("standardCommands", () => {
 
   test("Escape leaves checkbox mode first", () => {
     const calls: Calls = [];
-    setup().run("app.escape", fakeContext(calls, { checkboxes: { active: () => true, exit: () => void calls.push("exit checkboxes") } }), {});
+    setup().run(
+      "app.escape",
+      fakeContext(calls, {
+        checkboxes: { active: () => true, exit: () => void calls.push("exit checkboxes") },
+      }),
+      {},
+    );
     expect(calls).toEqual(["exit checkboxes", "clear"]);
   });
 
@@ -63,14 +77,18 @@ describe("standardCommands", () => {
 
   test("paste needs something to paste", () => {
     const calls: Calls = [];
-    expect(setup().run("file.paste", fakeContext(calls, { list: { canPaste: () => false } }), {})).toBe(false);
+    expect(
+      setup().run("file.paste", fakeContext(calls, { list: { canPaste: () => false } }), {}),
+    ).toBe(false);
     expect(calls).toEqual([]);
   });
 
   test("search focus leaves Mod+F to a focused archive view", () => {
     const calls: Calls = [];
     const registry = setup();
-    expect(registry.run("search.focus", fakeContext(calls, { focusInside: () => true }), {})).toBe(false);
+    expect(registry.run("search.focus", fakeContext(calls, { focusInside: () => true }), {})).toBe(
+      false,
+    );
     registry.run("search.focus", fakeContext(calls), {});
     expect(calls).toEqual(["search"]);
   });

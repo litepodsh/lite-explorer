@@ -50,9 +50,9 @@ describe("labels", () => {
     expect(summaryLine({ entries: listed, uncompressedSize: 3, truncated: false })).toBe(
       `2 items · ${formatSize(3)} uncompressed · 1 skipped`,
     );
-    expect(summaryLine({ entries: [entry("a.txt", false, 1)], uncompressedSize: 1, truncated: false })).toBe(
-      `1 item · ${formatSize(1)} uncompressed`,
-    );
+    expect(
+      summaryLine({ entries: [entry("a.txt", false, 1)], uncompressedSize: 1, truncated: false }),
+    ).toBe(`1 item · ${formatSize(1)} uncompressed`);
   });
 
   test("names one dragged item or counts several", () => {

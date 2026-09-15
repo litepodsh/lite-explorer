@@ -14,7 +14,6 @@
 
   import type { Location } from "$lib/tabs/tabs.js";
   export type { Location };
-  const tags = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Gray"];
 </script>
 
 <script lang="ts">
@@ -380,18 +379,6 @@
             onclick={() => onOpen?.(location)}
             >{#if location.kind === "home"}<HouseIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span></button>
         {/if}
-      {/each}
-      <p>Tags</p>
-      {#each tags as tag (tag)}
-        <button
-          aria-label={tag} data-sidebar-item
-          title={tag}
-          class:active={selected === tag}
-          onclick={() => onOpen?.({ name: tag, path: "", kind: "tag" })}
-          ><i
-            class:gray={tag === "Gray"}
-            style:background-color={tag === "Gray" ? undefined : tag.toLowerCase()}></i
-          ><span>{tag}</span></button>
       {/each}
     </nav>
   </Sidebar.Content>

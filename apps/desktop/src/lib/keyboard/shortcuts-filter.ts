@@ -14,7 +14,16 @@ export type ShortcutRow = {
   sequences: string[][];
 };
 
-export const CATEGORY_ORDER: Category[] = ["Navigation", "Selection", "Files", "Search", "Sort", "Tabs & Panes", "Preview", "App"];
+export const CATEGORY_ORDER: Category[] = [
+  "Navigation",
+  "Selection",
+  "Files",
+  "Search",
+  "Sort",
+  "Tabs & Panes",
+  "Preview",
+  "App",
+];
 
 /** One row per shortcut; several keys for the same command share a row. */
 export function shortcutRows(bindings: Binding[], platform: KeyPlatform): ShortcutRow[] {
@@ -107,7 +116,9 @@ export function normalizeQuery(query: string, platform: KeyPlatform): string {
       continue;
     }
     const lower = part.toLowerCase();
-    keys.push(KEY_ALIASES[lower] ?? (/^f([1-9]|1[0-9]|2[0-4])$/i.test(part) ? `<F${part.slice(1)}>` : part));
+    keys.push(
+      KEY_ALIASES[lower] ?? (/^f([1-9]|1[0-9]|2[0-4])$/i.test(part) ? `<F${part.slice(1)}>` : part),
+    );
   }
   if (keys.length === 0) return parts.join("");
   const key = keys.join("");
@@ -142,7 +153,13 @@ export function filterShortcuts(
   }
   const matched = tiers.flat();
   const seen = new Set(matched.map((row) => row.id));
-  return [...matched, ...fuzzy(rows.filter((row) => !seen.has(row.id)), raw)];
+  return [
+    ...matched,
+    ...fuzzy(
+      rows.filter((row) => !seen.has(row.id)),
+      raw,
+    ),
+  ];
 }
 
 /** Highlight range of `query` inside a description, for `highlightMatches`. */

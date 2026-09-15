@@ -38,7 +38,10 @@ export function buildIndex(bindings: Binding[], platform: KeyPlatform): KeymapIn
 function allowedIn(binding: Binding, scope: Scope): boolean {
   if (binding.source === "menu" || binding.source === "component") return false;
   if (scope === "dialog" || scope === "input" || scope === "monaco") {
-    return binding.scope === scope || (binding.scope === "global" && Boolean(binding.where?.includes(scope)));
+    return (
+      binding.scope === scope ||
+      (binding.scope === "global" && Boolean(binding.where?.includes(scope)))
+    );
   }
   return binding.scope === scope || binding.scope === "global";
 }
@@ -49,7 +52,12 @@ function modeRank(binding: Binding, mode: Mode): number | null {
   return null;
 }
 
-function candidates(index: KeymapIndex, token: string, scope: Scope, mode: Mode): ResolvedBinding[] {
+function candidates(
+  index: KeymapIndex,
+  token: string,
+  scope: Scope,
+  mode: Mode,
+): ResolvedBinding[] {
   const matches = (index.byFirst.get(token) ?? []).filter(
     (binding) => allowedIn(binding, scope) && modeRank(binding, mode) !== null,
   );
@@ -59,7 +67,13 @@ function candidates(index: KeymapIndex, token: string, scope: Scope, mode: Mode)
       .map((binding) => `${binding.scope} ${binding.tokens.join(" ")}`),
   );
   return matches
-    .filter((binding) => !(binding.mode === "standard" && overridden.has(`${binding.scope} ${binding.tokens.join(" ")}`)))
+    .filter(
+      (binding) =>
+        !(
+          binding.mode === "standard" &&
+          overridden.has(`${binding.scope} ${binding.tokens.join(" ")}`)
+        ),
+    )
     .sort(
       (a, b) =>
         (a.scope === scope ? 0 : 1) - (b.scope === scope ? 0 : 1) ||
@@ -68,7 +82,10 @@ function candidates(index: KeymapIndex, token: string, scope: Scope, mode: Mode)
 }
 
 /** Removes Shift and the primary modifier from a token, reporting which were removed. */
-function stripModifiers(token: string, platform: KeyPlatform): { base: string; removed: ("Shift" | "Mod")[] } | null {
+function stripModifiers(
+  token: string,
+  platform: KeyPlatform,
+): { base: string; removed: ("Shift" | "Mod")[] } | null {
   if (token.length === 1) return null;
   const parts = token.split("+");
   const key = parts.pop() ?? "";
@@ -88,7 +105,11 @@ function stripModifiers(token: string, platform: KeyPlatform): { base: string; r
   return removed.length ? { base: joinToken(kept, key), removed } : null;
 }
 
-function runOrSkip(binding: ResolvedBinding, repeat: boolean, args: Record<string, unknown>): Resolution {
+function runOrSkip(
+  binding: ResolvedBinding,
+  repeat: boolean,
+  args: Record<string, unknown>,
+): Resolution {
   return repeat && binding.repeat === false ? { kind: "none" } : { kind: "run", binding, args };
 }
 
@@ -98,7 +119,9 @@ export function resolve(input: ResolveInput): Resolution {
   if (chord && input.now - chord.startedAt <= input.timeoutMs) {
     if (token === "<Esc>") return { kind: "cancel" };
     const typed = [...chord.typed, token];
-    const remaining = chord.candidates.filter((binding) => binding.tokens[typed.length - 1] === token);
+    const remaining = chord.candidates.filter(
+      (binding) => binding.tokens[typed.length - 1] === token,
+    );
     const complete = remaining.find((binding) => binding.tokens.length === typed.length);
     if (complete) return { kind: "run", binding: complete, args: complete.args ?? {} };
     if (remaining.length === 0) return { kind: "cancel" };
@@ -116,7 +139,9 @@ export function resolve(input: ResolveInput): Resolution {
   const stripped = stripModifiers(token, index.platform);
   if (!stripped) return { kind: "none" };
   const match = candidates(index, stripped.base, scope, mode).find(
-    (binding) => binding.tokens.length === 1 && stripped.removed.every((modifier) => binding.modifiers?.includes(modifier)),
+    (binding) =>
+      binding.tokens.length === 1 &&
+      stripped.removed.every((modifier) => binding.modifiers?.includes(modifier)),
   );
   if (!match) return { kind: "none" };
   return runOrSkip(match, input.repeat, {

@@ -16,7 +16,8 @@ export function fakeContext(calls: string[], overrides: ContextOverrides = {}): 
       blocked: () => false,
       view: () => "list",
       remote: () => false,
-      moveFocus: (key, modifiers) => record(calls, `move ${key} ${modifiers.shift} ${modifiers.primary}`),
+      moveFocus: (key, modifiers) =>
+        record(calls, `move ${key} ${modifiers.shift} ${modifiers.primary}`),
       moveHalfPage: (direction) => record(calls, `half ${direction}`),
       enterFocused: () => record(calls, "enter"),
       enterOrOpenFocused: () => record(calls, "enter or open"),

@@ -120,6 +120,18 @@ const KIND_LABEL_BY_EXTENSION: Record<string, string> = {
   csv: "Comma-Separated Values",
   tsv: "Tab-Separated Values",
   psv: "Pipe-Separated Values",
+  mp4: "MPEG-4 Video",
+  m4v: "MPEG-4 Video",
+  mov: "QuickTime Movie",
+  webm: "WebM Video",
+  mkv: "Matroska Video",
+  avi: "AVI Video",
+  mp3: "MP3 Audio",
+  m4a: "AAC Audio",
+  wav: "WAV Audio",
+  flac: "FLAC Audio",
+  ogg: "Ogg Audio",
+  opus: "Opus Audio",
 };
 
 function extensionOf(name: string): string {
@@ -152,6 +164,22 @@ export function isHtmlName(name: string): boolean {
 
 export function isCsvName(name: string): boolean {
   return CSV_EXTENSIONS.includes(extensionOf(name));
+}
+
+const VIDEO_EXTENSIONS = ["mp4", "m4v", "mov", "webm", "ogv", "mkv", "avi"];
+const AUDIO_EXTENSIONS = ["mp3", "m4a", "aac", "wav", "flac", "ogg", "oga", "opus"];
+
+export function isVideoName(name: string): boolean {
+  return VIDEO_EXTENSIONS.includes(extensionOf(name));
+}
+
+export function isAudioName(name: string): boolean {
+  return AUDIO_EXTENSIONS.includes(extensionOf(name));
+}
+
+/** Whether a file previews through the streaming `media://` protocol. */
+export function isMediaKind(kind: PreviewKind): boolean {
+  return kind === "image" || kind === "pdf" || kind === "video" || kind === "audio";
 }
 
 export function kindLabel(name: string, kind: PreviewKind): string {

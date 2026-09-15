@@ -62,8 +62,8 @@ describe("navigate", () => {
   });
 
   test("treats sidebar entries with the same kind but different names as different", () => {
-    const red: Location = { name: "Red", path: "", kind: "tag" };
-    const blue: Location = { name: "Blue", path: "", kind: "tag" };
+    const red: Location = { name: "Red", path: "", kind: "network" };
+    const blue: Location = { name: "Blue", path: "", kind: "network" };
     const state = navigate(navigate(createTabsState("a"), red), blue);
     expect(activeTab(state).location).toEqual(blue);
   });

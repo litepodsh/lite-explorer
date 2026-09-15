@@ -34,7 +34,9 @@ describe("menu bindings", () => {
   });
 
   test("menu bindings keep the menu accelerator keys", () => {
-    const hidden = menuBindings(STANDARD_BINDINGS).find((item) => item.menuId === "toggle-hidden-files");
+    const hidden = menuBindings(STANDARD_BINDINGS).find(
+      (item) => item.menuId === "toggle-hidden-files",
+    );
     expect(hidden?.keys).toEqual(["Mod+Shift+."]);
     expect(hidden?.source).toBe("menu");
   });
@@ -71,7 +73,9 @@ describe("findConflicts", () => {
   test("a yazi binding over a standard one needs overrides", () => {
     const standard = binding({ keys: ["<Space>"] });
     const yazi = binding({ keys: ["<Space>"], mode: "yazi", command: "test.b" });
-    expect(findConflicts([standard, yazi], "macos")).toEqual(["yazi list: “<Space>” replaces a standard binding without overrides"]);
+    expect(findConflicts([standard, yazi], "macos")).toEqual([
+      "yazi list: “<Space>” replaces a standard binding without overrides",
+    ]);
     expect(findConflicts([standard, { ...yazi, overrides: true }], "macos")).toEqual([]);
   });
 
@@ -82,7 +86,11 @@ describe("findConflicts", () => {
 
   test("bindings for other platforms don't conflict", () => {
     const mac = binding({ keys: ["Meta+<Backspace>"], platforms: ["macos"] });
-    const other = binding({ keys: ["Meta+<Backspace>"], platforms: ["windows"], command: "test.b" });
+    const other = binding({
+      keys: ["Meta+<Backspace>"],
+      platforms: ["windows"],
+      command: "test.b",
+    });
     expect(findConflicts([mac, other], "macos")).toEqual([]);
   });
 });
@@ -91,12 +99,35 @@ describe("yazi and component bindings", () => {
   test("allBindings includes yazi and component bindings", () => {
     const all = allBindings();
     expect(all.some((item) => item.mode === "yazi" && item.keys.join(" ") === "g g")).toBe(true);
-    expect(all.filter((item) => item.source === "component").length).toBe(COMPONENT_BINDINGS.length);
+    expect(all.filter((item) => item.source === "component").length).toBe(
+      COMPONENT_BINDINGS.length,
+    );
   });
 
   test("yazi bindings never use keys the spec leaves out", () => {
-    const forbidden = new Set(["q", "Q", "Ctrl+c", "Ctrl+z", ";", ":", "-", "_", "<Tab>", "Ctrl+f", "Ctrl+b", "P", "f", "n", "N", "O"]);
-    expect(YAZI_BINDINGS.filter((item) => forbidden.has(item.keys[0])).map((item) => item.keys.join(" "))).toEqual([]);
+    const forbidden = new Set([
+      "q",
+      "Q",
+      "Ctrl+c",
+      "Ctrl+z",
+      ";",
+      ":",
+      "-",
+      "_",
+      "<Tab>",
+      "Ctrl+f",
+      "Ctrl+b",
+      "P",
+      "f",
+      "n",
+      "N",
+      "O",
+    ]);
+    expect(
+      YAZI_BINDINGS.filter((item) => forbidden.has(item.keys[0])).map((item) =>
+        item.keys.join(" "),
+      ),
+    ).toEqual([]);
   });
 
   test("yazi select all exists only on macOS, pane right overrides elsewhere", () => {

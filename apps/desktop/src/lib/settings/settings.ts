@@ -24,7 +24,12 @@ export type SettingKey = keyof Settings;
 export type SettingsStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export const SETTINGS_STORAGE_KEY = "settings.v1";
-export const LEGACY_STORAGE_KEYS: readonly string[] = ["show-hidden-files", "show-fps", "dev-tools", "panes-layout"];
+export const LEGACY_STORAGE_KEYS: readonly string[] = [
+  "show-hidden-files",
+  "show-fps",
+  "dev-tools",
+  "panes-layout",
+];
 
 export function defaultSettings({ dev }: { dev: boolean }): Settings {
   return {
@@ -47,7 +52,8 @@ const isBoolean = (value: unknown): value is boolean => typeof value === "boolea
 const VALIDATORS: { [K in SettingKey]: (value: unknown) => value is Settings[K] } = {
   keyboardMode: (value): value is KeyboardMode => value === "standard" || value === "yazi",
   showWhichKey: isBoolean,
-  chordTimeoutMs: (value): value is ChordTimeout => value === 1000 || value === 1500 || value === 3000,
+  chordTimeoutMs: (value): value is ChordTimeout =>
+    value === 1000 || value === 1500 || value === 3000,
   showHiddenFiles: isBoolean,
   defaultViewMode: (value): value is "list" | "grid" => value === "list" || value === "grid",
   previewOpenByDefault: isBoolean,
@@ -71,13 +77,22 @@ function assign<K extends SettingKey>(settings: Settings, key: K, value: Setting
 }
 
 /** Settings saved as JSON. Invalid or missing fields fall back to their default. */
-export function parseSettings(raw: string, defaults: Settings): { settings: Settings; problems: string[] } {
+export function parseSettings(
+  raw: string,
+  defaults: Settings,
+): { settings: Settings; problems: string[] } {
   let saved: Record<string, unknown>;
   try {
     const parsed: unknown = JSON.parse(raw);
-    saved = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+    saved =
+      parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
   } catch {
-    return { settings: { ...defaults }, problems: ["Saved settings are not valid JSON; using defaults"] };
+    return {
+      settings: { ...defaults },
+      problems: ["Saved settings are not valid JSON; using defaults"],
+    };
   }
   const settings = { ...defaults };
   const problems: string[] = [];
@@ -103,7 +118,10 @@ export function migrateLegacy(read: (key: string) => string | null, defaults: Se
   return settings;
 }
 
-export function loadSettings(storage: SettingsStorage, defaults: Settings): { settings: Settings; problems: string[] } {
+export function loadSettings(
+  storage: SettingsStorage,
+  defaults: Settings,
+): { settings: Settings; problems: string[] } {
   const raw = storage.getItem(SETTINGS_STORAGE_KEY);
   if (raw !== null) return parseSettings(raw, defaults);
   const settings = migrateLegacy((key) => storage.getItem(key), defaults);

@@ -37,7 +37,8 @@ const input = (overrides: Partial<ResolveInput>): ResolveInput => ({
   ...overrides,
 });
 
-const commandOf = (result: ReturnType<typeof resolve>) => (result.kind === "run" ? result.binding.command : result.kind);
+const commandOf = (result: ReturnType<typeof resolve>) =>
+  result.kind === "run" ? result.binding.command : result.kind;
 
 describe("resolve", () => {
   test("runs a single-key match with empty args", () => {
@@ -63,7 +64,9 @@ describe("resolve", () => {
 
   test("yazi overrides replace the standard binding", () => {
     expect(commandOf(resolve(input({ token: "<Space>" })))).toBe("selection.only");
-    expect(commandOf(resolve(input({ token: "<Space>", mode: "yazi" })))).toBe("selection.toggleNext");
+    expect(commandOf(resolve(input({ token: "<Space>", mode: "yazi" })))).toBe(
+      "selection.toggleNext",
+    );
   });
 
   test("global bindings reach restricted scopes only through where", () => {
@@ -98,7 +101,9 @@ describe("resolve", () => {
   test("the second key completes the chord", () => {
     const first = resolve(input({ token: "g", mode: "yazi" }));
     const chord = first.kind === "pending" ? first.chord : null;
-    expect(commandOf(resolve(input({ token: "h", mode: "yazi", chord, now: 1500 })))).toBe("go.home");
+    expect(commandOf(resolve(input({ token: "h", mode: "yazi", chord, now: 1500 })))).toBe(
+      "go.home",
+    );
   });
 
   test("Escape or an unknown second key cancels", () => {
@@ -111,6 +116,8 @@ describe("resolve", () => {
   test("an expired chord is ignored and the key resolves on its own", () => {
     const first = resolve(input({ token: "g", mode: "yazi" }));
     const chord = first.kind === "pending" ? first.chord : null;
-    expect(commandOf(resolve(input({ token: "j", mode: "yazi", chord, now: 2600 })))).toBe("list.next.yazi");
+    expect(commandOf(resolve(input({ token: "j", mode: "yazi", chord, now: 2600 })))).toBe(
+      "list.next.yazi",
+    );
   });
 });
