@@ -16,6 +16,7 @@ import {
   type Location,
   type TabsState,
 } from "./tabs.js";
+import { EMPTY_SELECTION, selectOnly } from "../selection/selection.js";
 
 const desktop: Location = { name: "Desktop", path: "/Users/me/Desktop", kind: "folder" };
 const documents: Location = { name: "Documents", path: "/Users/me/Documents", kind: "folder" };
@@ -50,9 +51,9 @@ describe("navigate", () => {
 
   test("clears the selection", () => {
     let state = navigate(createTabsState("a"), desktop);
-    state = updateActive(state, { selectedEntryPath: "/Users/me/Desktop/a.txt" });
+    state = updateActive(state, { selection: selectOnly("/Users/me/Desktop/a.txt") });
     state = navigate(state, documents);
-    expect(activeTab(state).selectedEntryPath).toBe("");
+    expect(activeTab(state).selection).toEqual(EMPTY_SELECTION);
   });
 
   test("is a no-op for the same location", () => {
@@ -102,7 +103,7 @@ describe("openTab", () => {
     expect(tab.viewMode).toBe("grid");
     expect(tab.back).toEqual([]);
     expect(tab.forward).toEqual([]);
-    expect(tab.selectedEntryPath).toBe("");
+    expect(tab.selection).toEqual(EMPTY_SELECTION);
   });
 
   test("uses the given location when provided", () => {

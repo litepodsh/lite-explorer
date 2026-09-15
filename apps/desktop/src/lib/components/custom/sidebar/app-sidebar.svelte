@@ -24,9 +24,16 @@
   import EjectIcon from "@lucide/svelte/icons/eject";
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import LockIcon from "@lucide/svelte/icons/lock";
+  import PanelLeftIcon from "@lucide/svelte/icons/panel-left";
   import PencilIcon from "@lucide/svelte/icons/pencil";
   import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
+  import StarIcon from "@lucide/svelte/icons/star";
+  import StarOffIcon from "@lucide/svelte/icons/star-off";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
+  import { drag } from "$lib/file-drag/drag.svelte.js";
+  import { canFavorite, favoriteDropIndexAt, moveTo } from "$lib/favorites/favorites.js";
+  import { trackPointerDrag } from "$lib/file-drag/pointer-drag.js";
+  import { atWindowEdge, startNativeDrag } from "$lib/file-drag/native-drag.js";
   import { isNetworkProtocol } from "$lib/remote/network-locations.js";
   import type { LocationStatus } from "$lib/remote/network-status.svelte.js";
   import type { ComponentProps } from "svelte";
@@ -49,8 +56,12 @@
     onEditLocation,
     onCopyLocationAddress,
     onDisconnectLocation,
+    onAddFavorite,
+    onRemoveFavorite,
+    onReorderFavorites,
     statuses = {},
     onOpenPalette,
+    brand = false,
     ...restProps
   }: ComponentProps<typeof Sidebar.Root> & {
     selected?: string;
@@ -68,10 +79,81 @@
     onEditLocation?: (location: Location) => void;
     onCopyLocationAddress?: (location: Location) => void;
     onDisconnectLocation?: (location: Location) => void;
+    /** Adds a local folder to the favorites at `index`. */
+    onAddFavorite?: (path: string, index: number) => void;
+    onRemoveFavorite?: (location: Location) => void;
+    onReorderFavorites?: (paths: string[]) => void;
     /** Connection state of network locations, by path. */
     statuses?: Record<string, LocationStatus>;
     onOpenPalette?: () => void;
+    /** Show the logo, name and sidebar toggle in the header (Windows and Linux). */
+    brand?: boolean;
   } = $props();
+
+  let externalDroppable = $derived(
+    drag.entry !== null &&
+      drag.entries.length <= 1 &&
+      canFavorite({ is_directory: drag.entry.isDirectory, path: drag.entry.path, kind: drag.entry.kind }),
+  );
+  let draggedFavoriteIndex = $derived(
+    favorites.findIndex((favorite) => favorite.path === (drag.favorite ?? drag.entry?.path)),
+  );
+  // Dropping a favorite next to itself changes nothing, so no insertion line is shown there.
+  let dropLineAt = $derived(
+    drag.favoriteDropAt !== null &&
+      draggedFavoriteIndex >= 0 &&
+      (drag.favoriteDropAt === draggedFavoriteIndex || drag.favoriteDropAt === draggedFavoriteIndex + 1)
+      ? null
+      : drag.favoriteDropAt,
+  );
+
+  /** Inserts `path` at `index`, or moves it there when it is already a favorite. */
+  function dropOnFavorites(path: string, index: number) {
+    const paths = favorites.map((favorite) => favorite.path);
+    const from = paths.indexOf(path);
+    if (from < 0) return onAddFavorite?.(path, index);
+    const reordered = moveTo(paths, from, index);
+    if (reordered.some((favorite, position) => favorite !== paths[position])) onReorderFavorites?.(reordered);
+  }
+
+  // File lists drop folders on the favorites through the shared registry.
+  $effect(() => {
+    drag.favoritesDrop = dropOnFavorites;
+    return () => {
+      if (drag.favoritesDrop === dropOnFavorites) drag.favoritesDrop = null;
+    };
+  });
+
+  let cancelReorder = () => {};
+  $effect(() => () => cancelReorder());
+
+  function startReorder(event: PointerEvent, favorite: Location) {
+    cancelReorder = trackPointerDrag(event, {
+      onStart: () => (drag.favorite = favorite.path),
+      onMove: (move) => {
+        // At the window edge the drag becomes a native one, so the folder can be dropped in other apps.
+        if (atWindowEdge(move.clientX, move.clientY, window.innerWidth, window.innerHeight)) {
+          cancelReorder();
+          startNativeDrag([favorite.path], favorite.name, "folder");
+          return;
+        }
+        drag.favoriteDropAt = favoriteDropIndexAt(move.clientX, move.clientY);
+        drag.ghost = { x: move.clientX, y: move.clientY, name: favorite.name, icon: "folder", action: null };
+      },
+      onDrop: (up) => {
+        const index = favoriteDropIndexAt(up.clientX, up.clientY);
+        endReorder();
+        if (index !== null) dropOnFavorites(favorite.path, index);
+      },
+      onCancel: endReorder,
+    });
+  }
+
+  function endReorder() {
+    drag.favorite = null;
+    drag.favoriteDropAt = null;
+    drag.ghost = null;
+  }
 
   function resizeSidebar(event: PointerEvent) {
     if (!onResize) return;
@@ -93,7 +175,15 @@
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
-  <Sidebar.Header class="titlebar-spacer p-0" data-tauri-drag-region ondblclick={onToggle} />
+  {#if brand}
+    <Sidebar.Header class="titlebar-spacer sidebar-brand p-0" data-tauri-drag-region>
+      <img src="/app-icon.png" alt="" width="18" height="18" />
+      <span>Lite Explorer</span>
+      <button aria-label="Toggle sidebar" title="Toggle sidebar" onclick={onToggle}><PanelLeftIcon /></button>
+    </Sidebar.Header>
+  {:else}
+    <Sidebar.Header class="titlebar-spacer p-0" data-tauri-drag-region ondblclick={onToggle} />
+  {/if}
   <Sidebar.Content class="finder-sidebar p-0">
     <nav class="finder-sources" aria-label="Finder sidebar">
       <button
@@ -117,14 +207,47 @@
         class:active={selected === "Shared"}
         onclick={() => onOpen?.({ name: "Shared", path: "", kind: "shared" })}><UsersIcon /> <span>Shared</span></button>
       <p>Favorites</p>
-      {#each favorites as favorite (favorite.path)}
-        <button
-          aria-label={favorite.name}
-          title={favorite.path}
-          class:active={selected === favorite.name}
-          onclick={() => onOpen?.(favorite)}
-          ><FolderIcon /> <span>{favorite.name}</span></button>
-      {/each}
+      <div class="favorites-drop" role="list" aria-label="Favorites" data-favorites-drop={favorites.length}>
+        {#each favorites as favorite, index (favorite.path)}
+          {#if dropLineAt === index}<span class="favorite-drop-line" aria-hidden="true"></span>{/if}
+          <ContextMenu.Root>
+            <ContextMenu.Trigger>
+              {#snippet child({ props })}
+                <div
+                  {...props}
+                  role="listitem"
+                  class="location-row favorite-row"
+                  class:dragging={drag.favorite === favorite.path}
+                  data-favorite-index={index}
+                  data-favorite-path={favorite.path}>
+                  <button
+                    aria-label={favorite.name}
+                    title={favorite.path}
+                    class:active={selected === favorite.name}
+                    onpointerdown={(event) => startReorder(event, favorite)}
+                    onclick={() => onOpen?.(favorite)}><FolderIcon /> <span>{favorite.name}</span></button>
+                  <button
+                    class="location-trail favorite-star"
+                    aria-label={`Remove ${favorite.name} from Favorites`}
+                    title="Remove from Favorites"
+                    onclick={() => onRemoveFavorite?.(favorite)}><StarIcon /></button>
+                </div>
+              {/snippet}
+            </ContextMenu.Trigger>
+            <ContextMenu.Content>
+              <ContextMenu.Item onSelect={() => onRemoveFavorite?.(favorite)}>
+                <StarOffIcon /> Remove from Favorites
+              </ContextMenu.Item>
+            </ContextMenu.Content>
+          </ContextMenu.Root>
+        {/each}
+        {#if dropLineAt !== null && dropLineAt === favorites.length && favorites.length}
+          <span class="favorite-drop-line" aria-hidden="true"></span>
+        {/if}
+        {#if externalDroppable && !favorites.length}
+          <div class="favorite-drop-hint" class:over={drag.favoriteDropAt === 0}>Drop to add to Favorites</div>
+        {/if}
+      </div>
       <div class="finder-section">
         <p>Locations</p>
         {#if onAddLocation}

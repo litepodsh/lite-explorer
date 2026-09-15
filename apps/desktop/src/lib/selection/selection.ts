@@ -1,0 +1,124 @@
+/**
+ * Multiple selection over an ordered list of paths, with Windows Explorer rules.
+ *
+ * `anchor` is where Shift ranges start; `focus` is the item the keyboard moves from. With the
+ * primary modifier (Ctrl, Cmd on macOS) the focus can move without changing what is selected.
+ */
+export type Selection = { paths: string[]; anchor: string; focus: string };
+
+export const EMPTY_SELECTION: Selection = { paths: [], anchor: "", focus: "" };
+
+export type NavKey = "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "PageUp" | "PageDown" | "Home" | "End";
+
+export function isNavKey(key: string): key is NavKey {
+  return ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"].includes(key);
+}
+
+export function selectOnly(path: string): Selection {
+  return { paths: [path], anchor: path, focus: path };
+}
+
+export function toggle(selection: Selection, path: string): Selection {
+  const paths = selection.paths.includes(path)
+    ? selection.paths.filter((candidate) => candidate !== path)
+    : [...selection.paths, path];
+  return { paths, anchor: path, focus: path };
+}
+
+function range(order: string[], from: string, to: string): string[] {
+  const end = order.indexOf(to);
+  if (end < 0) return [];
+  const start = order.indexOf(from);
+  if (start < 0) return [to];
+  return order.slice(Math.min(start, end), Math.max(start, end) + 1);
+}
+
+/** Shift+click: the range from the anchor to `path` replaces the selection. */
+export function selectRange(selection: Selection, order: string[], path: string): Selection {
+  const anchor = order.includes(selection.anchor) ? selection.anchor : path;
+  return { paths: range(order, anchor, path), anchor, focus: path };
+}
+
+/** Ctrl+Shift+click: the range from the anchor to `path` is added to the selection. */
+export function addRange(selection: Selection, order: string[], path: string): Selection {
+  const anchor = order.includes(selection.anchor) ? selection.anchor : path;
+  const added = new Set(range(order, anchor, path));
+  const kept = new Set(selection.paths);
+  return { paths: order.filter((candidate) => kept.has(candidate) || added.has(candidate)), anchor, focus: path };
+}
+
+export function selectAll(order: string[]): Selection {
+  if (order.length === 0) return EMPTY_SELECTION;
+  return { paths: [...order], anchor: order[0], focus: order[order.length - 1] };
+}
+
+/** Drops paths that are no longer listed, for example after a reload or delete. */
+export function prune(selection: Selection, order: string[]): Selection {
+  const listed = new Set(order);
+  const paths = selection.paths.filter((path) => listed.has(path));
+  const anchor = listed.has(selection.anchor) ? selection.anchor : (paths[0] ?? "");
+  const focus = listed.has(selection.focus) ? selection.focus : (paths.at(-1) ?? "");
+  if (paths.length === selection.paths.length && anchor === selection.anchor && focus === selection.focus) {
+    return selection;
+  }
+  return { paths, anchor, focus };
+}
+
+/** Selected paths in list order. */
+export function orderedPaths(selection: Selection, order: string[]): string[] {
+  const selected = new Set(selection.paths);
+  return order.filter((path) => selected.has(path));
+}
+
+export type NavLayout = {
+  count: number;
+  /** Items per row: 1 in the list view. */
+  columns: number;
+  /** Whole rows visible in the viewport. */
+  pageRows: number;
+  view: "list" | "grid";
+};
+
+/**
+ * Index a navigation key moves to from `index` (-1 when nothing has focus), or null when the
+ * key does not move in this view (Left/Right in the list view).
+ */
+export function navTarget(index: number, key: NavKey, layout: NavLayout): number | null {
+  const { count, view } = layout;
+  if (count === 0) return null;
+  const columns = view === "grid" ? Math.max(1, layout.columns) : 1;
+  const page = Math.max(1, layout.pageRows) * columns;
+  const last = count - 1;
+  const clamp = (value: number) => Math.max(0, Math.min(last, value));
+  if (key === "Home") return 0;
+  if (key === "End") return last;
+  if ((key === "ArrowLeft" || key === "ArrowRight") && view !== "grid") return null;
+  if (index < 0) return key === "ArrowUp" || key === "ArrowLeft" || key === "PageUp" ? last : 0;
+  switch (key) {
+    case "ArrowUp":
+      return index - columns < 0 ? index : index - columns;
+    case "ArrowDown":
+      return index + columns > last ? index : index + columns;
+    case "ArrowLeft":
+      return clamp(index - 1);
+    case "ArrowRight":
+      return clamp(index + 1);
+    case "PageUp":
+      return clamp(index - page);
+    case "PageDown":
+      return clamp(index + page);
+  }
+}
+
+/** Applies a keyboard move to `target` with Explorer modifier rules. */
+export function applyNav(
+  selection: Selection,
+  order: string[],
+  target: string,
+  { shift, primary }: { shift: boolean; primary: boolean },
+): Selection {
+  if (shift && primary) return addRange(selection, order, target);
+  if (shift) return selectRange(selection, order, target);
+  if (primary) return { ...selection, focus: target };
+  return selectOnly(target);
+}

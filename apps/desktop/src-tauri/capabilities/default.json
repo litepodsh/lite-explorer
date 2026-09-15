@@ -7,11 +7,17 @@
     "core:default",
     "core:window:allow-start-dragging",
     "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-internal-toggle-maximize",
+    "core:window:allow-set-fullscreen",
+    "process:allow-exit",
     "updater:default",
     "process:allow-restart",
     "opener:default",
     "dialog:allow-open",
     "dialog:allow-message",
+    "drag:default",
     {
       "identifier": "opener:allow-open-path",
       "allow": [

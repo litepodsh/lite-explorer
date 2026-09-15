@@ -1,4 +1,4 @@
-export type JobKind = "upload" | "download" | "copy" | "move" | "delete" | "send" | "receive";
+export type JobKind = "upload" | "download" | "copy" | "move" | "delete" | "send" | "receive" | "extract";
 export type JobState = "active" | "paused" | "done" | "failed" | "cancelled";
 
 export type Job = {

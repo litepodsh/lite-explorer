@@ -36,6 +36,7 @@
     delete: "M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13",
     send: "M12 19V5M6 11l6-6 6 6",
     receive: "M12 5v14M6 13l6 6 6-6",
+    extract: "M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4M12 3v12M7 10l5 5 5-5",
   };
 
   function percent(job: Job): number {

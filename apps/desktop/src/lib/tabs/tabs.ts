@@ -1,3 +1,5 @@
+import { EMPTY_SELECTION, type Selection } from "../selection/selection.js";
+
 export type Location = { name: string; path: string; kind: string };
 export type ViewMode = "list" | "grid";
 
@@ -7,7 +9,7 @@ export type Tab = {
   back: Location[];
   forward: Location[];
   viewMode: ViewMode;
-  selectedEntryPath: string;
+  selection: Selection;
 };
 
 export type TabsState = { tabs: Tab[]; activeId: string };
@@ -15,7 +17,7 @@ export type TabsState = { tabs: Tab[]; activeId: string };
 export const OVERVIEW: Location = { name: "Overview", path: "", kind: "overview" };
 
 function newTab(id: string, location: Location, viewMode: ViewMode): Tab {
-  return { id, location, back: [], forward: [], viewMode, selectedEntryPath: "" };
+  return { id, location, back: [], forward: [], viewMode, selection: EMPTY_SELECTION };
 }
 
 export function createTabsState(id: string, location: Location = OVERVIEW): TabsState {
@@ -53,7 +55,7 @@ export function navigate(state: TabsState, location: Location): TabsState {
     location,
     back: [...tab.back, tab.location],
     forward: [],
-    selectedEntryPath: "",
+    selection: EMPTY_SELECTION,
   }));
 }
 
@@ -65,7 +67,7 @@ export function goBack(state: TabsState): TabsState {
     location: previous,
     back: tab.back.slice(0, -1),
     forward: [tab.location, ...tab.forward],
-    selectedEntryPath: "",
+    selection: EMPTY_SELECTION,
   }));
 }
 
@@ -77,7 +79,7 @@ export function goForward(state: TabsState): TabsState {
     location: next,
     back: [...tab.back, tab.location],
     forward: tab.forward.slice(1),
-    selectedEntryPath: "",
+    selection: EMPTY_SELECTION,
   }));
 }
 
@@ -92,7 +94,7 @@ export function closeTab(state: TabsState, id: string): { state: TabsState; clos
   if (state.tabs.length === 1) {
     const tab = state.tabs[0];
     if (tab.location.kind === OVERVIEW.kind) return { state, closeWindow: true };
-    const reset: Tab = { ...tab, location: OVERVIEW, back: [], forward: [], selectedEntryPath: "" };
+    const reset: Tab = { ...tab, location: OVERVIEW, back: [], forward: [], selection: EMPTY_SELECTION };
     return { state: { tabs: [reset], activeId: reset.id }, closeWindow: false };
   }
   const tabs = state.tabs.filter((tab) => tab.id !== id);
@@ -125,7 +127,7 @@ export function tabIndexFromDigit(digit: number, count: number): number | null {
 
 export function updateActive(
   state: TabsState,
-  patch: Partial<Pick<Tab, "viewMode" | "selectedEntryPath">>,
+  patch: Partial<Pick<Tab, "viewMode" | "selection">>,
 ): TabsState {
   return replaceActive(state, (tab) => ({ ...tab, ...patch }));
 }

@@ -14,17 +14,17 @@ use sqlx::{
     Row, SqlitePool,
 };
 use tauri::{
-    menu::{
-        AboutMetadata, CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu,
-    },
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow, WindowEvent,
 };
 #[cfg(target_os = "macos")]
 use trash::macos::{DeleteMethod, TrashContextExtMacos};
 
 mod archive;
+mod icons;
+mod menu;
 mod network;
 mod remote;
+mod search;
 mod transfer;
 
 struct Database(SqlitePool);
@@ -144,6 +144,7 @@ enum PreviewKind {
     Binary,
     Directory,
     Image,
+    Archive,
 }
 
 #[derive(Serialize, Debug)]
@@ -175,13 +176,18 @@ fn now_secs() -> i64 {
 
 const THIRTY_DAYS_SECS: i64 = 30 * 24 * 3600;
 
-fn home_location() -> Option<Location> {
-    let path = std::env::var_os(if cfg!(target_os = "windows") {
+/// The user's home folder: `USERPROFILE` on Windows, `HOME` elsewhere.
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os(if cfg!(target_os = "windows") {
         "USERPROFILE"
     } else {
         "HOME"
-    })?;
-    let path = PathBuf::from(path);
+    })
+    .map(PathBuf::from)
+}
+
+fn home_location() -> Option<Location> {
+    let path = home_dir()?;
     Some(Location {
         name: path.file_name()?.to_string_lossy().into_owned(),
         path: path.to_string_lossy().into_owned(),
@@ -335,16 +341,18 @@ fn file_url_path(value: &str) -> Option<PathBuf> {
 }
 
 fn standard_favorites() -> Vec<Location> {
-    let Some(home) = std::env::var_os("HOME").map(PathBuf::from) else {
+    let Some(home) = home_dir() else {
         return Vec::new();
     };
     let mut locations = Vec::new();
     let mut seen = HashSet::new();
+    // Folders that don't exist are skipped, so macOS "Movies" and Windows "Videos" can share a list.
     for name in [
         "Desktop",
         "Documents",
         "Downloads",
         "Movies",
+        "Videos",
         "Music",
         "Pictures",
     ] {
@@ -419,8 +427,7 @@ fn linux_favorites() -> Vec<Location> {
     locations
 }
 
-#[tauri::command]
-fn favorites() -> Vec<Location> {
+fn system_favorites() -> Vec<Location> {
     #[cfg(target_os = "macos")]
     {
         return macos_favorites();
@@ -433,6 +440,179 @@ fn favorites() -> Vec<Location> {
     {
         standard_favorites()
     }
+}
+
+/// A row of the `favorites` table. `source` is `system` for folders read from the OS
+/// sidebar and `user` for folders added in the app; `hidden` hides a system favorite
+/// without touching the OS list.
+struct StoredFavorite {
+    name: String,
+    path: String,
+    source: String,
+    hidden: bool,
+    position: i64,
+}
+
+/// Favorites shown in the sidebar: not hidden, still an OS favorite unless added in
+/// the app, and still an existing folder. Ordered by position.
+fn visible_favorites(
+    stored: &[StoredFavorite],
+    system: &[Location],
+    exists: impl Fn(&str) -> bool,
+) -> Vec<Location> {
+    let system: HashSet<&str> = system
+        .iter()
+        .map(|location| location.path.as_str())
+        .collect();
+    let mut visible: Vec<&StoredFavorite> = stored
+        .iter()
+        .filter(|favorite| {
+            !favorite.hidden
+                && (favorite.source == "user" || system.contains(favorite.path.as_str()))
+                && exists(&favorite.path)
+        })
+        .collect();
+    visible.sort_by_key(|favorite| favorite.position);
+    visible
+        .into_iter()
+        .map(|favorite| Location {
+            name: favorite.name.clone(),
+            path: favorite.path.clone(),
+            kind: "folder".into(),
+        })
+        .collect()
+}
+
+async fn load_system_favorites() -> Result<Vec<Location>, String> {
+    tauri::async_runtime::spawn_blocking(system_favorites)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+async fn stored_favorites(pool: &SqlitePool) -> Result<Vec<StoredFavorite>, String> {
+    sqlx::query("SELECT name, path, source, hidden, position FROM favorites")
+        .fetch_all(pool)
+        .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(|row| StoredFavorite {
+                    name: row.get("name"),
+                    path: row.get("path"),
+                    source: row.get("source"),
+                    hidden: row.get::<i64, _>("hidden") != 0,
+                    position: row.get("position"),
+                })
+                .collect()
+        })
+        .map_err(|error| error.to_string())
+}
+
+/// Stores OS favorites that are new since the last sync at the end of the list, then
+/// returns the visible favorites. Existing rows keep their position and hidden flag.
+async fn sync_favorites(pool: &SqlitePool, system: &[Location]) -> Result<Vec<Location>, String> {
+    for location in system {
+        sqlx::query(
+            "INSERT INTO favorites (path, name, source, hidden, position) \
+             VALUES (?, ?, 'system', 0, (SELECT COALESCE(MAX(position), -1) + 1 FROM favorites)) \
+             ON CONFLICT(path) DO NOTHING",
+        )
+        .bind(&location.path)
+        .bind(&location.name)
+        .execute(pool)
+        .await
+        .map_err(|error| error.to_string())?;
+    }
+    let stored = stored_favorites(pool).await?;
+    Ok(visible_favorites(&stored, system, |path| {
+        Path::new(path).is_dir()
+    }))
+}
+
+async fn write_favorite_order(pool: &SqlitePool, paths: &[String]) -> Result<(), String> {
+    for (position, path) in paths.iter().enumerate() {
+        sqlx::query("UPDATE favorites SET position = ? WHERE path = ?")
+            .bind(position as i64)
+            .bind(path)
+            .execute(pool)
+            .await
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn favorites(database: State<'_, Database>) -> Result<Vec<Location>, String> {
+    let system = load_system_favorites().await?;
+    sync_favorites(&database.0, &system).await
+}
+
+/// Adds a local folder to the favorites at `index` (the end by default). Adding a
+/// hidden or existing favorite shows it again and moves it to `index`.
+#[tauri::command]
+async fn add_favorite(
+    path: String,
+    index: Option<usize>,
+    database: State<'_, Database>,
+) -> Result<Vec<Location>, String> {
+    const NOT_LOCAL: &str = "Only local folders can be favorites.";
+    if remote::is_remote_path(&path) || network::servers::is_server_path(&path) {
+        return Err(NOT_LOCAL.into());
+    }
+    let folder = PathBuf::from(&path);
+    if !folder.is_dir() {
+        return Err(NOT_LOCAL.into());
+    }
+    let name = location(folder).ok_or(NOT_LOCAL)?.name;
+    let system = load_system_favorites().await?;
+    let mut order: Vec<String> = sync_favorites(&database.0, &system)
+        .await?
+        .into_iter()
+        .map(|location| location.path)
+        .filter(|favorite| favorite != &path)
+        .collect();
+    sqlx::query(
+        "INSERT INTO favorites (path, name, source, hidden, position) VALUES (?, ?, 'user', 0, 0) \
+         ON CONFLICT(path) DO UPDATE SET source = 'user', hidden = 0",
+    )
+    .bind(&path)
+    .bind(&name)
+    .execute(&database.0)
+    .await
+    .map_err(|error| error.to_string())?;
+    order.insert(index.unwrap_or(order.len()).min(order.len()), path);
+    write_favorite_order(&database.0, &order).await?;
+    sync_favorites(&database.0, &system).await
+}
+
+/// Removes a favorite. OS favorites are only hidden, so the OS sidebar is left alone
+/// and the folder doesn't come back on the next sync.
+#[tauri::command]
+async fn remove_favorite(
+    path: String,
+    database: State<'_, Database>,
+) -> Result<Vec<Location>, String> {
+    let system = load_system_favorites().await?;
+    let query = if system.iter().any(|location| location.path == path) {
+        "UPDATE favorites SET hidden = 1 WHERE path = ?"
+    } else {
+        "DELETE FROM favorites WHERE path = ?"
+    };
+    sqlx::query(query)
+        .bind(&path)
+        .execute(&database.0)
+        .await
+        .map_err(|error| error.to_string())?;
+    sync_favorites(&database.0, &system).await
+}
+
+#[tauri::command]
+async fn reorder_favorites(
+    paths: Vec<String>,
+    database: State<'_, Database>,
+) -> Result<Vec<Location>, String> {
+    write_favorite_order(&database.0, &paths).await?;
+    let system = load_system_favorites().await?;
+    sync_favorites(&database.0, &system).await
 }
 
 #[cfg(target_os = "macos")]
@@ -585,6 +765,25 @@ async fn read_directory(
     .map_err(|error| error.to_string())?
 }
 
+#[tauri::command]
+async fn search_directory(
+    path: String,
+    query: String,
+    mode: search::SearchMode,
+) -> Result<search::SearchResponse, String> {
+    if remote::is_remote_path(&path)
+        || network::is_network_path(&path)
+        || network::servers::is_server_path(&path)
+    {
+        return Err("Search is available for local folders and mounted volumes only.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        search::search_directory(&PathBuf::from(path), &query, mode)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 fn single_entry(path: &Path) -> Result<DirectoryEntry, String> {
     let metadata = fs::metadata(path).map_err(|error| error.to_string())?;
     let name = path
@@ -606,9 +805,19 @@ fn unique_name(parent: &Path, base: &str) -> String {
     if !parent.join(base).exists() {
         return base.to_string();
     }
+    let path = Path::new(base);
+    let stem = path
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or(base);
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| format!(".{extension}"))
+        .unwrap_or_default();
     let mut index = 2;
     loop {
-        let numbered = format!("{} {}", base, index);
+        let numbered = format!("{stem}_{index}{extension}");
         if !parent.join(&numbered).exists() {
             return numbered;
         }
@@ -861,116 +1070,9 @@ fn default_app(path: String) -> Option<AppInfo> {
     }
 }
 
-/// PNG data URL of the Finder icon for `path` (an app bundle), cached per path.
-#[cfg(target_os = "macos")]
+/// PNG data URL of the OS icon for `path`, cached per path.
 fn app_icon_data_url(path: &str) -> Option<String> {
-    use objc2::{
-        class,
-        encode::{Encode, Encoding, RefEncode},
-        msg_send,
-        rc::autoreleasepool,
-        runtime::AnyObject,
-    };
-    use std::{
-        collections::HashMap,
-        ffi::{c_void, CString},
-        sync::{Mutex, OnceLock},
-    };
-
-    #[repr(C)]
-    struct CGSize {
-        width: f64,
-        height: f64,
-    }
-    unsafe impl Encode for CGSize {
-        const ENCODING: Encoding = Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
-    }
-
-    #[repr(C)]
-    struct CGPoint {
-        x: f64,
-        y: f64,
-    }
-    unsafe impl Encode for CGPoint {
-        const ENCODING: Encoding = Encoding::Struct("CGPoint", &[f64::ENCODING, f64::ENCODING]);
-    }
-
-    #[repr(C)]
-    struct CGRect {
-        origin: CGPoint,
-        size: CGSize,
-    }
-    unsafe impl Encode for CGRect {
-        const ENCODING: Encoding =
-            Encoding::Struct("CGRect", &[CGPoint::ENCODING, CGSize::ENCODING]);
-    }
-    unsafe impl RefEncode for CGRect {
-        const ENCODING_REF: Encoding = Encoding::Pointer(&Self::ENCODING);
-    }
-
-    #[repr(C)]
-    struct CGImage {
-        _private: [u8; 0],
-    }
-    unsafe impl RefEncode for CGImage {
-        const ENCODING_REF: Encoding = Encoding::Pointer(&Encoding::Struct("CGImage", &[]));
-    }
-
-    static CACHE: OnceLock<Mutex<HashMap<String, Option<String>>>> = OnceLock::new();
-    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    if let Some(icon) = cache.lock().ok()?.get(path) {
-        return icon.clone();
-    }
-
-    let c_path = CString::new(path).ok()?;
-    let icon = autoreleasepool(|_| unsafe {
-        let string: *mut AnyObject =
-            msg_send![class!(NSString), stringWithUTF8String: c_path.as_ptr()];
-        let workspace: *mut AnyObject = msg_send![class!(NSWorkspace), sharedWorkspace];
-        let image: *mut AnyObject = msg_send![workspace, iconForFile: string];
-        if image.is_null() {
-            return None;
-        }
-        // 32pt at 2x keeps the 16px menu icon sharp on Retina displays.
-        let _: () = msg_send![image, setSize: CGSize { width: 32.0, height: 32.0 }];
-        let null_object: *mut AnyObject = std::ptr::null_mut();
-        let cg_image: *mut CGImage = msg_send![
-            image,
-            CGImageForProposedRect: std::ptr::null_mut::<CGRect>(),
-            context: null_object,
-            hints: null_object
-        ];
-        if cg_image.is_null() {
-            return None;
-        }
-        let rep: *mut AnyObject = msg_send![class!(NSBitmapImageRep), alloc];
-        let rep: *mut AnyObject = msg_send![rep, initWithCGImage: cg_image];
-        if rep.is_null() {
-            return None;
-        }
-        let properties: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
-        // NSBitmapImageFileTypePNG
-        let data: *mut AnyObject =
-            msg_send![rep, representationUsingType: 4usize, properties: properties];
-        let encoded = if data.is_null() {
-            None
-        } else {
-            let bytes: *const c_void = msg_send![data, bytes];
-            let length: usize = msg_send![data, length];
-            let slice = std::slice::from_raw_parts(bytes as *const u8, length);
-            Some(format!(
-                "data:image/png;base64,{}",
-                base64::engine::general_purpose::STANDARD.encode(slice)
-            ))
-        };
-        let _: () = msg_send![rep, release];
-        encoded
-    });
-
-    if let Ok(mut cache) = cache.lock() {
-        cache.insert(path.to_owned(), icon.clone());
-    }
-    icon
+    icons::icon_data_url(path)
 }
 
 #[tauri::command]
@@ -1133,6 +1235,11 @@ fn file_preview(path: &Path) -> Result<FilePreview, String> {
         truncated: false,
     };
     if metadata.is_dir() {
+        return Ok(preview);
+    }
+
+    if archive::is_archive_path(path) {
+        preview.kind = PreviewKind::Archive;
         return Ok(preview);
     }
 
@@ -1640,9 +1747,61 @@ fn volume_stats(path: &Path) -> Option<VolumeStats> {
     })
 }
 
-#[cfg(not(unix))]
+#[cfg(target_os = "windows")]
+fn volume_stats(path: &Path) -> Option<VolumeStats> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+    let path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let (mut available, mut total, mut free) = (0u64, 0u64, 0u64);
+    if unsafe { GetDiskFreeSpaceExW(path.as_ptr(), &mut available, &mut total, &mut free) } == 0 {
+        return None;
+    }
+    Some(VolumeStats {
+        total_bytes: total,
+        free_bytes: available,
+        file_system: None,
+        mounted_on: None,
+    })
+}
+
+#[cfg(not(any(unix, target_os = "windows")))]
 fn volume_stats(_path: &Path) -> Option<VolumeStats> {
     None
+}
+
+/// Drive letters present in a `GetLogicalDrives` bit mask, where bit 0 is `A:`.
+#[cfg(any(target_os = "windows", test))]
+fn drive_letters(mask: u32) -> Vec<char> {
+    (0..26u8)
+        .filter(|bit| mask & (1 << bit) != 0)
+        .map(|bit| (b'A' + bit) as char)
+        .collect()
+}
+
+/// File Explorer's naming: the volume label, or "Local Disk" when the drive has none.
+#[cfg(any(target_os = "windows", test))]
+fn drive_display_name(label: &str, letter: char) -> String {
+    let label = label.trim();
+    let label = if label.is_empty() {
+        "Local Disk"
+    } else {
+        label
+    };
+    format!("{label} ({letter}:)")
+}
+
+#[cfg(target_os = "windows")]
+fn to_wide(text: &str) -> Vec<u16> {
+    text.encode_utf16().chain(Some(0)).collect()
+}
+
+#[cfg(target_os = "windows")]
+fn from_wide(buffer: &[u16]) -> String {
+    let end = buffer
+        .iter()
+        .position(|&unit| unit == 0)
+        .unwrap_or(buffer.len());
+    String::from_utf16_lossy(&buffer[..end])
 }
 
 #[cfg(target_os = "macos")]
@@ -1728,7 +1887,70 @@ fn volumes() -> Vec<VolumeInfo> {
     volumes
 }
 
-#[cfg(not(unix))]
+/// Fixed and removable drives with media, the system drive first.
+#[cfg(target_os = "windows")]
+fn volumes() -> Vec<VolumeInfo> {
+    use windows_sys::Win32::{
+        Storage::FileSystem::{GetDriveTypeW, GetLogicalDrives, GetVolumeInformationW},
+        System::WindowsProgramming::{DRIVE_FIXED, DRIVE_REMOVABLE},
+    };
+    let system_drive = std::env::var("SystemDrive")
+        .ok()
+        .and_then(|drive| drive.chars().next())
+        .unwrap_or('C')
+        .to_ascii_uppercase();
+    let mut volumes = Vec::new();
+    for letter in drive_letters(unsafe { GetLogicalDrives() }) {
+        let root = format!("{letter}:\\");
+        let root_wide = to_wide(&root);
+        let drive_type = unsafe { GetDriveTypeW(root_wide.as_ptr()) };
+        if drive_type != DRIVE_FIXED && drive_type != DRIVE_REMOVABLE {
+            continue;
+        }
+        // Card readers and empty removable drives report no size.
+        let Some(stats) = volume_stats(Path::new(&root)) else {
+            continue;
+        };
+        if stats.total_bytes == 0 {
+            continue;
+        }
+        let mut label = [0u16; 261];
+        let mut file_system = [0u16; 261];
+        let has_info = unsafe {
+            GetVolumeInformationW(
+                root_wide.as_ptr(),
+                label.as_mut_ptr(),
+                label.len() as u32,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                file_system.as_mut_ptr(),
+                file_system.len() as u32,
+            )
+        } != 0;
+        volumes.push(VolumeInfo {
+            name: drive_display_name(
+                &if has_info {
+                    from_wide(&label)
+                } else {
+                    String::new()
+                },
+                letter,
+            ),
+            mount_point: root,
+            file_system: has_info
+                .then(|| from_wide(&file_system))
+                .filter(|name| !name.is_empty()),
+            total_bytes: stats.total_bytes,
+            free_bytes: stats.free_bytes,
+            is_primary: letter == system_drive,
+        });
+    }
+    volumes.sort_by_key(|volume| !volume.is_primary);
+    volumes
+}
+
+#[cfg(not(any(unix, target_os = "windows")))]
 fn volumes() -> Vec<VolumeInfo> {
     Vec::new()
 }
@@ -1803,7 +2025,50 @@ fn device_info() -> DeviceInfo {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
+fn device_info() -> DeviceInfo {
+    use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+    let name = std::env::var("COMPUTERNAME")
+        .ok()
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "This PC".into());
+    let mut memory: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
+    memory.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
+    let memory_bytes =
+        (unsafe { GlobalMemoryStatusEx(&mut memory) } != 0).then_some(memory.ullTotalPhys);
+    DeviceInfo {
+        name,
+        chip: windows_processor_name(),
+        cores: std::thread::available_parallelism().map_or(1, |cores| cores.get()),
+        memory_bytes,
+    }
+}
+
+/// The marketing CPU name ("AMD Ryzen 7 7840U …"), which Windows keeps in the registry.
+#[cfg(target_os = "windows")]
+fn windows_processor_name() -> Option<String> {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
+    let key = to_wide(r"HARDWARE\DESCRIPTION\System\CentralProcessor\0");
+    let value = to_wide("ProcessorNameString");
+    let mut buffer = [0u16; 256];
+    let mut size = (buffer.len() * 2) as u32;
+    let status = unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            key.as_ptr(),
+            value.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            buffer.as_mut_ptr().cast(),
+            &mut size,
+        )
+    };
+    (status == 0)
+        .then(|| from_wide(&buffer).trim().to_owned())
+        .filter(|name| !name.is_empty())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn device_info() -> DeviceInfo {
     let name = fs::read_to_string("/etc/hostname")
         .map(|name| name.trim().to_owned())
@@ -2390,98 +2655,12 @@ fn unlock_webview_frame_rate(window: &tauri::WebviewWindow) {
     });
 }
 
-fn remove_close_window<R: tauri::Runtime>(submenu: &Submenu<R>) -> tauri::Result<()> {
-    for item in submenu.items()? {
-        if let MenuItemKind::Predefined(predefined) = &item {
-            let text = predefined.text()?.replace('&', "");
-            if text == "Close Window" || text == "Close" {
-                submenu.remove(predefined)?;
-            }
-        }
-    }
-    Ok(())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-const CHECK_FOR_UPDATES: &str = "check-for-updates";
-
-/// Rebuilds the default About item with the app icon, so the About panel shows it even when the
-/// binary runs outside an app bundle (e.g. `tauri dev`), where macOS falls back to a folder icon.
-fn set_about_icon<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    menu: &Menu<R>,
-) -> tauri::Result<()> {
-    let package = app.package_info();
-    let bundle = &app.config().bundle;
-    let about = PredefinedMenuItem::about(
-        app,
-        None,
-        Some(AboutMetadata {
-            name: Some("Lite Explorer".to_string()),
-            version: Some(package.version.to_string()),
-            copyright: bundle.copyright.clone(),
-            authors: bundle.publisher.clone().map(|publisher| vec![publisher]),
-            // `credits` is the description on macOS; `comments` covers Windows and Linux.
-            credits: Some(env!("CARGO_PKG_DESCRIPTION").to_string()),
-            comments: Some(env!("CARGO_PKG_DESCRIPTION").to_string()),
-            icon: Some(tauri::include_image!("./icons/icon.png")),
-            ..Default::default()
-        }),
-    )?;
-    for entry in menu.items()? {
-        let MenuItemKind::Submenu(submenu) = entry else {
-            continue;
-        };
-        let index = submenu.items()?.iter().position(|child| match child {
-            MenuItemKind::Predefined(predefined) => predefined
-                .text()
-                .map(|text| text.starts_with("About"))
-                .unwrap_or(false),
-            _ => false,
-        });
-        if let Some(index) = index {
-            submenu.remove_at(index)?;
-            return submenu.insert(&about, index);
-        }
-    }
-    Ok(())
-}
-
-/// Puts "Check for Updates…" right after About: in the app menu on macOS, in Help elsewhere.
-fn add_check_for_updates<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    menu: &Menu<R>,
-) -> tauri::Result<()> {
-    let item = MenuItem::with_id(
-        app,
-        CHECK_FOR_UPDATES,
-        "Check for Updates…",
-        true,
-        None::<&str>,
-    )?;
-    for entry in menu.items()? {
-        let MenuItemKind::Submenu(submenu) = entry else {
-            continue;
-        };
-        let about = submenu.items()?.iter().position(|child| match child {
-            MenuItemKind::Predefined(predefined) => predefined
-                .text()
-                .map(|text| text.starts_with("About"))
-                .unwrap_or(false),
-            _ => false,
-        });
-        if let Some(index) = about {
-            return submenu.insert(&item, index + 1);
-        }
-    }
-    let help = Submenu::with_items(app, "Help", true, &[&item])?;
-    menu.append(&help)
-}
-
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
@@ -2502,239 +2681,9 @@ pub fn run() {
             app.manage(network::servers::Sessions::default());
             app.manage(transfer::TransferRegistry::default());
             app.manage(FolderScans(std::sync::Mutex::new(HashSet::new())));
-            let floating = CheckMenuItem::with_id(
-                app.handle(),
-                "toggle-sidebar-floating",
-                "Floating Sidebar",
-                true,
-                false,
-                Some("CmdOrCtrl+Shift+F"),
-            )?;
-            let sidebar = Submenu::with_items(app.handle(), "Sidebar", true, &[&floating])?;
-            let hidden_files = CheckMenuItem::with_id(
-                app.handle(),
-                "toggle-hidden-files",
-                "Show Hidden Files",
-                true,
-                false,
-                Some("CmdOrCtrl+Shift+Period"),
-            )?;
-            let show_fps = CheckMenuItem::with_id(
-                app.handle(),
-                "toggle-show-fps",
-                "Show FPS",
-                true,
-                false,
-                None::<&str>,
-            )?;
-            let menu = Menu::default(app.handle())?;
-            let new_folder = MenuItem::with_id(
-                app.handle(),
-                "new-folder",
-                "New Folder",
-                true,
-                Some("CmdOrCtrl+Shift+N"),
-            )?;
-            let new_file = MenuItem::with_id(
-                app.handle(),
-                "new-file",
-                "New File",
-                true,
-                Some("CmdOrCtrl+Shift+Alt+N"),
-            )?;
-            let open_item = MenuItem::with_id(app.handle(), "open", "Open", false, None::<&str>)?;
-            let go_to_folder = MenuItem::with_id(
-                app.handle(),
-                "go-to-folder",
-                "Go to Folder…",
-                true,
-                Some("CmdOrCtrl+Shift+P"),
-            )?;
-            let new_tab = MenuItem::with_id(
-                app.handle(),
-                "new-tab",
-                "New Tab",
-                true,
-                Some("CmdOrCtrl+T"),
-            )?;
-            let close_tab = MenuItem::with_id(
-                app.handle(),
-                "close-tab",
-                "Close Tab",
-                true,
-                Some("CmdOrCtrl+W"),
-            )?;
-            let next_tab = MenuItem::with_id(
-                app.handle(),
-                "next-tab",
-                "Show Next Tab",
-                true,
-                Some("CmdOrCtrl+Shift+]"),
-            )?;
-            let previous_tab = MenuItem::with_id(
-                app.handle(),
-                "previous-tab",
-                "Show Previous Tab",
-                true,
-                Some("CmdOrCtrl+Shift+["),
-            )?;
-            let new_tab_other = MenuItem::with_id(
-                app.handle(),
-                "new-tab-other",
-                "New Tab in Second Pane",
-                true,
-                Some("CmdOrCtrl+Shift+T"),
-            )?;
-            let show_second_pane = MenuItem::with_id(
-                app.handle(),
-                "toggle-second-pane",
-                "Show Second Pane",
-                true,
-                Some("CmdOrCtrl+Shift+L"),
-            )?;
-            let split_orientation = MenuItem::with_id(
-                app.handle(),
-                "toggle-pane-orientation",
-                "Split Horizontally/Vertically",
-                true,
-                None::<&str>,
-            )?;
-            set_about_icon(app.handle(), &menu)?;
-            add_check_for_updates(app.handle(), &menu)?;
-            let items = menu.items()?;
-            let file_index = items.iter().position(|item| match item {
-                MenuItemKind::Submenu(submenu)
-                    if submenu.text().ok().as_deref() == Some("File") =>
-                {
-                    true
-                }
-                _ => false,
-            });
-            match file_index {
-                Some(index) => {
-                    if let MenuItemKind::Submenu(file_submenu) = &items[index] {
-                        remove_close_window(file_submenu)?;
-                        file_submenu.insert(&new_tab, 0)?;
-                        file_submenu.insert(&new_tab_other, 1)?;
-                        file_submenu.insert(&new_folder, 2)?;
-                        file_submenu.insert(&new_file, 3)?;
-                        file_submenu.insert(&PredefinedMenuItem::separator(app.handle())?, 4)?;
-                        file_submenu.insert(&open_item, 5)?;
-                        file_submenu.insert(&go_to_folder, 6)?;
-                        file_submenu.append(&PredefinedMenuItem::separator(app.handle())?)?;
-                        file_submenu.append(&close_tab)?;
-                    }
-                }
-                None => {
-                    let file_menu = Submenu::with_items(
-                        app.handle(),
-                        "File",
-                        true,
-                        &[&new_tab, &new_tab_other, &new_folder, &new_file, &close_tab],
-                    )?;
-                    let view_index = items.iter().position(|item| match item {
-                        MenuItemKind::Submenu(submenu)
-                            if submenu.text().ok().as_deref() == Some("View") =>
-                        {
-                            true
-                        }
-                        _ => false,
-                    });
-                    match view_index {
-                        Some(index) => menu.insert(&file_menu, index)?,
-                        None => menu.append(&file_menu)?,
-                    }
-                }
-            }
-            let view_menu = menu.items()?.into_iter().find_map(|item| match item {
-                MenuItemKind::Submenu(submenu)
-                    if submenu.text().ok().as_deref() == Some("View") =>
-                {
-                    Some(submenu)
-                }
-                _ => None,
-            });
-            match view_menu {
-                Some(view_menu) => {
-                    view_menu.prepend(&hidden_files)?;
-                    view_menu.insert(&show_fps, 1)?;
-                    view_menu.insert(&sidebar, 2)?;
-                    view_menu.insert(&show_second_pane, 3)?;
-                    view_menu.insert(&split_orientation, 4)?;
-                    view_menu.insert(&PredefinedMenuItem::separator(app.handle())?, 5)?;
-                }
-                None => menu.append(&Submenu::with_items(
-                    app.handle(),
-                    "View",
-                    true,
-                    &[
-                        &hidden_files,
-                        &show_fps,
-                        &sidebar,
-                        &show_second_pane,
-                        &split_orientation,
-                    ],
-                )?)?,
-            }
-            let window_menu = menu.items()?.into_iter().find_map(|item| match item {
-                MenuItemKind::Submenu(submenu)
-                    if submenu.text().ok().as_deref() == Some("Window") =>
-                {
-                    Some(submenu)
-                }
-                _ => None,
-            });
-            match window_menu {
-                Some(window_menu) => {
-                    remove_close_window(&window_menu)?;
-                    window_menu.append(&PredefinedMenuItem::separator(app.handle())?)?;
-                    window_menu.append(&next_tab)?;
-                    window_menu.append(&previous_tab)?;
-                }
-                None => menu.append(&Submenu::with_items(
-                    app.handle(),
-                    "Window",
-                    true,
-                    &[&next_tab, &previous_tab],
-                )?)?,
-            }
-            app.manage(SidebarMenu(floating));
-            app.manage(HiddenFilesMenu(hidden_files));
-            app.manage(ShowFpsMenu(show_fps));
-            app.manage(OpenMenuItem(open_item));
-            app.manage(OpenTarget(std::sync::Mutex::new(None)));
-            #[cfg(debug_assertions)]
-            {
-                let developer_tools = MenuItem::with_id(
-                    app.handle(),
-                    "open-dev-tools",
-                    "Developer Tools",
-                    true,
-                    None::<&str>,
-                )?;
-                let prototype_switcher = CheckMenuItem::with_id(
-                    app.handle(),
-                    "toggle-prototype-switcher",
-                    "Show Prototype Switcher",
-                    true,
-                    false,
-                    None::<&str>,
-                )?;
-                let switcher_submenu = Submenu::with_items(
-                    app.handle(),
-                    "Prototype Switcher",
-                    true,
-                    &[&prototype_switcher],
-                )?;
-                let debug_menu = Submenu::with_items(
-                    app.handle(),
-                    "Debug",
-                    true,
-                    &[&developer_tools, &switcher_submenu],
-                )?;
-                menu.append(&debug_menu)?;
-                app.manage(PrototypeSwitcherMenu(prototype_switcher));
-            }
+            let menu = menu::build(app.handle())?;
+            app.manage(menu::AppMenu(menu.clone()));
+            #[cfg(target_os = "macos")]
             app.set_menu(menu)?;
             #[cfg(target_os = "macos")]
             for window in app.webview_windows().values() {
@@ -2742,73 +2691,14 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_menu_event(|app, event| {
-            #[cfg(debug_assertions)]
-            {
-                if event.id() == "open-dev-tools" {
-                    if let Some(window) = app.get_webview_window("main") {
-                        window.open_devtools();
-                    }
-                    return;
-                }
-                if event.id() == "toggle-prototype-switcher" {
-                    let visible = app
-                        .state::<PrototypeSwitcherMenu>()
-                        .0
-                        .is_checked()
-                        .unwrap_or(false);
-                    let _ = app.emit("dev-tools", visible);
-                    return;
-                }
-            }
-            if event.id() == "toggle-sidebar-floating" {
-                let floating = app.state::<SidebarMenu>().0.is_checked().unwrap_or(false);
-                let _ = app.emit("sidebar-floating", floating);
-            } else if event.id() == "toggle-hidden-files" {
-                let show = app
-                    .state::<HiddenFilesMenu>()
-                    .0
-                    .is_checked()
-                    .unwrap_or(false);
-                let _ = app.emit("show-hidden-files", show);
-            } else if event.id() == "toggle-show-fps" {
-                let show = app.state::<ShowFpsMenu>().0.is_checked().unwrap_or(false);
-                let _ = app.emit("show-fps", show);
-            } else if event.id() == "new-folder" {
-                let _ = app.emit("request-create-folder", ());
-            } else if event.id() == "new-file" {
-                let _ = app.emit("request-create-file", ());
-            } else if event.id() == "new-tab" {
-                let _ = app.emit("tab-new", ());
-            } else if event.id() == "new-tab-other" {
-                let _ = app.emit("tab-new-other", ());
-            } else if event.id() == "toggle-second-pane" {
-                let _ = app.emit("pane-toggle", ());
-            } else if event.id() == "toggle-pane-orientation" {
-                let _ = app.emit("pane-orientation", ());
-            } else if event.id() == "close-tab" {
-                let _ = app.emit("tab-close", ());
-            } else if event.id() == "next-tab" {
-                let _ = app.emit("tab-next", ());
-            } else if event.id() == "previous-tab" {
-                let _ = app.emit("tab-prev", ());
-            } else if event.id() == "open" {
-                let target = app.state::<OpenTarget>().0.lock().unwrap().clone();
-                if let Some((path, _)) = target {
-                    let _ = app.emit("request-open", path);
-                }
-            } else if event.id() == "go-to-folder" {
-                let _ = app.emit("command-palette", ());
-            } else if event.id() == CHECK_FOR_UPDATES {
-                let _ = app.emit("check-for-updates", ());
-            }
-        })
+        .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .invoke_handler(tauri::generate_handler![
             greet,
             os_detection,
-            set_sidebar_floating,
-            set_show_hidden_files,
-            set_show_fps,
+            icons::file_icons,
+            menu::set_sidebar_floating,
+            menu::set_show_hidden_files,
+            menu::set_show_fps,
             locations,
             remote::test_remote_location,
             remote::add_remote_location,
@@ -2833,6 +2723,8 @@ pub fn run() {
             transfer::cancel_transfer,
             archive::create_archive,
             archive::extract_archive,
+            archive::list_archive,
+            archive::plan_extraction,
             remote::buckets::create_remote_bucket,
             remote::buckets::delete_remote_bucket,
             remote::buckets::remote_provider,
@@ -2840,7 +2732,11 @@ pub fn run() {
             remote::bucket_settings::set_bucket_versioning,
             remote::bucket_settings::set_bucket_public,
             favorites,
+            add_favorite,
+            remove_favorite,
+            reorder_favorites,
             read_directory,
+            search_directory,
             create_item,
             rename_item,
             open_with_apps,
@@ -2848,7 +2744,9 @@ pub fn run() {
             open_path,
             reveal_path,
             default_app,
-            set_open_target,
+            menu::set_open_target,
+            menu::app_menu,
+            menu::trigger_menu,
             compute_directory_sizes,
             read_file_preview,
             record_recent,
@@ -2870,58 +2768,25 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-struct SidebarMenu(CheckMenuItem<tauri::Wry>);
-
-#[tauri::command]
-fn set_sidebar_floating(menu: State<'_, SidebarMenu>, floating: bool) {
-    let _ = menu.0.set_checked(floating);
-}
-
-struct HiddenFilesMenu(CheckMenuItem<tauri::Wry>);
-
-#[tauri::command]
-fn set_show_hidden_files(menu: State<'_, HiddenFilesMenu>, show: bool) {
-    let _ = menu.0.set_checked(show);
-}
-
-struct ShowFpsMenu(CheckMenuItem<tauri::Wry>);
-
-#[tauri::command]
-fn set_show_fps(menu: State<'_, ShowFpsMenu>, show: bool) {
-    let _ = menu.0.set_checked(show);
-}
-
-#[cfg(debug_assertions)]
-struct PrototypeSwitcherMenu(CheckMenuItem<tauri::Wry>);
-
-struct OpenMenuItem(MenuItem<tauri::Wry>);
-struct OpenTarget(std::sync::Mutex<Option<(String, bool)>>);
-
-#[tauri::command]
-fn set_open_target(app: AppHandle, path: String, is_directory: bool, enabled: bool) {
-    let open_menu = &app.state::<OpenMenuItem>().0;
-    let text = if enabled {
-        if is_directory {
-            "Open Folder"
-        } else {
-            "Open File"
-        }
-    } else {
-        "Open"
-    };
-    let _ = open_menu.set_text(text);
-    let _ = open_menu.set_enabled(enabled);
-    *app.state::<OpenTarget>().0.lock().unwrap() = if enabled && !path.is_empty() {
-        Some((path, is_directory))
-    } else {
-        None
-    };
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn drive_letters_follow_the_logical_drives_mask() {
+        assert_eq!(drive_letters(0), Vec::<char>::new());
+        assert_eq!(drive_letters(0b1100), vec!['C', 'D']);
+        assert_eq!(drive_letters(1 | 1 << 25), vec!['A', 'Z']);
+    }
+
+    #[test]
+    fn drive_display_name_uses_the_label_or_local_disk() {
+        assert_eq!(drive_display_name("", 'C'), "Local Disk (C:)");
+        assert_eq!(drive_display_name("  ", 'D'), "Local Disk (D:)");
+        assert_eq!(drive_display_name("Backup", 'E'), "Backup (E:)");
+    }
 
     #[test]
     fn window_state_is_clamped_to_the_visible_work_area() {
@@ -2986,6 +2851,83 @@ mod tests {
                     .unwrap(),
                 sqlx::migrate!("./migrations").iter().count() as i64
             );
+        });
+    }
+
+    fn stored(path: &str, source: &str, hidden: bool, position: i64) -> StoredFavorite {
+        StoredFavorite {
+            name: path.trim_start_matches('/').into(),
+            path: path.into(),
+            source: source.into(),
+            hidden,
+            position,
+        }
+    }
+
+    fn system_location(path: &str) -> Location {
+        Location {
+            name: path.trim_start_matches('/').into(),
+            path: path.into(),
+            kind: "folder".into(),
+        }
+    }
+
+    #[test]
+    fn visible_favorites_filters_and_orders_rows() {
+        let stored = [
+            stored("/docs", "system", false, 2),
+            stored("/hidden", "system", true, 0),
+            stored("/gone-from-os", "system", false, 1),
+            stored("/mine", "user", false, 0),
+            stored("/deleted", "user", false, 3),
+        ];
+        let system = [
+            system_location("/docs"),
+            system_location("/hidden"),
+            system_location("/deleted"),
+        ];
+        let visible = visible_favorites(&stored, &system, |path| path != "/deleted");
+        let paths: Vec<&str> = visible
+            .iter()
+            .map(|location| location.path.as_str())
+            .collect();
+        assert_eq!(paths, ["/mine", "/docs"]);
+    }
+
+    #[test]
+    fn sync_favorites_appends_new_system_folders_and_keeps_order() {
+        tauri::async_runtime::block_on(async {
+            let pool = SqlitePoolOptions::new()
+                .max_connections(1)
+                .connect("sqlite::memory:")
+                .await
+                .unwrap();
+            apply_migrations(&pool).await.unwrap();
+            let root = std::env::temp_dir().join(format!("lite-favorites-{}", now_secs()));
+            let folders: Vec<String> = ["a", "b", "c"]
+                .iter()
+                .map(|name| {
+                    let folder = root.join(name);
+                    fs::create_dir_all(&folder).unwrap();
+                    folder.to_string_lossy().into_owned()
+                })
+                .collect();
+            let system: Vec<Location> = folders[..2]
+                .iter()
+                .map(|path| system_location(path))
+                .collect();
+            sync_favorites(&pool, &system).await.unwrap();
+            write_favorite_order(&pool, &[folders[1].clone(), folders[0].clone()])
+                .await
+                .unwrap();
+            let system: Vec<Location> = folders.iter().map(|path| system_location(path)).collect();
+            let visible = sync_favorites(&pool, &system).await.unwrap();
+            let paths: Vec<&str> = visible
+                .iter()
+                .map(|location| location.path.as_str())
+                .collect();
+            assert_eq!(paths, [&folders[1], &folders[0], &folders[2]]);
+            fs::remove_dir_all(root).unwrap();
         });
     }
 
@@ -3074,6 +3016,17 @@ mod tests {
         let path = directory.join(name);
         fs::write(&path, bytes).unwrap();
         path
+    }
+
+    #[test]
+    fn file_preview_marks_archives_without_reading_them() {
+        let path = preview_fixture("bundle.zip", b"not really a zip");
+
+        let preview = file_preview(&path).unwrap();
+
+        assert_eq!(preview.kind, PreviewKind::Archive);
+        assert_eq!(preview.content, None);
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
     }
 
     #[test]
@@ -3329,6 +3282,19 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos()
+    }
+
+    #[test]
+    fn unique_name_numbers_before_the_extension() {
+        let parent = std::env::temp_dir().join(format!("liteexplorer-unique-{}", nanos()));
+        fs::create_dir_all(&parent).unwrap();
+        fs::write(parent.join("checklist.md"), "one").unwrap();
+        fs::write(parent.join("checklist_2.md"), "two").unwrap();
+        assert_eq!(unique_name(&parent, "checklist.md"), "checklist_3.md");
+        assert_eq!(unique_name(&parent, "archive.tar.gz"), "archive.tar.gz");
+        fs::write(parent.join("archive.tar.gz"), "one").unwrap();
+        assert_eq!(unique_name(&parent, "archive.tar.gz"), "archive.tar_2.gz");
+        fs::remove_dir_all(parent).unwrap();
     }
 
     #[test]

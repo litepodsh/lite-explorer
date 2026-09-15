@@ -79,6 +79,7 @@
     void editor.getAction("actions.find")?.run();
     return true;
   }
+  export function hasTextFocus(): boolean { return editor?.hasTextFocus() ?? false; }
 </script>
 
 <div class="relative h-full min-h-0 w-full">

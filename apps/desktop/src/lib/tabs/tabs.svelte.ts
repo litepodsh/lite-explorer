@@ -67,7 +67,7 @@ export class TabsStore {
     return true;
   }
 
-  update(patch: Partial<Pick<Tab, "viewMode" | "selectedEntryPath">>) {
+  update(patch: Partial<Pick<Tab, "viewMode" | "selection">>) {
     this.#state = ops.updateActive(this.#state, patch);
   }
 }

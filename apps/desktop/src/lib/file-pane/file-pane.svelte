@@ -10,6 +10,8 @@
   import CopyPlusIcon from "@lucide/svelte/icons/copy-plus";
   import ScissorsIcon from "@lucide/svelte/icons/scissors";
   import SquarePlusIcon from "@lucide/svelte/icons/square-plus";
+  import StarIcon from "@lucide/svelte/icons/star";
+  import StarOffIcon from "@lucide/svelte/icons/star-off";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import PencilIcon from "@lucide/svelte/icons/pencil";
   import UploadIcon from "@lucide/svelte/icons/upload";
@@ -23,6 +25,9 @@
   import type { Location } from "$lib/tabs/tabs.js";
   import { networkStatus } from "$lib/remote/network-status.svelte.js";
   import { isArchive } from "$lib/file-ops/archive.js";
+  import { drag } from "$lib/file-drag/drag.svelte.js";
+  import { isNetworkPath } from "$lib/remote/network-locations.js";
+  import { canFavorite } from "$lib/favorites/favorites.js";
   import PathStatusBar from "$lib/components/custom/status-bar/path-status-bar.svelte";
   import { ListPanel, type DirectoryEntry } from "$lib/components/custom/file-list/index.js";
   import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
@@ -36,34 +41,82 @@
     active = false,
     onActivate = () => {},
     showHiddenFiles = false,
+    itemCheckboxes = false,
+    onEnableCheckboxes = () => {},
     showFps = false,
     revealLabel = "Show in Finder",
     transferActivity = null,
     onOpenBucketSettings = (_entry: DirectoryEntry) => {},
     onNewBucket = () => {},
     onReconnect = (_location: Location) => {},
-    onExternalDrop = (_path: string, _options: { move: boolean }) => {},
+    onExternalDrop = (_paths: string[], _options: { move: boolean }) => {},
     onCrossPaneDrop = (_from: string, _to: string, _fromIndex: number, _toIndex: number) => {},
+    favoritePaths = new Set<string>(),
+    pastedPaths = new Set<string>(),
+    onToggleFavorite = (_entry: DirectoryEntry, _add: boolean) => {},
   }: {
     controller: FilePaneController;
     active?: boolean;
     onActivate?: () => void;
     showHiddenFiles?: boolean;
+    /** Shows selection checkboxes in the file list. */
+    itemCheckboxes?: boolean;
+    onEnableCheckboxes?: () => void;
     showFps?: boolean;
     revealLabel?: string;
     transferActivity?: string | null;
     onOpenBucketSettings?: (entry: DirectoryEntry) => void;
     onNewBucket?: () => void;
     onReconnect?: (location: Location) => void;
-    onExternalDrop?: (path: string, options: { move: boolean }) => void;
+    onExternalDrop?: (paths: string[], options: { move: boolean }) => void;
     onCrossPaneDrop?: (fromPaneId: string, toPaneId: string, fromIndex: number, toIndex: number) => void;
+    /** Paths of the sidebar favorites, to offer adding or removing a folder. */
+    favoritePaths?: Set<string>;
+    pastedPaths?: Set<string>;
+    onToggleFavorite?: (entry: DirectoryEntry, add: boolean) => void;
   } = $props();
 
   let statusPath = $derived(controller.selected === "Overview" ? "" : controller.listingPath);
+
+  // Lets archive entries dragged from any preview extract into this pane.
+  $effect(() => {
+    const id = controller.paneId;
+    const localListing = () =>
+      controller.selected !== "Overview" &&
+      controller.selected !== "Recents" &&
+      !!controller.listingPath &&
+      !controller.remoteListing &&
+      !isNetworkPath(controller.listingPath);
+    const handle = {
+      folder: () => (localListing() ? controller.listingPath : null),
+      isFolder: (path: string) =>
+        localListing() && controller.entries.some((entry) => entry.path === path && entry.is_directory && !entry.kind),
+    };
+    drag.paneFolders.set(id, handle);
+    return () => {
+      if (drag.paneFolders.get(id) === handle) drag.paneFolders.delete(id);
+    };
+  });
   let reconnecting = $derived(
     controller.disconnected ? networkStatus.status(controller.disconnected.path).state === "connecting" : false,
   );
 </script>
+
+{#snippet favoriteItem(target: DirectoryEntry)}
+  {#if canFavorite(target)}
+    {#if favoritePaths.has(target.path)}
+      <ContextMenu.Item onSelect={() => onToggleFavorite(target, false)}>
+        <StarOffIcon class="size-4" />
+        Remove from Favorites
+      </ContextMenu.Item>
+    {:else}
+      <ContextMenu.Item onSelect={() => onToggleFavorite(target, true)}>
+        <StarIcon class="size-4" />
+        Add to Favorites
+      </ContextMenu.Item>
+    {/if}
+  {/if}
+{/snippet}
 
 <section class="file-pane" class:active onmouseenter={onActivate}>
   <TabBar
@@ -111,11 +164,19 @@
         <ContextMenu.Trigger class="flex min-h-0 min-w-0 flex-1">
           <ListPanel
             entries={controller.recentEntries}
+            sortKey="recents"
             view={controller.viewMode}
             showHidden={showHiddenFiles}
             paneId={controller.paneId}
-            selectedPath={controller.selectedEntryPath}
-            onSelect={(entry) => controller.selectEntry(entry)}
+            {pastedPaths}
+            selectedPaths={controller.selectedSet}
+            focusPath={controller.focusPath}
+            checkboxes={itemCheckboxes}
+            onItemClick={(entry, modifiers) => controller.clickEntry(entry, modifiers)}
+            onToggle={(entry) => controller.toggleEntry(entry)}
+            onRegisterNavigator={(navigator) => controller.registerNavigator(navigator)}
+          onToggleAll={() => controller.toggleAll()}
+          {onEnableCheckboxes}
             onClearSelection={() => controller.clearSelection()}
             onOpen={(entry, options) => controller.openEntry(entry, options)}
             onContextMenu={(entry) => controller.handleContextMenu(entry)}
@@ -126,7 +187,12 @@
             onScroll={(top: number) => controller.scrollPositions.set(controller.tabs.activeId, top)} />
         </ContextMenu.Trigger>
         <ContextMenu.Content>
-          {#if controller.contextTarget}
+          {#if controller.contextTargets.length > 1}
+            <ContextMenu.Item onSelect={() => controller.copyContextPaths()}>
+              <CopyIcon class="size-4" />
+              Copy {controller.contextTargets.length} Paths
+            </ContextMenu.Item>
+          {:else if controller.contextTarget}
             <ContextMenu.Item onSelect={() => controller.openContextTargetInApp()}>
               <FolderOpenIcon class="size-4" />
               {controller.contextTarget.is_directory ? "Open Folder" : "Open File"}
@@ -139,10 +205,11 @@
               <ExternalLinkIcon class="size-4" />
               {revealLabel}
             </ContextMenu.Item>
-            <ContextMenu.Item onSelect={() => controller.copyContextPath()}>
+            <ContextMenu.Item onSelect={() => controller.copyContextPaths()}>
               <CopyIcon class="size-4" />
               Copy Path
             </ContextMenu.Item>
+            {@render favoriteItem(controller.contextTarget)}
           {/if}
         </ContextMenu.Content>
       </ContextMenu.Root>
@@ -157,13 +224,22 @@
     <ContextMenu.Root bind:open={controller.contextMenuOpen} onOpenChange={(open) => controller.onContextMenuOpenChange(open)}>
       <ContextMenu.Trigger class={`flex min-h-0 min-w-0 flex-1${controller.remoteDropActive ? " remote-drop-active" : ""}`}>
         <ListPanel
-          entries={controller.entries}
+          entries={controller.visibleEntries}
+          searchQuery={controller.searchMode === "content" ? controller.searchQuery.trim() : ""}
+          sortKey={controller.listingPath}
           view={controller.viewMode}
           showHidden={showHiddenFiles}
           paneId={controller.paneId}
-          selectedPath={controller.selectedEntryPath}
+          {pastedPaths}
+          selectedPaths={controller.selectedSet}
+          focusPath={controller.focusPath}
+          checkboxes={itemCheckboxes}
           renamingPath={controller.renamingPath}
-          onSelect={(entry) => controller.selectEntry(entry)}
+          onItemClick={(entry, modifiers) => controller.clickEntry(entry, modifiers)}
+          onToggle={(entry) => controller.toggleEntry(entry)}
+          onRegisterNavigator={(navigator) => controller.registerNavigator(navigator)}
+          onToggleAll={() => controller.toggleAll()}
+          {onEnableCheckboxes}
           onClearSelection={() => controller.clearSelection()}
           onOpen={(entry, options) => controller.openEntry(entry, options)}
           scrollTop={controller.scrollPositions.get(controller.tabs.activeId) ?? 0}
@@ -177,84 +253,101 @@
           onRenameCancel={() => controller.cancelRename()} />
       </ContextMenu.Trigger>
       <ContextMenu.Content>
-        {#if controller.contextTarget}
-          {#if controller.contextTarget.is_directory}
+        {#if controller.contextTargets.length}
+          {@const target = controller.contextTarget}
+          {@const count = controller.contextTargets.length}
+          {#if target?.is_directory}
             <ContextMenu.Item onSelect={() => controller.openContextTargetInNewTab()}>
               <SquarePlusIcon class="size-4" />
               Open in New Tab
             </ContextMenu.Item>
+            {@render favoriteItem(target)}
           {/if}
-          <ContextMenu.Item onSelect={() => controller.openContextTarget()}>
-            <FolderOpenIcon class="size-4" />
-            Open
-            {#if controller.defaultApp}
-              <ContextMenu.Shortcut class="flex max-w-24 min-w-0 items-center gap-1 pl-3 text-[9px]">
-                {#if controller.defaultApp.icon}<img src={controller.defaultApp.icon} alt="" class="size-4 shrink-0" draggable="false" />{/if}
-                <span class="min-w-0 truncate">{controller.defaultApp.name}</span>
-              </ContextMenu.Shortcut>
+          {#if target}
+            <ContextMenu.Item onSelect={() => controller.openContextTarget()}>
+              <FolderOpenIcon class="size-4" />
+              Open
+              {#if controller.defaultApp}
+                <ContextMenu.Shortcut class="flex max-w-24 min-w-0 items-center gap-1 pl-3 text-[9px]">
+                  {#if controller.defaultApp.icon}<img src={controller.defaultApp.icon} alt="" class="size-4 shrink-0" draggable="false" />{/if}
+                  <span class="min-w-0 truncate">{controller.defaultApp.name}</span>
+                </ContextMenu.Shortcut>
+              {/if}
+            </ContextMenu.Item>
+            {#if !controller.remoteListing && !controller.serverRoot}
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger>
+                  <AppWindowIcon class="size-4" />
+                  Open With
+                </ContextMenu.SubTrigger>
+                <ContextMenu.SubContent>
+                  {#if controller.openWithApps.length === 0}
+                    <ContextMenu.Label>No applications</ContextMenu.Label>
+                  {:else}
+                    {#each controller.openWithApps as app (app.path)}
+                      <ContextMenu.Item onSelect={() => controller.openWithContextTarget(app.path)}>
+                        {#if app.icon}
+                          <img src={app.icon} alt="" class="size-4 shrink-0" draggable="false" />
+                        {:else}
+                          <AppWindowIcon class="size-4" />
+                        {/if}
+                        {app.name}
+                        {#if app.path === controller.defaultApp?.path}
+                          <span class="text-white/40">(default)</span>
+                        {/if}
+                      </ContextMenu.Item>
+                    {/each}
+                  {/if}
+                  <ContextMenu.Separator />
+                  <ContextMenu.Item onSelect={() => void controller.openWithOtherApplication()}>Other…</ContextMenu.Item>
+                </ContextMenu.SubContent>
+              </ContextMenu.Sub>
             {/if}
-          </ContextMenu.Item>
-          {#if !controller.remoteListing && !controller.serverRoot}
-            <ContextMenu.Sub>
-              <ContextMenu.SubTrigger>
-                <AppWindowIcon class="size-4" />
-                Open With
-              </ContextMenu.SubTrigger>
-              <ContextMenu.SubContent>
-                {#if controller.openWithApps.length === 0}
-                  <ContextMenu.Label>No applications</ContextMenu.Label>
-                {:else}
-                  {#each controller.openWithApps as app (app.path)}
-                    <ContextMenu.Item onSelect={() => controller.openWithContextTarget(app.path)}>
-                      {#if app.icon}
-                        <img src={app.icon} alt="" class="size-4 shrink-0" draggable="false" />
-                      {:else}
-                        <AppWindowIcon class="size-4" />
-                      {/if}
-                      {app.name}
-                      {#if app.path === controller.defaultApp?.path}
-                        <span class="text-white/40">(default)</span>
-                      {/if}
-                    </ContextMenu.Item>
-                  {/each}
-                {/if}
-                <ContextMenu.Separator />
-                <ContextMenu.Item onSelect={() => void controller.openWithOtherApplication()}>Other…</ContextMenu.Item>
-              </ContextMenu.SubContent>
-            </ContextMenu.Sub>
           {/if}
-          <ContextMenu.Item onSelect={() => controller.copyContextPath()}>
+          <ContextMenu.Item onSelect={() => controller.copyContextPaths()}>
             <CopyIcon class="size-4" />
-            Copy Path
+            {count > 1 ? `Copy ${count} Paths` : "Copy Path"}
           </ContextMenu.Item>
+          {#if !controller.serverRoot}
+            <ContextMenu.Item onSelect={() => controller.enqueueContextTargets("copy")}>
+              <CopyIcon class="size-4" />
+              {count > 1 ? `Copy ${count} Items` : "Copy"}
+            </ContextMenu.Item>
+            <ContextMenu.Item onSelect={() => controller.enqueueContextTargets("move")}>
+              <ScissorsIcon class="size-4" />
+              {count > 1 ? `Move ${count} Items` : "Move"}
+            </ContextMenu.Item>
+          {/if}
           {#if !controller.remoteRoot && !controller.serverRoot}
             <ContextMenu.Separator />
-            <ContextMenu.Item onSelect={() => controller.renameContextTarget()}>
-              <PencilIcon class="size-4" />
-              Rename
-            </ContextMenu.Item>
-            <ContextMenu.Item onSelect={() => void controller.duplicateContextTarget()}>
+            {#if target}
+              <ContextMenu.Item onSelect={() => controller.renameContextTarget()}>
+                <PencilIcon class="size-4" />
+                Rename
+              </ContextMenu.Item>
+            {/if}
+            <ContextMenu.Item onSelect={() => void controller.duplicateContextTargets()}>
               <CopyPlusIcon class="size-4" />
-              Duplicate
+              {count > 1 ? `Duplicate ${count} Items` : "Duplicate"}
             </ContextMenu.Item>
           {/if}
           {#if controller.serverRoot}
             <!-- Shares of an SMB server only open. -->
           {:else if !controller.remoteListing}
-            <ContextMenu.Item onSelect={() => void controller.moveContextTargetTo()}>
+            <ContextMenu.Item onSelect={() => void controller.moveContextTargetsTo()}>
               <ScissorsIcon class="size-4" />
               Move to…
             </ContextMenu.Item>
-            <ContextMenu.Item onSelect={() => void controller.copyContextTargetTo()}>
+            <ContextMenu.Item onSelect={() => void controller.copyContextTargetsTo()}>
               <FolderInputIcon class="size-4" />
               Copy to…
             </ContextMenu.Item>
             <ContextMenu.Separator />
-            <ContextMenu.Item onSelect={() => void controller.compressContextTarget()}>
+            <ContextMenu.Item onSelect={() => void controller.compressContextTargets()}>
               <ArchiveIcon class="size-4" />
-              Compress “{controller.contextTarget.name}”…
+              {target ? `Compress “${target.name}”…` : `Compress ${count} Items…`}
             </ContextMenu.Item>
-            {#if isArchive(controller.contextTarget.name)}
+            {#if target && isArchive(target.name)}
               <ContextMenu.Item onSelect={() => void controller.extractContextTargetHere()}>
                 <FolderOutputIcon class="size-4" />
                 Extract Here
@@ -265,19 +358,21 @@
               </ContextMenu.Item>
             {/if}
           {:else}
-            <ContextMenu.Item onSelect={() => void controller.downloadContextTarget()}>
+            <ContextMenu.Item onSelect={() => void controller.downloadContextTargets()}>
               <DownloadIcon class="size-4" />
-              Download…
+              {count > 1 ? `Download ${count} Items…` : "Download…"}
             </ContextMenu.Item>
-            {#if controller.remoteRoot}
-              <ContextMenu.Item onSelect={() => controller.contextTarget && onOpenBucketSettings(controller.contextTarget)}>
+            {#if controller.remoteRoot && target}
+              <ContextMenu.Item onSelect={() => onOpenBucketSettings(target)}>
                 <Settings2Icon class="size-4" />
                 Bucket Settings…
               </ContextMenu.Item>
             {/if}
-            <ContextMenu.Item variant="destructive" onSelect={() => controller.deleteContextTarget()}>
+            <ContextMenu.Item variant="destructive" onSelect={() => controller.deleteContextTargets()}>
               <Trash2Icon class="size-4" />
-              {controller.remoteRoot ? "Delete Bucket…" : "Delete…"}
+              {controller.remoteRoot
+                ? count > 1 ? `Delete ${count} Buckets…` : "Delete Bucket…"
+                : count > 1 ? `Delete ${count} Items…` : "Delete…"}
             </ContextMenu.Item>
           {/if}
           {#if !controller.serverRoot}<ContextMenu.Separator />{/if}
@@ -323,6 +418,7 @@
       : controller.selected === "Overview"
         ? []
         : controller.entries}
+    selectedEntries={controller.selected === "Overview" ? [] : controller.selectedEntries}
     activity={transferActivity ??
       (folderScan.scanning
         ? `Analyzing ${folderScan.rootName}… ${formatSize(folderScan.scannedBytes)}`

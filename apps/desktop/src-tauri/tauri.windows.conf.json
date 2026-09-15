@@ -1,0 +1,15 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "liteexplorer",
+        "width": 1400,
+        "height": 750,
+        "center": true,
+        "minWidth": 768,
+        "minHeight": 500,
+        "decorations": false
+      }
+    ]
+  }
+}
