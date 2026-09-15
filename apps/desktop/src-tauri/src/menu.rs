@@ -252,7 +252,14 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
                 app,
                 "File",
                 true,
-                &[&new_tab, &new_tab_other, &new_folder, &new_file, &settings_item, &close_tab],
+                &[
+                    &new_tab,
+                    &new_tab_other,
+                    &new_folder,
+                    &new_file,
+                    &settings_item,
+                    &close_tab,
+                ],
             )?;
             let view_index = items.iter().position(|item| match item {
                 MenuItemKind::Submenu(submenu)

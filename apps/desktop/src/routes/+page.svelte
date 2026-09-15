@@ -629,7 +629,7 @@
     return commands.available(row.command, keyboardContext(scope));
   }
 
-  const PALETTE_COMMANDS = ["app.shortcuts", "app.settings", "app.toggleKeyboardMode", "preview.toggle", "view.list", "view.grid"];
+  const PALETTE_COMMANDS = ["app.shortcuts", "app.settings", "app.toggleKeyboardMode", "app.openTerminal", "preview.toggle", "view.list", "view.grid"];
 
   function shortcutFor(id: string): string {
     const keyPlatform = toKeyPlatform(platform);
@@ -653,7 +653,7 @@
   }
 
   let paletteCommands = $derived<PaletteCommand[]>(
-    PALETTE_COMMANDS.map((id) => ({
+    PALETTE_COMMANDS.filter((id) => commands.available(id, keyboardContext("global"))).map((id) => ({
       id,
       title: paletteTitle(id),
       shortcut: shortcutFor(id),

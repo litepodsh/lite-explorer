@@ -1,5 +1,7 @@
 export type KeyboardMode = "standard" | "yazi";
 export type ChordTimeout = 1000 | 1500 | 3000;
+/** Terminal id reported by the backend's detection ("system", "custom", or a detected app). */
+export type TerminalApp = string;
 
 export type Settings = {
   keyboardMode: KeyboardMode;
@@ -9,6 +11,10 @@ export type Settings = {
   defaultViewMode: "list" | "grid";
   previewOpenByDefault: boolean;
   panesLayout: "row" | "column";
+  /** Which terminal "Open Terminal Here" launches. */
+  terminalApp: TerminalApp;
+  /** Command template with a `{path}` placeholder, used when `terminalApp` is "custom". */
+  terminalCommand: string;
   showFps: boolean;
   /** Development builds only. */
   prototypeSwitcher: boolean;
@@ -29,6 +35,8 @@ export function defaultSettings({ dev }: { dev: boolean }): Settings {
     defaultViewMode: "list",
     previewOpenByDefault: true,
     panesLayout: "row",
+    terminalApp: "system",
+    terminalCommand: "",
     showFps: dev,
     prototypeSwitcher: false,
   };
@@ -44,6 +52,8 @@ const VALIDATORS: { [K in SettingKey]: (value: unknown) => value is Settings[K] 
   defaultViewMode: (value): value is "list" | "grid" => value === "list" || value === "grid",
   previewOpenByDefault: isBoolean,
   panesLayout: (value): value is "row" | "column" => value === "row" || value === "column",
+  terminalApp: (value): value is TerminalApp => typeof value === "string",
+  terminalCommand: (value): value is string => typeof value === "string",
   showFps: isBoolean,
   prototypeSwitcher: isBoolean,
 };

@@ -8,9 +8,7 @@ use std::{
 };
 
 use russh::{
-    cipher,
-    client,
-    kex,
+    cipher, client, kex,
     keys::{Algorithm, EcdsaCurve, HashAlg, PublicKeyOrCertificate},
     mac, Disconnect, Preferred,
 };

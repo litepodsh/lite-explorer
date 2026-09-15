@@ -8,6 +8,12 @@ export interface OpenWithApp {
   icon: string | null;
 }
 
+export interface TerminalInfo {
+  id: string;
+  name: string;
+  icon: string | null;
+}
+
 export async function openTarget(path: string): Promise<void> {
   await invoke("open_path", { path });
 }
@@ -28,6 +34,16 @@ export function openWithTarget(path: string, appPath: string): Promise<void> {
 /** Reveals `path` in the system file manager (Finder, File Explorer, …). */
 export function revealPath(path: string): Promise<void> {
   return invoke("reveal_path", { path });
+}
+
+/** Opens the operating system's terminal in the folder `path`. */
+export function openTerminal(path: string, terminal: string, command = ""): Promise<void> {
+  return invoke("open_terminal", { path, terminal, customCommand: command });
+}
+
+/** Terminals installed on this machine, for the settings dropdown. */
+export function detectTerminals(): Promise<TerminalInfo[]> {
+  return invoke<TerminalInfo[]>("detect_terminals");
 }
 
 /** Lets the user pick any application, like Finder's "Open With > Other…". */

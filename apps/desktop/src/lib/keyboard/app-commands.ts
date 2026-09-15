@@ -12,6 +12,11 @@ function unmodified(args: Record<string, unknown>): boolean {
   return args.shift !== true && args.primary !== true;
 }
 
+/** Only absolute local paths (remote locations and virtual pages have none). */
+function isLocalFolder(path: string): boolean {
+  return path.startsWith("/");
+}
+
 function listCommand(id: string, title: string, run: AppCommand["run"]): AppCommand {
   return { id, title, when: (context) => !context.list.blocked(), run };
 }
@@ -71,6 +76,15 @@ export function standardCommands(): AppCommand[] {
       title: "Search This Folder",
       when: (context) => !context.focusInside("[data-archive-view]"),
       run: (context) => context.focusSearch(),
+    },
+    {
+      id: "app.openTerminal",
+      title: "Open Terminal Here",
+      when: (context) => !context.list.remote() && isLocalFolder(context.currentPath()),
+      run: async (context) => {
+        const { openTerminalHere } = await import("$lib/terminal/open-terminal.js");
+        await openTerminalHere(context.currentPath());
+      },
     },
     { id: "palette.open", title: "Command Palette", run: (context) => context.togglePalette() },
     { id: "tab.newInOtherPane", title: "New Tab in Other Pane", run: (context) => context.panes.newTabInOtherPane() },

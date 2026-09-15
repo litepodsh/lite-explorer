@@ -198,9 +198,7 @@ fn expand_tilde_with(path: &str, home: Option<&Path>) -> PathBuf {
     if path == "~" {
         return home.to_path_buf();
     }
-    let rest = path
-        .strip_prefix("~/")
-        .or_else(|| path.strip_prefix("~\\"));
+    let rest = path.strip_prefix("~/").or_else(|| path.strip_prefix("~\\"));
     match rest {
         Some(rest) => home.join(rest),
         None => PathBuf::from(path),
@@ -1146,6 +1144,448 @@ fn open_path(path: String) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("failed to open {path} (exit {status})"))
+    }
+}
+
+/// A terminal the app can launch, reported to the settings UI.
+#[derive(Serialize, Clone)]
+struct TerminalInfo {
+    id: String,
+    name: String,
+    /// PNG data URL of the app icon, when the terminal ships a bundle.
+    icon: Option<String>,
+}
+
+struct TerminalSpec {
+    id: &'static str,
+    name: &'static str,
+    /// Bundle paths relative to an application folder (macOS).
+    bundles: &'static [&'static str],
+    /// Executable names looked up on `PATH`.
+    binaries: &'static [&'static str],
+}
+
+/// Terminals the app knows how to launch. Detection keeps only the installed ones.
+const KNOWN_TERMINALS: &[TerminalSpec] = &[
+    TerminalSpec {
+        id: "terminal",
+        name: "Terminal",
+        bundles: &["Utilities/Terminal.app", "Terminal.app"],
+        binaries: &[],
+    },
+    TerminalSpec {
+        id: "iterm",
+        name: "iTerm2",
+        bundles: &["iTerm.app"],
+        binaries: &[],
+    },
+    TerminalSpec {
+        id: "ghostty",
+        name: "Ghostty",
+        bundles: &["Ghostty.app"],
+        binaries: &["ghostty"],
+    },
+    TerminalSpec {
+        id: "wezterm",
+        name: "WezTerm",
+        bundles: &["WezTerm.app"],
+        binaries: &["wezterm"],
+    },
+    TerminalSpec {
+        id: "warp",
+        name: "Warp",
+        bundles: &["Warp.app"],
+        binaries: &[],
+    },
+    TerminalSpec {
+        id: "alacritty",
+        name: "Alacritty",
+        bundles: &["Alacritty.app"],
+        binaries: &["alacritty"],
+    },
+    TerminalSpec {
+        id: "kitty",
+        name: "kitty",
+        bundles: &["kitty.app"],
+        binaries: &["kitty"],
+    },
+    TerminalSpec {
+        id: "hyper",
+        name: "Hyper",
+        bundles: &["Hyper.app"],
+        binaries: &[],
+    },
+    TerminalSpec {
+        id: "tabby",
+        name: "Tabby",
+        bundles: &["Tabby.app"],
+        binaries: &[],
+    },
+    TerminalSpec {
+        id: "rio",
+        name: "Rio",
+        bundles: &["Rio.app"],
+        binaries: &["rio"],
+    },
+    TerminalSpec {
+        id: "wt",
+        name: "Windows Terminal",
+        bundles: &[],
+        binaries: &["wt"],
+    },
+    TerminalSpec {
+        id: "cmd",
+        name: "Command Prompt",
+        bundles: &[],
+        binaries: &["cmd"],
+    },
+    TerminalSpec {
+        id: "powershell",
+        name: "PowerShell",
+        bundles: &[],
+        binaries: &["pwsh", "powershell"],
+    },
+    TerminalSpec {
+        id: "gnome-terminal",
+        name: "GNOME Terminal",
+        bundles: &[],
+        binaries: &["gnome-terminal"],
+    },
+    TerminalSpec {
+        id: "konsole",
+        name: "Konsole",
+        bundles: &[],
+        binaries: &["konsole"],
+    },
+    TerminalSpec {
+        id: "xfce4-terminal",
+        name: "Xfce Terminal",
+        bundles: &[],
+        binaries: &["xfce4-terminal"],
+    },
+    TerminalSpec {
+        id: "tilix",
+        name: "Tilix",
+        bundles: &[],
+        binaries: &["tilix"],
+    },
+    TerminalSpec {
+        id: "terminator",
+        name: "Terminator",
+        bundles: &[],
+        binaries: &["terminator"],
+    },
+    TerminalSpec {
+        id: "foot",
+        name: "foot",
+        bundles: &[],
+        binaries: &["foot"],
+    },
+    TerminalSpec {
+        id: "xterm",
+        name: "xterm",
+        bundles: &[],
+        binaries: &["xterm"],
+    },
+];
+
+/// Application folders searched for terminal bundles (macOS).
+fn app_roots() -> Vec<PathBuf> {
+    let mut roots = vec![
+        PathBuf::from("/Applications"),
+        PathBuf::from("/System/Applications"),
+    ];
+    if let Some(home) = std::env::var_os("HOME") {
+        roots.push(PathBuf::from(home).join("Applications"));
+    }
+    roots
+}
+
+fn binary_on_path(name: &str) -> bool {
+    let Some(paths) = std::env::var_os("PATH") else {
+        return false;
+    };
+    let names: Vec<String> = if cfg!(target_os = "windows") {
+        vec![
+            format!("{name}.exe"),
+            format!("{name}.cmd"),
+            name.to_string(),
+        ]
+    } else {
+        vec![name.to_string()]
+    };
+    std::env::split_paths(&paths)
+        .any(|dir| names.iter().any(|candidate| dir.join(candidate).is_file()))
+}
+
+/// Terminals installed on this machine, in the order of [`KNOWN_TERMINALS`].
+#[tauri::command]
+fn detect_terminals() -> Vec<TerminalInfo> {
+    let roots = app_roots();
+    KNOWN_TERMINALS
+        .iter()
+        .filter_map(|spec| {
+            let bundle = spec.bundles.iter().find_map(|bundle| {
+                roots
+                    .iter()
+                    .map(|root| root.join(bundle))
+                    .find(|candidate| candidate.exists())
+            });
+            let installed = bundle.is_some() || spec.binaries.iter().any(|name| binary_on_path(name));
+            if !installed {
+                return None;
+            }
+            Some(TerminalInfo {
+                id: spec.id.to_string(),
+                name: spec.name.to_string(),
+                icon: bundle.and_then(|path| app_icon_data_url(&path.to_string_lossy())),
+            })
+        })
+        .collect()
+}
+
+fn shell_quote(path: &str) -> String {
+    #[cfg(target_os = "windows")]
+    {
+        format!("\"{}\"", path.replace('"', "\"\""))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        format!("'{}'", path.replace('\'', "'\\''"))
+    }
+}
+
+fn run_custom_terminal(template: &str, path: &str) -> Result<(), String> {
+    let command = template.replace("{path}", &shell_quote(path));
+    #[cfg(target_os = "windows")]
+    let result = Command::new("cmd").args(["/C", &command]).spawn();
+    #[cfg(not(target_os = "windows"))]
+    let result = Command::new("/bin/sh").arg("-c").arg(&command).spawn();
+    result.map(|_| ()).map_err(|error| error.to_string())
+}
+
+/// Opens a macOS app terminal, which cds to the folder it is given.
+#[cfg(target_os = "macos")]
+fn open_app_terminal(app: &str, path: &str) -> Result<(), String> {
+    let status = Command::new("open")
+        .args(["-a", app, path])
+        .status()
+        .map_err(|error| error.to_string())?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("failed to open {app} in {path} (exit {status})"))
+    }
+}
+
+/// The command line that opens `terminal` in `path`, or `None` when unknown.
+fn invocation_for(terminal: &str, path: &str) -> Option<(&'static str, Vec<String>)> {
+    let invocation = match terminal {
+        "wt" => ("wt", vec!["-d".to_string(), path.to_string()]),
+        "cmd" => (
+            "cmd",
+            vec![
+                "/C".into(),
+                "start".into(),
+                "cmd".into(),
+                "/K".into(),
+                format!("cd /d {path}"),
+            ],
+        ),
+        "powershell" => (
+            "powershell",
+            vec![
+                "-NoExit".into(),
+                "-Command".into(),
+                format!("Set-Location -LiteralPath '{}'", path.replace('\'', "''")),
+            ],
+        ),
+        "gnome-terminal" => (
+            "gnome-terminal",
+            vec![format!("--working-directory={path}")],
+        ),
+        "konsole" => ("konsole", vec!["--workdir".into(), path.into()]),
+        "xfce4-terminal" => (
+            "xfce4-terminal",
+            vec![format!("--working-directory={path}")],
+        ),
+        "tilix" => ("tilix", vec![format!("--working-directory={path}")]),
+        "terminator" => (
+            "terminator",
+            vec!["--working-directory".into(), path.into()],
+        ),
+        "foot" => ("foot", vec![format!("--working-directory={path}")]),
+        "xterm" => (
+            "xterm",
+            vec![
+                "-e".into(),
+                "sh".into(),
+                "-c".into(),
+                format!("cd {}; exec $SHELL", shell_quote(path)),
+            ],
+        ),
+        "ghostty" => ("ghostty", vec![format!("--working-directory={path}")]),
+        "alacritty" => ("alacritty", vec!["--working-directory".into(), path.into()]),
+        "kitty" => ("kitty", vec!["--directory".into(), path.into()]),
+        "wezterm" => ("wezterm", vec!["start".into(), "--cwd".into(), path.into()]),
+        "rio" => ("rio", vec!["--working-dir".into(), path.into()]),
+        _ => return None,
+    };
+    Some(invocation)
+}
+
+/// The macOS app that ships `terminal`, for the bundle fallback.
+#[cfg(target_os = "macos")]
+fn macos_app_for(terminal: &str) -> Option<&'static str> {
+    match terminal {
+        "ghostty" => Some("Ghostty"),
+        "wezterm" => Some("WezTerm"),
+        "alacritty" => Some("Alacritty"),
+        "kitty" => Some("kitty"),
+        "rio" => Some("Rio"),
+        _ => None,
+    }
+}
+
+/// Runs a terminal binary from `PATH`, falling back to an app bundle on macOS.
+fn spawn_program(program: &str, args: &[String], terminal: &str) -> Result<(), String> {
+    #[cfg(not(target_os = "macos"))]
+    let _ = terminal;
+    match Command::new(program).args(args).spawn() {
+        Ok(_) => Ok(()),
+        Err(error) => {
+            #[cfg(target_os = "macos")]
+            if let Some(app) = macos_app_for(terminal) {
+                let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+                return open_app_terminal_with_args(app, &refs);
+            }
+            Err(error.to_string())
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn open_app_terminal_with_args(app: &str, args: &[&str]) -> Result<(), String> {
+    let status = Command::new("open")
+        .arg("-a")
+        .arg(app)
+        .arg("--args")
+        .args(args)
+        .status()
+        .map_err(|error| error.to_string())?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("failed to open {app} (exit {status})"))
+    }
+}
+
+/// Opens the operating system's default terminal in `path`.
+fn open_system_terminal(directory: &Path, path: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = directory;
+        open_app_terminal("Terminal", path)
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let _ = directory;
+        // Windows Terminal when installed, otherwise the classic console.
+        if Command::new("wt").args(["-d", path]).spawn().is_ok() {
+            return Ok(());
+        }
+        Command::new("cmd")
+            .args(["/C", "start", "cmd", "/K", &format!("cd /d {path}")])
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let candidates: Vec<String> = std::env::var("TERMINAL")
+            .ok()
+            .into_iter()
+            .chain(
+                [
+                    "x-terminal-emulator",
+                    "gnome-terminal",
+                    "konsole",
+                    "xfce4-terminal",
+                    "xterm",
+                ]
+                .into_iter()
+                .map(String::from),
+            )
+            .collect();
+        let mut last_error = None;
+        for candidate in candidates {
+            match Command::new(&candidate).current_dir(directory).spawn() {
+                Ok(_) => return Ok(()),
+                Err(error) => last_error = Some(error),
+            }
+        }
+        match last_error {
+            Some(error) => Err(format!("failed to open a terminal in {path}: {error}")),
+            None => Err(format!("failed to open a terminal in {path}")),
+        }
+    }
+}
+
+/// Opens `terminal` in `path`, where `terminal` is an id from [`detect_terminals`],
+/// "system" for the OS default, or "custom" with a `{path}` command template.
+#[tauri::command]
+fn open_terminal(
+    path: String,
+    terminal: String,
+    custom_command: Option<String>,
+) -> Result<(), String> {
+    let directory = Path::new(&path);
+    if !directory.is_dir() {
+        return Err(format!("{path} is not a folder"));
+    }
+    if terminal == "custom" {
+        let template = custom_command.unwrap_or_default();
+        if template.trim().is_empty() {
+            return Err("Custom terminal command is empty".into());
+        }
+        return run_custom_terminal(&template, &path);
+    }
+    match terminal.as_str() {
+        "system" | "" | "terminal" => open_system_terminal(directory, &path),
+        #[cfg(target_os = "macos")]
+        "ghostty" => open_app_terminal("Ghostty", &path),
+        #[cfg(target_os = "macos")]
+        "iterm" => open_app_terminal("iTerm", &path),
+        #[cfg(target_os = "macos")]
+        "hyper" => open_app_terminal("Hyper", &path),
+        #[cfg(target_os = "macos")]
+        "tabby" => open_app_terminal("Tabby", &path),
+        #[cfg(target_os = "macos")]
+        "warp" => {
+            let encoded: String =
+                percent_encoding::utf8_percent_encode(&path, percent_encoding::NON_ALPHANUMERIC)
+                    .to_string();
+            open_app_terminal_with_uri(&format!("warp://action/new_tab?path={encoded}"))
+        }
+        other => match invocation_for(other, &path) {
+            Some((program, args)) => spawn_program(program, &args, other),
+            None => open_system_terminal(directory, &path),
+        },
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn open_app_terminal_with_uri(uri: &str) -> Result<(), String> {
+    let status = Command::new("open")
+        .arg(uri)
+        .status()
+        .map_err(|error| error.to_string())?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("failed to open {uri} (exit {status})"))
     }
 }
 
@@ -2816,6 +3256,8 @@ pub fn run() {
             open_with_apps,
             open_with,
             open_path,
+            open_terminal,
+            detect_terminals,
             reveal_path,
             default_app,
             menu::set_open_target,
@@ -2851,7 +3293,10 @@ mod tests {
     #[test]
     fn expand_tilde_replaces_a_leading_tilde() {
         let home = Path::new("/Users/me");
-        assert_eq!(expand_tilde_with("~", Some(home)), PathBuf::from("/Users/me"));
+        assert_eq!(
+            expand_tilde_with("~", Some(home)),
+            PathBuf::from("/Users/me")
+        );
         assert_eq!(
             expand_tilde_with("~/Work/lp", Some(home)),
             PathBuf::from("/Users/me/Work/lp")
