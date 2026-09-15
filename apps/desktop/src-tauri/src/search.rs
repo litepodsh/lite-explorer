@@ -1,16 +1,27 @@
-use std::{fs, io::{Cursor, Read}, path::{Path, PathBuf}, sync::mpsc, thread};
+use std::{fs, io::{BufReader, Read}, path::{Path, PathBuf}, sync::mpsc, thread};
 
 use serde::{Deserialize, Serialize};
-use crate::{archive::{self, Flow}, epoch_millis, DirectoryEntry};
+use crate::{archive::Flow, epoch_millis, DirectoryEntry};
 
+mod containers;
 mod documents;
+mod mail;
+mod text;
+
+use containers::{ArchiveKind, Codec};
+use documents::DocumentKind;
+use mail::MailKind;
 
 const MAX_RESULTS: usize = 1_000;
 const MAX_CONTENT_BYTES: u64 = 2 * 1024 * 1024;
-/// Office and OpenDocument files are compressed, so they get a larger budget than plain text.
-const MAX_DOCUMENT_BYTES: u64 = 64 * 1024 * 1024;
-/// Archives are scanned entry by entry; larger ones are skipped to keep a search responsive.
-const MAX_ARCHIVE_BYTES: u64 = 256 * 1024 * 1024;
+/// RTF often embeds images as hex, so it gets more room than plain text.
+const MAX_RTF_BYTES: u64 = 16 * 1024 * 1024;
+const MAX_MESSAGE_BYTES: u64 = 64 * 1024 * 1024;
+/// Archives, compressed files and mailboxes are streamed; larger ones are skipped to keep a
+/// search responsive.
+const MAX_CONTAINER_BYTES: u64 = 256 * 1024 * 1024;
+/// Longest snippet returned for a match, in characters.
+const SNIPPET_CHARS: usize = 220;
 const WORKERS: usize = 4;
 
 #[derive(Clone, Deserialize)]
@@ -71,54 +82,146 @@ fn files(root: &Path) -> Result<Vec<PathBuf>, String> {
 /// A content match: matching line, plus the entry path when the match is inside an archive.
 type ContentHit = (PathBuf, String, Option<String>);
 
+/// How content search reads a file, decided by its name.
+#[derive(Debug, PartialEq)]
+enum FileKind<'a> {
+    Archive(ArchiveKind),
+    /// A single compressed file and the name of the file inside it.
+    Compressed(Codec, &'a str),
+    Document(DocumentKind),
+    Mail(MailKind),
+    Rtf,
+    Text,
+}
+
+fn classify(name: &str) -> FileKind<'_> {
+    let lower = name.to_lowercase();
+    if let Some(kind) = containers::archive_kind(&lower) { return FileKind::Archive(kind); }
+    if let Some((codec, inner)) = containers::compressed(name) { return FileKind::Compressed(codec, inner); }
+    let extension = lower.rsplit_once('.').map_or("", |(_, extension)| extension);
+    if let Some(kind) = documents::kind_for(extension) { return FileKind::Document(kind); }
+    if let Some(kind) = mail::kind_for(extension) { return FileKind::Mail(kind); }
+    if extension == "rtf" { FileKind::Rtf } else { FileKind::Text }
+}
+
+/// Largest file of this kind read into memory. Containers are never nested, so their limit is 0.
+fn memory_limit(kind: &FileKind) -> u64 {
+    match kind {
+        FileKind::Archive(_) | FileKind::Compressed(..) => 0,
+        FileKind::Document(kind) => documents::max_bytes(*kind),
+        FileKind::Mail(_) => MAX_MESSAGE_BYTES,
+        FileKind::Rtf => MAX_RTF_BYTES,
+        FileKind::Text => MAX_CONTENT_BYTES,
+    }
+}
+
 /// Searches one file for `needle` (already lowercased). `Err` marks a skipped file: too large,
 /// binary or unreadable.
 fn content_match(path: PathBuf, needle: &str) -> Result<Option<ContentHit>, ()> {
     let len = fs::metadata(&path).map_err(|_| ())?.len();
-    if archive::is_archive_path(&path) {
-        if len > MAX_ARCHIVE_BYTES { return Err(()); }
-        return Ok(archive_match(&path, needle)?.map(|(inner, line)| (path, line, Some(inner))));
-    }
     let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
-    let limit = content_limit(&name);
-    if len > limit { return Err(()); }
-    let mut bytes = Vec::new(); fs::File::open(&path).map_err(|_| ())?.take(limit + 1).read_to_end(&mut bytes).map_err(|_| ())?;
-    if bytes.len() as u64 > limit { return Err(()); }
-    Ok(bytes_match(&name, bytes, needle)?.map(|line| (path, line, None)))
+    let kind = classify(&name);
+    let open = || fs::File::open(&path).map(BufReader::new).map_err(|_| ());
+    let line = match kind {
+        FileKind::Archive(kind) => {
+            if len > MAX_CONTAINER_BYTES { return Err(()); }
+            return Ok(archive_match(&path, kind, needle)?.map(|(inner, line)| (path, line, Some(inner))));
+        }
+        FileKind::Compressed(codec, inner) => {
+            let inner_kind = classify(inner);
+            if len > MAX_CONTAINER_BYTES || matches!(inner_kind, FileKind::Archive(_) | FileKind::Compressed(..)) { return Err(()); }
+            let bytes = read_limited(containers::decoder(codec, open()?)?, memory_limit(&inner_kind))?;
+            bytes_match(&inner_kind, &bytes, needle)?
+        }
+        FileKind::Mail(MailKind::Mbox) => {
+            if len > MAX_CONTAINER_BYTES { return Err(()); }
+            mail::mbox_match(open()?, needle)
+        }
+        _ => {
+            let limit = memory_limit(&kind);
+            if len > limit { return Err(()); }
+            bytes_match(&kind, &read_limited(open()?, limit)?, needle)?
+        }
+    };
+    Ok(line.map(|line| (path, line, None)))
 }
 
-fn content_limit(name: &str) -> u64 { if documents::kind_for(name).is_some() { MAX_DOCUMENT_BYTES } else { MAX_CONTENT_BYTES } }
+/// Reads at most `limit` bytes; `Err` when there is more.
+fn read_limited(reader: impl Read, limit: u64) -> Result<Vec<u8>, ()> {
+    let mut bytes = Vec::new();
+    reader.take(limit + 1).read_to_end(&mut bytes).map_err(|_| ())?;
+    if bytes.len() as u64 > limit { Err(()) } else { Ok(bytes) }
+}
 
-/// Matches file contents named `name`: document text for Office/OpenDocument files, otherwise
-/// the bytes as text. `Err` for binary content.
-fn bytes_match(name: &str, bytes: Vec<u8>, needle: &str) -> Result<Option<String>, ()> {
-    match documents::kind_for(name) {
-        Some(kind) => documents::document_match(Cursor::new(bytes), kind, needle),
-        None if bytes.contains(&0) => Err(()),
-        None => Ok(matching_line(&String::from_utf8_lossy(&bytes), needle)),
+/// Matches contents already in memory. `Err` for binary or unreadable content.
+fn bytes_match(kind: &FileKind, bytes: &[u8], needle: &str) -> Result<Option<String>, ()> {
+    match kind {
+        FileKind::Archive(_) | FileKind::Compressed(..) => Ok(None),
+        FileKind::Document(kind) => documents::document_match(bytes, *kind, needle),
+        FileKind::Mail(kind) => Ok(mail::mail_match(bytes, *kind, needle)),
+        FileKind::Rtf => Ok(matching_line(&text::rtf_text(bytes), needle)),
+        FileKind::Text => Ok(matching_line(&text::decode(bytes).ok_or(())?, needle)),
     }
 }
 
-/// First entry of a `.zip`/`.tar`/`.tar.gz` archive whose contents match, as (entry path, line).
-/// Nested archives and oversized or binary entries are passed over.
-fn archive_match(path: &Path, needle: &str) -> Result<Option<(String, String)>, ()> {
+/// First archive entry whose contents match, as (entry path, line). Nested archives and
+/// oversized or binary entries are passed over.
+fn archive_match(path: &Path, kind: ArchiveKind, needle: &str) -> Result<Option<(String, String)>, ()> {
     let mut found = None;
-    archive::for_each_entry(path, &mut |info, reader| {
-        let limit = content_limit(&info.path);
+    containers::for_each_entry(path, kind, &mut |info, reader| {
+        let kind = classify(&info.path);
+        let limit = memory_limit(&kind);
         if info.is_directory || info.skipped || info.size > limit { return Ok(Flow::Continue); }
-        let mut bytes = Vec::new();
-        if reader.take(limit + 1).read_to_end(&mut bytes).is_err() || bytes.len() as u64 > limit { return Ok(Flow::Continue); }
-        if let Ok(Some(line)) = bytes_match(&info.path, bytes, needle) { found = Some((info.path.clone(), line)); return Ok(Flow::Stop); }
+        let Ok(bytes) = read_limited(reader, limit) else { return Ok(Flow::Continue) };
+        if let Ok(Some(line)) = bytes_match(&kind, &bytes, needle) { found = Some((info.path.clone(), line)); return Ok(Flow::Stop); }
         Ok(Flow::Continue)
-    }).map_err(|_| ())?;
+    })?;
     Ok(found)
 }
 
-/// First line containing `needle` (already lowercased), trimmed to a snippet.
+/// First line containing `needle` (already lowercased), cut to a snippet around the match.
 /// Lowercases line by line: lowercasing can change byte lengths (e.g. `İ`), so an offset
-/// found in a lowercased copy is not a valid offset into the original text.
+/// found in a lowercased copy of the whole text is not a valid offset into the original.
 fn matching_line(text: &str, needle: &str) -> Option<String> {
-    text.lines().find(|line| line.to_lowercase().contains(needle)).map(|line| line.trim().chars().take(220).collect())
+    text.lines().find_map(|line| {
+        let line = line.trim();
+        if !line.to_lowercase().contains(needle) { return None; }
+        Some(snippet(line, match_char_index(line, needle).unwrap_or(0)))
+    })
+}
+
+/// Character index in `line` where `needle` matches, lowercasing one character at a time so
+/// positions map back to the original.
+fn match_char_index(line: &str, needle: &str) -> Option<usize> {
+    let mut lower = String::with_capacity(line.len());
+    let mut origin = Vec::with_capacity(line.len());
+    for (index, c) in line.chars().enumerate() {
+        lower.extend(c.to_lowercase());
+        origin.resize(lower.len(), index);
+    }
+    lower.find(needle).map(|at| origin[at])
+}
+
+/// Up to [`SNIPPET_CHARS`] characters of `line`, starting a little before `at` when the line is long.
+fn snippet(line: &str, at: usize) -> String {
+    let count = line.chars().count();
+    if count <= SNIPPET_CHARS { return line.to_string(); }
+    let start = at.saturating_sub(60).min(count - SNIPPET_CHARS);
+    let mut out: String = line.chars().skip(start).take(SNIPPET_CHARS).collect();
+    if start > 0 { out.insert(0, '…'); }
+    if start + SNIPPET_CHARS < count { out.push('…'); }
+    out
+}
+
+pub(crate) fn search_directory(root: &Path, query: &str, mode: SearchMode) -> Result<SearchResponse, String> {
+    let paths = files(root)?; let mut skipped = 0; let mut results = Vec::new();
+    if matches!(mode, SearchMode::Fuzzy) {
+        for path in paths { let relative = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().into_owned(); if matches(&relative, query) { if let Some(entry) = entry(&path) { results.push(SearchResult { entry, relative_path: relative, snippet: None, inner_path: None }); } } if results.len() == MAX_RESULTS { break; } }
+    } else {
+        let (jobs_tx, jobs_rx) = mpsc::channel::<PathBuf>(); let jobs_rx = std::sync::Arc::new(std::sync::Mutex::new(jobs_rx)); let (out_tx, out_rx) = mpsc::channel();
+        thread::scope(|scope| { for _ in 0..WORKERS { let rx = jobs_rx.clone(); let tx = out_tx.clone(); let needle = query.to_lowercase(); scope.spawn(move || while let Ok(path) = rx.lock().unwrap().recv() { let _ = tx.send(content_match(path, &needle)); }); } drop(out_tx); for path in paths { let _ = jobs_tx.send(path); } drop(jobs_tx); for item in out_rx { match item { Ok(Some((path, snippet, inner_path))) => if results.len() < MAX_RESULTS { if let Some(entry) = entry(&path) { let relative = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().into_owned(); results.push(SearchResult { entry, relative_path: relative, snippet: Some(snippet), inner_path }); } }, Ok(None) => {}, Err(()) => skipped += 1 } } });
+    }
+    let limited = results.len() >= MAX_RESULTS; results.truncate(MAX_RESULTS); Ok(SearchResponse { results, skipped, limited })
 }
 
 #[cfg(test)]
@@ -133,6 +236,32 @@ mod tests {
         dir
     }
 
+    fn gzip(bytes: &[u8]) -> Vec<u8> {
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        encoder.write_all(bytes).unwrap();
+        encoder.finish().unwrap()
+    }
+
+    fn tar(files: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut builder = ::tar::Builder::new(Vec::new());
+        for (name, body) in files {
+            let mut header = ::tar::Header::new_gnu();
+            header.set_size(body.len() as u64);
+            header.set_mode(0o644);
+            header.set_cksum();
+            builder.append_data(&mut header, name, *body).unwrap();
+        }
+        builder.into_inner().unwrap()
+    }
+
+    #[test]
+    fn snippets_keep_the_match_visible_in_long_lines() {
+        let line = format!("{} Zarpa {}", "x".repeat(400), "y".repeat(400));
+        let found = matching_line(&line, "zarpa").unwrap();
+        assert!(found.starts_with('…') && found.ends_with('…') && found.contains("Zarpa"), "{found}");
+        assert_eq!(match_char_index("İİ zarpa", "zarpa"), Some(3));
+    }
+
     fn write_zip(path: &Path, parts: &[(&str, &[u8])]) {
         let mut zip = ZipWriter::new(fs::File::create(path).unwrap());
         for (name, body) in parts { zip.start_file(*name, SimpleFileOptions::default()).unwrap(); zip.write_all(body).unwrap(); }
@@ -143,6 +272,19 @@ mod tests {
     fn content_search_looks_inside_archives_and_documents() {
         let root = temp_dir("content");
         fs::write(root.join("plain.csv"), "id,name\n1,Zarpa API\n").unwrap();
+        let utf16: Vec<u8> = [0xFF, 0xFE].into_iter().chain("a\r\nwindows zarpa\r\n".encode_utf16().flat_map(u16::to_le_bytes)).collect();
+        fs::write(root.join("export.txt"), utf16).unwrap();
+        fs::write(root.join("notes.rtf"), br"{\rtf1{\fonttbl{\f0 Zarpa Sans;}}\f0 Rich {\b zarpa} text\par}").unwrap();
+        fs::write(root.join("server.log.gz"), gzip(b"boot\nzarpa started\n")).unwrap();
+        fs::write(root.join("image.png.gz"), gzip(b"\x89PNG\0\0zarpa")).unwrap();
+        fs::write(root.join("backup.tar.zst"), ruzstd::encoding::compress_to_vec(&tar(&[("etc/app.conf", b"name = zarpa\n")])[..], ruzstd::encoding::CompressionLevel::Fastest)).unwrap();
+        let mut xz = liblzma::write::XzEncoder::new(Vec::new(), 6);
+        xz.write_all(&tar(&[("readme.md", b"# Zarpa xz\n")])).unwrap();
+        fs::write(root.join("src.tar.xz"), xz.finish().unwrap()).unwrap();
+        let mut bz = bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::fast());
+        bz.write_all(&tar(&[("a.txt", b"zarpa bz2\n")])).unwrap();
+        fs::write(root.join("old.tbz2"), bz.finish().unwrap()).unwrap();
+        write_zip(&root.join("plugin.jar"), &[("META-INF/MANIFEST.MF", b"Implementation-Title: Zarpa\n")]);
         let docx = root.join("nested.docx");
         write_zip(&docx, &[("word/document.xml", b"<w:p><w:t>Zarpa report</w:t></w:p>")]);
         write_zip(&root.join("bundle.zip"), &[
@@ -156,9 +298,16 @@ mod tests {
         results.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
         let found: Vec<_> = results.iter().map(|r| (r.relative_path.as_str(), r.inner_path.as_deref(), r.snippet.as_deref().unwrap())).collect();
         assert_eq!(found, [
+            ("backup.tar.zst", Some("etc/app.conf"), "name = zarpa"),
             ("bundle.zip", Some("docs/notes.txt"), "see Zarpa here"),
+            ("export.txt", None, "windows zarpa"),
             ("nested.docx", None, "Zarpa report"),
+            ("notes.rtf", None, "Rich zarpa text"),
+            ("old.tbz2", Some("a.txt"), "zarpa bz2"),
             ("plain.csv", None, "1,Zarpa API"),
+            ("plugin.jar", Some("META-INF/MANIFEST.MF"), "Implementation-Title: Zarpa"),
+            ("server.log.gz", None, "zarpa started"),
+            ("src.tar.xz", Some("readme.md"), "# Zarpa xz"),
         ]);
         fs::remove_dir_all(root).unwrap();
     }
@@ -176,15 +325,4 @@ mod tests {
         assert_eq!(matching_line(text, "match").as_deref(), Some("match here"));
         assert_eq!(matching_line("İstanbul é", "é").as_deref(), Some("İstanbul é"));
     }
-}
-
-pub(crate) fn search_directory(root: &Path, query: &str, mode: SearchMode) -> Result<SearchResponse, String> {
-    let paths = files(root)?; let mut skipped = 0; let mut results = Vec::new();
-    if matches!(mode, SearchMode::Fuzzy) {
-        for path in paths { let relative = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().into_owned(); if matches(&relative, query) { if let Some(entry) = entry(&path) { results.push(SearchResult { entry, relative_path: relative, snippet: None, inner_path: None }); } } if results.len() == MAX_RESULTS { break; } }
-    } else {
-        let (jobs_tx, jobs_rx) = mpsc::channel::<PathBuf>(); let jobs_rx = std::sync::Arc::new(std::sync::Mutex::new(jobs_rx)); let (out_tx, out_rx) = mpsc::channel();
-        thread::scope(|scope| { for _ in 0..WORKERS { let rx = jobs_rx.clone(); let tx = out_tx.clone(); let needle = query.to_lowercase(); scope.spawn(move || while let Ok(path) = rx.lock().unwrap().recv() { let _ = tx.send(content_match(path, &needle)); }); } drop(out_tx); for path in paths { let _ = jobs_tx.send(path); } drop(jobs_tx); for item in out_rx { match item { Ok(Some((path, snippet, inner_path))) => if results.len() < MAX_RESULTS { if let Some(entry) = entry(&path) { let relative = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().into_owned(); results.push(SearchResult { entry, relative_path: relative, snippet: Some(snippet), inner_path }); } }, Ok(None) => {}, Err(()) => skipped += 1 } } });
-    }
-    let limited = results.len() >= MAX_RESULTS; results.truncate(MAX_RESULTS); Ok(SearchResponse { results, skipped, limited })
 }

@@ -201,34 +201,46 @@ pub(crate) fn for_each_entry(
 ) -> Result<(), String> {
     let format = format_for(archive).ok_or(UNSUPPORTED)?;
     let file = BufReader::new(File::open(archive).map_err(to_string)?);
-    if format == Format::Zip {
-        let mut zip = ZipArchive::new(file).map_err(to_string)?;
-        for index in 0..zip.len() {
-            let mut entry = zip.by_index(index).map_err(to_string)?;
-            let (path, safe) = normalize(entry.name());
-            if path.is_empty() {
-                continue;
-            }
-            let mode = entry.unix_mode();
-            let link = mode.is_some_and(|mode| mode & 0o170000 == 0o120000);
-            let info = EntryInfo {
-                path,
-                is_directory: entry.is_dir(),
-                size: entry.size(),
-                skipped: !safe || link,
-                mode,
-            };
-            if let Flow::Stop = visit(&info, &mut entry)? {
-                break;
-            }
-        }
-        return Ok(());
+    match format {
+        Format::Zip => for_each_zip_entry(file, visit),
+        Format::Tar => for_each_tar_entry(file, visit),
+        Format::TarGz => for_each_tar_entry(GzDecoder::new(file), visit),
     }
-    let reader: Box<dyn Read> = if format == Format::TarGz {
-        Box::new(GzDecoder::new(file))
-    } else {
-        Box::new(file)
-    };
+}
+
+/// Visits every entry of a zip read from `reader`, in archive order.
+pub(crate) fn for_each_zip_entry<R: Read + io::Seek>(
+    reader: R,
+    visit: &mut dyn FnMut(&EntryInfo, &mut dyn Read) -> Result<Flow, String>,
+) -> Result<(), String> {
+    let mut zip = ZipArchive::new(reader).map_err(to_string)?;
+    for index in 0..zip.len() {
+        let mut entry = zip.by_index(index).map_err(to_string)?;
+        let (path, safe) = normalize(entry.name());
+        if path.is_empty() {
+            continue;
+        }
+        let mode = entry.unix_mode();
+        let link = mode.is_some_and(|mode| mode & 0o170000 == 0o120000);
+        let info = EntryInfo {
+            path,
+            is_directory: entry.is_dir(),
+            size: entry.size(),
+            skipped: !safe || link,
+            mode,
+        };
+        if let Flow::Stop = visit(&info, &mut entry)? {
+            break;
+        }
+    }
+    Ok(())
+}
+
+/// Visits every entry of an uncompressed tar stream, in archive order.
+pub(crate) fn for_each_tar_entry<R: Read>(
+    reader: R,
+    visit: &mut dyn FnMut(&EntryInfo, &mut dyn Read) -> Result<Flow, String>,
+) -> Result<(), String> {
     let mut tar = tar::Archive::new(reader);
     for entry in tar.entries().map_err(to_string)? {
         let mut entry = entry.map_err(to_string)?;
