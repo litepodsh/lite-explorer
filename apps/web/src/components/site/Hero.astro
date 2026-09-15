@@ -1,5 +1,5 @@
 ---
-import { site } from '../../lib/content';
+import { hostLink, site } from '../../lib/content';
 import Button from '../ui/Button.astro';
 import Eyebrow from '../ui/Eyebrow.astro';
 import Icon from '../ui/Icon.astro';
@@ -46,6 +46,21 @@ import Icon from '../ui/Icon.astro';
 			<span>{site.version}</span>
 			<span class="text-muted-faint">·</span>
 			<span>Free &amp; open source</span>
+			<span class="text-muted-faint">·</span>
+			<a
+				class="ease-glass inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 font-medium text-muted transition-colors duration-200 hover:text-foreground"
+				href={hostLink}
+				target="_blank"
+				rel="noreferrer"
+				data-umami-event="litepod-referral"
+				data-umami-event-source="hero"
+				data-umami-event-destination="litepod.sh"
+			>
+				<span class="animate-litepod-ring grid size-[13px] shrink-0 place-items-center rounded-full motion-reduce:animate-none">
+					<img src={site.host.logo} alt="" width="12" height="12" />
+				</span>
+				{site.host.tagline}
+			</a>
 		</div>
 	</div>
 

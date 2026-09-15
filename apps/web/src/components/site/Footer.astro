@@ -1,5 +1,6 @@
 ---
-import { site } from '../../lib/content';
+import { hostLink, site } from '../../lib/content';
+import Icon from '../ui/Icon.astro';
 
 const links = [
 	{ href: site.repo, label: 'Repository' },
@@ -17,6 +18,24 @@ const links = [
 		</div>
 		<p class="font-mono text-xs">{site.stack}</p>
 		<p class="font-mono text-xs">{site.license}</p>
+		<a
+			class="ease-glass group inline-flex items-center gap-2 rounded-full border border-border bg-[var(--overlay-1)] px-3 py-1.5 font-mono text-xs text-muted transition-colors duration-200 hover:text-foreground"
+			href={hostLink}
+			target="_blank"
+			rel="noreferrer"
+			data-umami-event="litepod-referral"
+			data-umami-event-source="footer"
+			data-umami-event-destination="litepod.sh"
+		>
+			<span class="animate-litepod-ring grid size-[15px] shrink-0 place-items-center rounded-full motion-reduce:animate-none">
+				<img src={site.host.logo} alt="" width="14" height="14" />
+			</span>
+			<span>
+				{site.host.tagline}
+				<span class="text-muted-dim group-hover:text-foreground"> {site.host.domain}</span>
+			</span>
+			<Icon name="arrow-up-right" size={12} />
+		</a>
 		<nav class="ml-auto flex gap-5" aria-label="Links">
 			{
 				links.map((link) => (

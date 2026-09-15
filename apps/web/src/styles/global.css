@@ -131,6 +131,8 @@
 
   --animate-marquee: marquee 42s linear infinite;
   --animate-pulse-ring: pulse-ring 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  --animate-litepod-ring: litepod-ring 2s ease-in-out infinite;
+  --litepod-orange: #d84b2a;
 }
 
 /* Theme swap uses a circular reveal from the toggle (see ThemeToggle.astro). */
@@ -159,6 +161,15 @@
   }
   60% {
     box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+@keyframes litepod-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--litepod-orange) 60%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 8px transparent;
   }
 }
 

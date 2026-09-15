@@ -11,7 +11,16 @@ export const site = {
   download: "https://github.com/litepodsh/lite-explorer/releases/latest",
   releases: "https://github.com/litepodsh/lite-explorer/releases",
   licenseUrl: "https://github.com/litepodsh/lite-explorer/blob/main/LICENSE",
+  host: {
+    name: "Litepod",
+    domain: "litepod.sh",
+    url: "https://litepod.sh",
+    logo: "/litepod.svg",
+    tagline: "Hosted on Litepod",
+  },
 };
+
+export const hostLink = `${site.host.url}/?utm_source=lite-explorer&utm_medium=referral&utm_campaign=hosted-on-litepod`;
 
 export const marquee = [
   "Collapsible sidebar",
