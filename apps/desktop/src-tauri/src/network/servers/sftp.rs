@@ -1,15 +1,18 @@
 //! SFTP over SSH with russh. Host keys are pinned on first use (see `known_hosts`).
 
 use std::{
+    borrow::Cow,
     path::Path,
     sync::{Arc, Mutex},
     time::Duration,
 };
 
 use russh::{
+    cipher,
     client,
-    keys::{HashAlg, PublicKeyOrCertificate},
-    Disconnect,
+    kex,
+    keys::{Algorithm, EcdsaCurve, HashAlg, PublicKeyOrCertificate},
+    mac, Disconnect, Preferred,
 };
 use russh_sftp::{
     client::{error::Error as SftpError, SftpSession},
@@ -86,6 +89,73 @@ fn sftp_error(error: SftpError) -> ConnectError {
     }
 }
 
+/// Modern algorithms first, legacy ones appended so older servers can still negotiate
+/// while current servers keep using the strong defaults.
+fn preferred() -> Preferred {
+    Preferred {
+        kex: Cow::Borrowed(&[
+            kex::MLKEM768X25519_SHA256,
+            kex::CURVE25519,
+            kex::CURVE25519_PRE_RFC_8731,
+            kex::DH_GEX_SHA256,
+            kex::DH_G18_SHA512,
+            kex::DH_G17_SHA512,
+            kex::DH_G16_SHA512,
+            kex::DH_G15_SHA512,
+            kex::DH_G14_SHA256,
+            kex::ECDH_SHA2_NISTP256,
+            kex::ECDH_SHA2_NISTP384,
+            kex::ECDH_SHA2_NISTP521,
+            kex::DH_G14_SHA1,
+            kex::DH_G1_SHA1,
+            kex::DH_GEX_SHA1,
+            kex::EXTENSION_SUPPORT_AS_CLIENT,
+            kex::EXTENSION_SUPPORT_AS_SERVER,
+            kex::EXTENSION_OPENSSH_STRICT_KEX_AS_CLIENT,
+            kex::EXTENSION_OPENSSH_STRICT_KEX_AS_SERVER,
+        ]),
+        key: Cow::Borrowed(&[
+            Algorithm::Ed25519,
+            Algorithm::Ecdsa {
+                curve: EcdsaCurve::NistP256,
+            },
+            Algorithm::Ecdsa {
+                curve: EcdsaCurve::NistP384,
+            },
+            Algorithm::Ecdsa {
+                curve: EcdsaCurve::NistP521,
+            },
+            Algorithm::Rsa {
+                hash: Some(HashAlg::Sha512),
+            },
+            Algorithm::Rsa {
+                hash: Some(HashAlg::Sha256),
+            },
+            Algorithm::Rsa { hash: None },
+        ]),
+        cipher: Cow::Borrowed(&[
+            cipher::CHACHA20_POLY1305,
+            cipher::AES_256_GCM,
+            cipher::AES_256_CTR,
+            cipher::AES_192_CTR,
+            cipher::AES_128_CTR,
+            cipher::AES_256_CBC,
+            cipher::AES_192_CBC,
+            cipher::AES_128_CBC,
+            cipher::TRIPLE_DES_CBC,
+        ]),
+        mac: Cow::Borrowed(&[
+            mac::HMAC_SHA512_ETM,
+            mac::HMAC_SHA256_ETM,
+            mac::HMAC_SHA512,
+            mac::HMAC_SHA256,
+            mac::HMAC_SHA1,
+            mac::HMAC_SHA1_ETM,
+        ]),
+        ..Default::default()
+    }
+}
+
 pub async fn connect(
     target: &ServerTarget,
     username: &str,
@@ -100,6 +170,7 @@ pub async fn connect(
     let config = Arc::new(client::Config {
         inactivity_timeout: Some(Duration::from_secs(15 * 60)),
         keepalive_interval: Some(Duration::from_secs(30)),
+        preferred: preferred(),
         ..Default::default()
     });
     let connecting = client::connect(config, (target.host.as_str(), target.port), check);

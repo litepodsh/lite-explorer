@@ -49,7 +49,7 @@ flate2 = "1"
 trash = "5.2.9"
 mdns-sd = { version = "0.21", default-features = false, features = ["async"] }
 if-addrs = "0.15"
-russh = "0.63"
+russh = { version = "0.63", features = ["des"] }
 russh-sftp = "3"
 suppaftp = { version = "12", features = ["deprecated", "tokio-rustls-aws-lc-rs"] }
 sha2 = "0.11.0"
