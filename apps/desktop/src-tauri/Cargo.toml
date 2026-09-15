@@ -53,6 +53,7 @@ russh-sftp = "3"
 suppaftp = { version = "12", features = ["deprecated", "tokio-rustls-aws-lc-rs"] }
 sha2 = "0.11.0"
 rustls-native-certs = "0.8.4"
+tauri-plugin-drag = "2"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

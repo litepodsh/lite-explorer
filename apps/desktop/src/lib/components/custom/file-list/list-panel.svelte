@@ -8,7 +8,12 @@
   import { createRowVirtualizer } from "$lib/virtual/row-virtualizer.svelte.js";
   import ListItem, { type DirectoryEntry } from "./list-item.svelte";
   import { sortEntries, type SortColumn, type SortDir } from "./sort.js";
+  import { loadFolderSort, saveFolderSort } from "./folder-sort.js";
   import { drag } from "$lib/file-drag/drag.svelte.js";
+  import { dropTargetAt } from "$lib/file-drag/drop-target.js";
+  import { trackPointerDrag } from "$lib/file-drag/pointer-drag.js";
+  import { atWindowEdge, canDragOut, startNativeDrag, type DragIcon } from "$lib/file-drag/native-drag.js";
+  import { canFavorite } from "$lib/favorites/favorites.js";
 
   let {
     entries = [],
@@ -29,6 +34,8 @@
     previewOpen = true,
     scrollTop = 0,
     onScroll,
+    sortKey = "",
+    pastedPaths = new Set<string>(),
   } = $props<{
     entries?: DirectoryEntry[];
     view?: "list" | "grid";
@@ -48,10 +55,20 @@
     previewOpen?: boolean;
     scrollTop?: number;
     onScroll?: (scrollTop: number) => void;
+    /** Folder the sort is remembered for; empty to not remember it. */
+    sortKey?: string;
+    pastedPaths?: Set<string>;
   }>();
 
   let sortColumn = $state<SortColumn | null>(null);
   let sortDir = $state<SortDir>("asc");
+
+  // Each folder opens with the sort last chosen in it.
+  $effect.pre(() => {
+    const saved = loadFolderSort(sortKey);
+    sortColumn = saved?.column ?? null;
+    sortDir = saved?.dir ?? "asc";
+  });
 
   function toggleSort(column: SortColumn) {
     if (sortColumn === column) {
@@ -60,6 +77,7 @@
       sortColumn = column;
       sortDir = "asc";
     }
+    saveFolderSort(sortKey, { column, dir: sortDir });
   }
 
   type ColWidths = { name: number | null; type: number; size: number; date: number };
@@ -103,35 +121,85 @@
   let filteredEntries = $derived(showHidden ? entries : entries.filter((entry: DirectoryEntry) => !entry.is_hidden));
   let visibleEntries = $derived(sortColumn ? sortEntries(filteredEntries, sortColumn, sortDir) : filteredEntries);
   let selectedEntry = $derived(visibleEntries.find((entry: DirectoryEntry) => entry.path === selectedPath) ?? null);
-  let draggedPath = $state("");
-  let externalOver = $state(false);
+  let externalOver = $derived(drag.overPaneId === paneId);
 
-  function startDrag(entry: DirectoryEntry) {
-    draggedPath = entry.path;
-    drag.entry = { path: entry.path, paneId };
+  // Other lists drop entries on this one through the shared registry.
+  $effect(() => {
+    const id = paneId;
+    const handler = (path: string, options: { move: boolean }) => onExternalDrop?.(path, options);
+    drag.paneDrops.set(id, handler);
+    return () => {
+      if (drag.paneDrops.get(id) === handler) drag.paneDrops.delete(id);
+    };
+  });
+
+  let cancelEntryDrag = () => {};
+  $effect(() => () => cancelEntryDrag());
+
+  function startEntryDrag(event: PointerEvent, entry: DirectoryEntry) {
+    if ((event.target as HTMLElement).closest("input") || entry.path === renamingPath) return;
+    cancelEntryDrag = trackPointerDrag(event, {
+      onStart: () => {
+        drag.entry = {
+          path: entry.path,
+          name: entry.name,
+          paneId,
+          isDirectory: entry.is_directory,
+          kind: entry.kind,
+        };
+      },
+      onMove: (move) => updateEntryDrag(move, entry),
+      onDrop: (up) => dropEntry(up, entry),
+      onCancel: endEntryDrag,
+    });
   }
 
-  function handleExternalDragOver(event: DragEvent) {
-    if (!drag.entry || drag.entry.paneId === paneId) return;
-    event.preventDefault();
-    externalOver = true;
+  function entryIcon(entry: DirectoryEntry): DragIcon {
+    return entry.kind === "share" ? "drive" : entry.is_directory ? "folder" : "file";
   }
 
-  function handleExternalDragLeave() {
-    externalOver = false;
+  function updateEntryDrag(event: PointerEvent, entry: DirectoryEntry) {
+    // At the window edge the drag becomes a native one, so the item can be dropped in other apps.
+    if (canDragOut(entry) && atWindowEdge(event.clientX, event.clientY, window.innerWidth, window.innerHeight)) {
+      cancelEntryDrag();
+      startNativeDrag(entry.path, entry.name, entryIcon(entry));
+      return;
+    }
+    const target = dropTargetAt(event.clientX, event.clientY);
+    const toFavorites = target?.kind === "favorites" && canFavorite(entry);
+    const toPane = target !== null && target.kind !== "favorites" && target.paneId !== paneId;
+    drag.favoriteDropAt = toFavorites ? target.index : null;
+    drag.overPaneId = toPane ? target.paneId : null;
+    drag.overEntryPath =
+      target?.kind === "entry" && target.paneId === paneId && target.path !== entry.path ? target.path : null;
+    drag.ghost = {
+      x: event.clientX,
+      y: event.clientY,
+      name: entry.name,
+      icon: entryIcon(entry),
+      action: toFavorites ? "favorite" : toPane ? (event.metaKey || event.ctrlKey ? "move" : "copy") : null,
+    };
   }
 
-  function handleExternalDrop(event: DragEvent) {
-    if (!drag.entry || drag.entry.paneId === paneId) return;
-    event.preventDefault();
-    externalOver = false;
-    onExternalDrop?.(drag.entry.path, { move: event.metaKey || event.ctrlKey });
+  function dropEntry(event: PointerEvent, entry: DirectoryEntry) {
+    const target = dropTargetAt(event.clientX, event.clientY);
+    endEntryDrag();
+    if (!target) return;
+    if (target.kind === "favorites") {
+      if (canFavorite(entry)) drag.favoritesDrop?.(entry.path, target.index);
+    } else if (target.paneId !== paneId) {
+      drag.paneDrops.get(target.paneId)?.(entry.path, { move: event.metaKey || event.ctrlKey });
+    } else if (target.kind === "entry") {
+      reorder(entry.path, target.path);
+    }
+  }
+
+  function endEntryDrag() {
     drag.entry = null;
-  }
-
-  function handleExternalDragEnd() {
-    externalOver = false;
-    drag.entry = null;
+    drag.ghost = null;
+    drag.overPaneId = null;
+    drag.overEntryPath = null;
+    drag.favoriteDropAt = null;
   }
 
   // The preview pane slides in when a preview is requested and out when it clears. `previewEntry`
@@ -252,15 +320,14 @@
     return visibleEntries.slice(start, start + itemsPerRow);
   }
 
-  function reorder(target: DirectoryEntry) {
-    const from = entries.findIndex((entry: DirectoryEntry) => entry.path === draggedPath);
-    const to = entries.findIndex((entry: DirectoryEntry) => entry.path === target.path);
+  function reorder(fromPath: string, toPath: string) {
+    const from = entries.findIndex((entry: DirectoryEntry) => entry.path === fromPath);
+    const to = entries.findIndex((entry: DirectoryEntry) => entry.path === toPath);
     if (from < 0 || to < 0 || from === to) return;
     const next = [...entries];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     onReorder?.(next);
-    draggedPath = "";
   }
 </script>
 
@@ -318,12 +385,9 @@
         bind:this={scrollEl}
         bind:clientWidth={containerW}
         data-file-list
+        data-pane-id={paneId}
         onclick={handleBlankClick}
         onscroll={() => scrollEl && onScroll?.(scrollEl.scrollTop)}
-        ondragover={handleExternalDragOver}
-        ondragleave={handleExternalDragLeave}
-        ondrop={handleExternalDrop}
-        ondragend={handleExternalDragEnd}
         class="min-h-0 min-w-0 flex-1 overflow-auto px-2 pb-2 [scrollbar-gutter:stable]"
         class:remote-drop-active={externalOver}>
         {#if view === "list"}
@@ -346,8 +410,9 @@
                     {onRename}
                     {onRenameCancel}
                     {onContextMenu}
-                    onDragStart={startDrag}
-                    onDrop={reorder} />
+                    dropTarget={entry.path === drag.overEntryPath}
+                    pasted={pastedPaths.has(entry.path)}
+                    onPointerDown={startEntryDrag} />
                 {/if}
               {/each}
             </div>
@@ -371,8 +436,9 @@
                     {onRename}
                     {onRenameCancel}
                     {onContextMenu}
-                    onDragStart={startDrag}
-                    onDrop={reorder} />
+                    dropTarget={entry.path === drag.overEntryPath}
+                    pasted={pastedPaths.has(entry.path)}
+                    onPointerDown={startEntryDrag} />
                 {/each}
               </div>
             {/each}

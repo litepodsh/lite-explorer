@@ -10,6 +10,8 @@
   import CopyPlusIcon from "@lucide/svelte/icons/copy-plus";
   import ScissorsIcon from "@lucide/svelte/icons/scissors";
   import SquarePlusIcon from "@lucide/svelte/icons/square-plus";
+  import StarIcon from "@lucide/svelte/icons/star";
+  import StarOffIcon from "@lucide/svelte/icons/star-off";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import PencilIcon from "@lucide/svelte/icons/pencil";
   import UploadIcon from "@lucide/svelte/icons/upload";
@@ -23,6 +25,7 @@
   import type { Location } from "$lib/tabs/tabs.js";
   import { networkStatus } from "$lib/remote/network-status.svelte.js";
   import { isArchive } from "$lib/file-ops/archive.js";
+  import { canFavorite } from "$lib/favorites/favorites.js";
   import PathStatusBar from "$lib/components/custom/status-bar/path-status-bar.svelte";
   import { ListPanel, type DirectoryEntry } from "$lib/components/custom/file-list/index.js";
   import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
@@ -44,6 +47,9 @@
     onReconnect = (_location: Location) => {},
     onExternalDrop = (_path: string, _options: { move: boolean }) => {},
     onCrossPaneDrop = (_from: string, _to: string, _fromIndex: number, _toIndex: number) => {},
+    favoritePaths = new Set<string>(),
+    pastedPaths = new Set<string>(),
+    onToggleFavorite = (_entry: DirectoryEntry, _add: boolean) => {},
   }: {
     controller: FilePaneController;
     active?: boolean;
@@ -57,6 +63,10 @@
     onReconnect?: (location: Location) => void;
     onExternalDrop?: (path: string, options: { move: boolean }) => void;
     onCrossPaneDrop?: (fromPaneId: string, toPaneId: string, fromIndex: number, toIndex: number) => void;
+    /** Paths of the sidebar favorites, to offer adding or removing a folder. */
+    favoritePaths?: Set<string>;
+    pastedPaths?: Set<string>;
+    onToggleFavorite?: (entry: DirectoryEntry, add: boolean) => void;
   } = $props();
 
   let statusPath = $derived(controller.selected === "Overview" ? "" : controller.listingPath);
@@ -64,6 +74,22 @@
     controller.disconnected ? networkStatus.status(controller.disconnected.path).state === "connecting" : false,
   );
 </script>
+
+{#snippet favoriteItem(target: DirectoryEntry)}
+  {#if canFavorite(target)}
+    {#if favoritePaths.has(target.path)}
+      <ContextMenu.Item onSelect={() => onToggleFavorite(target, false)}>
+        <StarOffIcon class="size-4" />
+        Remove from Favorites
+      </ContextMenu.Item>
+    {:else}
+      <ContextMenu.Item onSelect={() => onToggleFavorite(target, true)}>
+        <StarIcon class="size-4" />
+        Add to Favorites
+      </ContextMenu.Item>
+    {/if}
+  {/if}
+{/snippet}
 
 <section class="file-pane" class:active onmouseenter={onActivate}>
   <TabBar
@@ -111,9 +137,11 @@
         <ContextMenu.Trigger class="flex min-h-0 min-w-0 flex-1">
           <ListPanel
             entries={controller.recentEntries}
+            sortKey="recents"
             view={controller.viewMode}
             showHidden={showHiddenFiles}
             paneId={controller.paneId}
+            {pastedPaths}
             selectedPath={controller.selectedEntryPath}
             onSelect={(entry) => controller.selectEntry(entry)}
             onClearSelection={() => controller.clearSelection()}
@@ -143,6 +171,7 @@
               <CopyIcon class="size-4" />
               Copy Path
             </ContextMenu.Item>
+            {@render favoriteItem(controller.contextTarget)}
           {/if}
         </ContextMenu.Content>
       </ContextMenu.Root>
@@ -158,9 +187,11 @@
       <ContextMenu.Trigger class={`flex min-h-0 min-w-0 flex-1${controller.remoteDropActive ? " remote-drop-active" : ""}`}>
         <ListPanel
           entries={controller.entries}
+          sortKey={controller.listingPath}
           view={controller.viewMode}
           showHidden={showHiddenFiles}
           paneId={controller.paneId}
+          {pastedPaths}
           selectedPath={controller.selectedEntryPath}
           renamingPath={controller.renamingPath}
           onSelect={(entry) => controller.selectEntry(entry)}
@@ -183,6 +214,7 @@
               <SquarePlusIcon class="size-4" />
               Open in New Tab
             </ContextMenu.Item>
+            {@render favoriteItem(controller.contextTarget)}
           {/if}
           <ContextMenu.Item onSelect={() => controller.openContextTarget()}>
             <FolderOpenIcon class="size-4" />
@@ -227,6 +259,16 @@
             <CopyIcon class="size-4" />
             Copy Path
           </ContextMenu.Item>
+          {#if !controller.serverRoot}
+            <ContextMenu.Item onSelect={() => controller.enqueueContextTarget("copy")}>
+              <CopyIcon class="size-4" />
+              Copy
+            </ContextMenu.Item>
+            <ContextMenu.Item onSelect={() => controller.enqueueContextTarget("move")}>
+              <ScissorsIcon class="size-4" />
+              Move
+            </ContextMenu.Item>
+          {/if}
           {#if !controller.remoteRoot && !controller.serverRoot}
             <ContextMenu.Separator />
             <ContextMenu.Item onSelect={() => controller.renameContextTarget()}>

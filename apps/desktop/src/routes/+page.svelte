@@ -18,6 +18,8 @@
   import Rows2Icon from "@lucide/svelte/icons/rows-2";
   import SearchIcon from "@lucide/svelte/icons/search";
   import AppSidebar from "$lib/components/custom/sidebar/app-sidebar.svelte";
+  import { addFavorite, fetchFavorites, removeFavorite, reorderFavorites } from "$lib/favorites/favorites.js";
+  import { DragGhost } from "$lib/components/custom/drag-ghost/index.js";
   import TitleBar from "$lib/components/custom/titlebar/title-bar.svelte";
   import CommandPalette from "$lib/components/custom/command-palette.svelte";
   import { openCommandPalette } from "$lib/state/command-palette.svelte";
@@ -44,20 +46,27 @@
   } from "$lib/remote/network-locations.js";
   import { remapMountPath } from "$lib/remote/network-paths.js";
   import { networkStatus, type ConnectOutcome } from "$lib/remote/network-status.svelte.js";
-  import { copyItem, moveItem } from "$lib/file-ops/files.js";
+  import { baseName, copyItem, moveItem } from "$lib/file-ops/files.js";
   import { message } from "@tauri-apps/plugin-dialog";
   import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
   import ActivityDrawer from "$lib/components/custom/activity/activity-drawer.svelte";
   import { JobsStore } from "$lib/transfers/jobs.svelte.js";
   import { isRunning, type TransferEventPayload } from "$lib/transfers/jobs.js";
   import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
+  import CopyIcon from "@lucide/svelte/icons/copy";
+  import ScissorsIcon from "@lucide/svelte/icons/scissors";
+  import XIcon from "@lucide/svelte/icons/x";
   import { OVERVIEW, type Location } from "$lib/tabs/tabs.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import UpdateBanner from "$lib/updates/update-banner.svelte";
   import { updates } from "$lib/updates/updates.svelte.js";
+  import { TransferClipboard } from "$lib/transfer-clipboard/queue.svelte.js";
 
   const panes = new PanesStore();
   const controllers = new Map<string, FilePaneController>();
+  const transferClipboard = new TransferClipboard();
+  let transferClipboardOpen = $state(false);
+  let pastedPaths = $state(new Set<string>());
 
   function controllerFor(paneId: string): FilePaneController {
     let controller = controllers.get(paneId);
@@ -67,6 +76,10 @@
       controller = new FilePaneController(paneId, tabs, () => void getCurrentWindow().close());
       const created = controller;
       created.openShare = (path, options) => openShare(created, path, options);
+      created.onTransferClipboard = (entry) => {
+        transferClipboard.append(entry);
+        transferClipboardOpen = true;
+      };
       controllers.set(paneId, controller);
     }
     return controller;
@@ -87,6 +100,7 @@
         : "Show in File Manager",
   );
   let favorites = $state<Location[]>([]);
+  let favoritePaths = $derived(new Set(favorites.map((favorite) => favorite.path)));
   let locations = $state<Location[]>([]);
   let addLocationOpen = $state(false);
   let editingLocation = $state<Location | null>(null);
@@ -106,6 +120,40 @@
       return active ? `${active.kind} ${active.label || active.destination}…` : null;
     })(),
   );
+
+  /** Shows `optimistic` right away, then the list the backend saved; restores the old list on failure. */
+  async function updateFavorites(optimistic: Location[], request: () => Promise<Location[]>) {
+    const previous = favorites;
+    favorites = optimistic;
+    try {
+      favorites = await request();
+    } catch (error) {
+      favorites = previous;
+      await message(error instanceof Error ? error.message : String(error), {
+        title: "Couldn’t update Favorites",
+        kind: "error",
+      });
+    }
+  }
+
+  function addToFavorites(path: string, index = favorites.length) {
+    const optimistic = favorites.filter((favorite) => favorite.path !== path);
+    optimistic.splice(Math.min(index, optimistic.length), 0, { name: baseName(path), path, kind: "folder" });
+    void updateFavorites(optimistic, () => addFavorite(path, index));
+  }
+
+  function removeFromFavorites(path: string) {
+    void updateFavorites(
+      favorites.filter((favorite) => favorite.path !== path),
+      () => removeFavorite(path),
+    );
+  }
+
+  function reorderFavoriteList(paths: string[]) {
+    const byPath = new Map(favorites.map((favorite) => [favorite.path, favorite]));
+    const optimistic = paths.flatMap((path) => byPath.get(path) ?? []);
+    void updateFavorites(optimistic, () => reorderFavorites(paths));
+  }
 
   function addedLocation(location: Location) {
     locations = [...locations, location];
@@ -340,7 +388,7 @@
       platform = detected as typeof platform;
       document.documentElement.dataset.platform = detected;
     });
-    void invoke<Location[]>("favorites").then((nativeFavorites) => (favorites = nativeFavorites));
+    void fetchFavorites().then((savedFavorites) => (favorites = savedFavorites));
     void invoke<Location[]>("locations").then((savedLocations) => {
       locations = savedLocations;
       void networkStatus.refresh().catch(() => {});
@@ -468,9 +516,43 @@
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
+    const modifier = platform === "macos" ? event.metaKey : event.ctrlKey;
+    const target = event.target instanceof Element ? event.target : null;
+    const editing = Boolean(target?.closest("input, textarea, select, [contenteditable='true'], [role='menu'], [role='dialog']"));
+    if (modifier && !event.altKey && !editing && !event.shiftKey) {
+      const key = event.key.toLowerCase();
+      if (key === "c" && activeController.enqueueSelected("copy")) event.preventDefault();
+      if (key === "x" && activeController.enqueueSelected("move")) event.preventDefault();
+      if (key === "v" && activeController.isBrowsableFolder() && transferClipboard.items.length) {
+        event.preventDefault();
+        void pasteTransferClipboard();
+      }
+    }
     handleTabKeydown(event);
     handleEnterKeydown(event);
     activeController.handleFileListKeydown(event, showHiddenFiles);
+  }
+
+  async function pasteTransferClipboard() {
+    const request = transferClipboard.beginPaste(activeController.listingPath);
+    if (!request) return;
+    for (const entry of request.entries) {
+      try {
+        transferClipboard.applyProgress({ jobId: "clipboard", itemId: entry.id, state: "transferring" });
+        const pasted = entry.mode === "copy" ? await copyItem(entry.path, request.destination) : await moveItem(entry.path, request.destination);
+        pastedPaths = new Set([...pastedPaths, pasted.path]);
+        setTimeout(() => (pastedPaths = new Set([...pastedPaths].filter((path) => path !== pasted.path))), 2800);
+        transferClipboard.remove(entry.id);
+      } catch (error) {
+        transferClipboard.applyProgress({
+          jobId: "clipboard",
+          itemId: entry.id,
+          state: "failed",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    activeController.reload();
   }
 
   function toggleSidebar() {
@@ -516,6 +598,9 @@
     onEditLocation={editLocation}
     onCopyLocationAddress={copyLocationAddress}
     onDisconnectLocation={(location) => void disconnectLocation(location)}
+    onAddFavorite={addToFavorites}
+    onRemoveFavorite={(favorite) => removeFromFavorites(favorite.path)}
+    onReorderFavorites={reorderFavoriteList}
     statuses={networkStatus.statuses}
     open={sidebarOpen}
     width={sidebarWidth}
@@ -620,9 +705,32 @@
           onNewBucket={() => (newBucketOpen = true)}
           onReconnect={(location) => reconnect(controllerFor(pane.id), location)}
           onExternalDrop={(path, options) => handleExternalDrop(pane.id, path, options)}
-          onCrossPaneDrop={(from, to, fromIndex, toIndex) => panes.moveTab(from, to, fromIndex, toIndex)} />
+          onCrossPaneDrop={(from, to, fromIndex, toIndex) => panes.moveTab(from, to, fromIndex, toIndex)}
+          {favoritePaths}
+          {pastedPaths}
+          onToggleFavorite={(entry, add) => (add ? addToFavorites(entry.path) : removeFromFavorites(entry.path))} />
       {/each}
     </div>
     <ActivityDrawer {jobs} open={activityOpen} onToggle={() => (activityOpen = !activityOpen)} />
+    {#if transferClipboard.items.length}
+      <aside class:open={transferClipboardOpen} class="transfer-clipboard" aria-label="Transfer clipboard">
+        <button class="transfer-clipboard-stack" onclick={() => (transferClipboardOpen = !transferClipboardOpen)} aria-expanded={transferClipboardOpen}>
+          <span class="transfer-clipboard-layer"></span><span class="transfer-clipboard-layer"></span>
+          <span class="transfer-clipboard-front"><CopyIcon class="size-4" /> {transferClipboard.items.length} ready</span>
+        </button>
+        {#if transferClipboardOpen}
+          <div class="transfer-clipboard-panel">
+            <div class="transfer-clipboard-heading"><strong>Ready to paste</strong><button aria-label="Clear transfer clipboard" onclick={() => transferClipboard.clear()}><XIcon class="size-4" /></button></div>
+            {#each transferClipboard.items as item (item.id)}
+              <div class="transfer-clipboard-item"><span class="min-w-0 truncate">{item.name}</span><span>{item.mode === "copy" ? "Copy" : "Move"}</span><button aria-label={`Remove ${item.name}`} onclick={() => transferClipboard.remove(item.id)}><XIcon class="size-3" /></button></div>
+            {/each}
+            {#if activeController.isBrowsableFolder()}
+              <button class="transfer-clipboard-paste" onclick={() => void pasteTransferClipboard()}>Paste here</button>
+            {/if}
+          </div>
+        {/if}
+      </aside>
+    {/if}
   </Sidebar.Inset>
 </Sidebar.Provider>
+<DragGhost />

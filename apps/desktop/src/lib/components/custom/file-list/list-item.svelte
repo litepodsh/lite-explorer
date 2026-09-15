@@ -17,8 +17,9 @@
     rowIndex,
     onSelect,
     onOpen,
-    onDragStart,
-    onDrop,
+    onPointerDown,
+    dropTarget = false,
+    pasted = false,
     onRename,
     onRenameCancel,
     onContextMenu,
@@ -31,8 +32,11 @@
     rowIndex?: number;
     onSelect?: (entry: DirectoryEntry) => void;
     onOpen?: (entry: DirectoryEntry, options?: { newTab: boolean }) => void;
-    onDragStart?: (entry: DirectoryEntry) => void;
-    onDrop?: (entry: DirectoryEntry) => void;
+    /** Starts a pointer drag of the item. */
+    onPointerDown?: (event: PointerEvent, entry: DirectoryEntry) => void;
+    /** A dragged item from the same list is over this one. */
+    dropTarget?: boolean;
+    pasted?: boolean;
     onRename?: (oldPath: string, newName: string) => void;
     onRenameCancel?: () => void;
     onContextMenu?: (entry: DirectoryEntry) => void;
@@ -95,19 +99,17 @@
   <div
     role="row"
     style={style}
-    class="grid h-9 cursor-grab items-center border-b border-[#3a3734]/60 text-[13px] text-[#e8e5e2] hover:bg-[#353230] {selected ? 'bg-[#3b3836] text-blue-400' : ''}"
+    class="grid h-9 cursor-default items-center border-b border-[#3a3734]/60 text-[13px] text-[#e8e5e2] hover:bg-[#353230] {selected ? 'bg-[#3b3836] text-blue-400' : ''} {dropTarget ? 'entry-drop-target' : ''} {pasted ? 'entry-pasted' : ''}"
     aria-label={entry.name}
     aria-selected={selected}
     aria-rowindex={rowIndex}
     tabindex="-1"
-    draggable="true"
+    data-entry-path={entry.path}
     onclick={handleClick}
     onkeydown={(event) => {
       if (event.key === " ") onSelect?.(entry);
     }}
-    ondragstart={() => onDragStart?.(entry)}
-    ondragover={(event) => event.preventDefault()}
-    ondrop={() => onDrop?.(entry)}
+    onpointerdown={(event) => onPointerDown?.(event, entry)}
     oncontextmenu={() => {
       // Don't preventDefault: the surrounding ContextMenu.Trigger ignores events that
       // are already default-prevented, so the menu would never open on an item.
@@ -138,14 +140,12 @@
   </div>
 {:else}
   <button
-    class="flex h-24 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-md border-0 bg-transparent p-3 text-center text-[13px] text-[#e8e5e2] hover:bg-[#353230] {selected ? 'bg-[#3b3836] text-blue-400' : ''}"
+    class="flex h-24 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-md border-0 bg-transparent p-3 text-center text-[13px] text-[#e8e5e2] hover:bg-[#353230] {selected ? 'bg-[#3b3836] text-blue-400' : ''} {dropTarget ? 'entry-drop-target' : ''}"
     aria-label={entry.name}
     aria-pressed={selected}
-    draggable="true"
+    data-entry-path={entry.path}
     onclick={handleClick}
-    ondragstart={() => onDragStart?.(entry)}
-    ondragover={(event) => event.preventDefault()}
-    ondrop={() => onDrop?.(entry)}
+    onpointerdown={(event) => onPointerDown?.(event, entry)}
     oncontextmenu={() => {
       // Don't preventDefault: the surrounding ContextMenu.Trigger ignores events that
       // are already default-prevented, so the menu would never open on an item.

@@ -28,6 +28,7 @@ import {
 } from "$lib/remote/remote-locations.js";
 import type { Location } from "$lib/tabs/tabs.js";
 import type { TabsStore } from "$lib/tabs/tabs.svelte.js";
+import type { ClipboardMode, QueueEntry } from "$lib/transfer-clipboard/queue.js";
 
 type Recent = { name: string; path: string; kind: string; opened_at: number };
 
@@ -50,6 +51,8 @@ export class FilePaneController {
   remoteDropActive = $state(false);
   openWithApps = $state<OpenWithApp[]>([]);
   defaultApp = $state<OpenWithApp | null>(null);
+  /** Set by the app shell so both panes feed the same transfer clipboard. */
+  onTransferClipboard: (entry: QueueEntry) => void = () => {};
 
   scrollPositions = new Map<string, number>();
 
@@ -111,6 +114,21 @@ export class FilePaneController {
   clearSelection() {
     this.tabs.update({ selectedEntryPath: "" });
     this.previewEntryPath = "";
+  }
+
+  enqueueSelected(mode: ClipboardMode): boolean {
+    if (this.serverRoot || !this.selectedEntryPath) return false;
+    const entries = this.selected === "Recents" ? this.recentEntries : this.entries;
+    const entry = entries.find((candidate) => candidate.path === this.selectedEntryPath);
+    if (!entry) return false;
+    this.onTransferClipboard({ path: entry.path, name: entry.name, isDirectory: entry.is_directory, mode });
+    return true;
+  }
+
+  enqueueContextTarget(mode: ClipboardMode) {
+    const entry = this.contextTarget;
+    if (!entry || this.serverRoot) return;
+    this.onTransferClipboard({ path: entry.path, name: entry.name, isDirectory: entry.is_directory, mode });
   }
 
   openLocation(location: Location, options: { newTab?: boolean } = {}) {
