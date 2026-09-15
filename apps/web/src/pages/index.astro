@@ -1,0 +1,49 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/site/Header.astro';
+import Hero from '../components/site/Hero.astro';
+import Marquee from '../components/site/Marquee.astro';
+import FeatureGrid from '../components/site/FeatureGrid.astro';
+import KeyboardSection from '../components/site/KeyboardSection.astro';
+import CtaBand from '../components/site/CtaBand.astro';
+import Footer from '../components/site/Footer.astro';
+import { highlights, keys, marquee } from '../lib/content';
+---
+
+<Layout>
+	<div class="grain" aria-hidden="true"></div>
+
+	<Header />
+
+	<main>
+		<Hero />
+		<Marquee items={marquee} />
+		<FeatureGrid items={highlights} />
+		<KeyboardSection keys={keys} />
+		<CtaBand />
+	</main>
+
+	<Footer />
+</Layout>
+
+<script>
+	const targets = document.querySelectorAll('.reveal');
+	const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	if (reduce || !('IntersectionObserver' in window)) {
+		targets.forEach((el) => el.classList.add('is-visible'));
+	} else {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					if (entry.isIntersecting) {
+						entry.target.classList.add('is-visible');
+						observer.unobserve(entry.target);
+					}
+				});
+			},
+			{ rootMargin: '0px 0px -10% 0px', threshold: 0.15 },
+		);
+		targets.forEach((el) => observer.observe(el));
+	}
+</script>

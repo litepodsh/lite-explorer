@@ -2,7 +2,8 @@
 name = "liteexplorer"
 version = "0.1.5"
 description = "A cross-platform file explorer for local files, network shares, and cloud storage"
-authors = ["you"]
+authors = ["Litepod Studio"]
+license = "MIT"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -1,0 +1,20 @@
+---
+import { cn } from '../../lib/utils';
+
+interface Props {
+	dot?: boolean;
+	class?: string;
+}
+
+const { dot = false, class: className } = Astro.props;
+---
+
+<p
+	class={cn(
+		'inline-flex items-center gap-2 text-[12.5px] font-semibold tracking-[0.06em] text-muted uppercase',
+		className,
+	)}
+>
+	{dot && <span class="size-[7px] rounded-full bg-primary shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-primary)_16%,transparent)]"></span>}
+	<slot />
+</p>

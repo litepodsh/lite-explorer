@@ -1,0 +1,54 @@
+---
+import Eyebrow from '../ui/Eyebrow.astro';
+import Kbd from '../ui/Kbd.astro';
+
+interface Key {
+	combo: string[];
+	label: string;
+}
+
+interface Props {
+	keys: Key[];
+}
+
+const { keys } = Astro.props;
+---
+
+<section id="keyboard" class="shell py-[clamp(48px,7vw,88px)]">
+	<div
+		class="grid items-center gap-[clamp(28px,5vw,64px)] rounded-2xl border border-border bg-sidebar p-[clamp(28px,4vw,48px)] lg:grid-cols-2"
+	>
+		<div class="reveal">
+			<Eyebrow class="mb-3.5">Keyboard first</Eyebrow>
+			<h2 class="text-[clamp(1.9rem,3.4vw,2.9rem)]">Usable without touching the mouse.</h2>
+			<p class="mt-4 text-base leading-[1.65] text-muted">
+				Press <kbd class="rounded-md border border-border-strong bg-white/[0.05] px-1.5 py-0.5 font-mono text-[0.82em] text-foreground-soft">F1</kbd> for the
+				full list, or search it by key. Prefer Vim motions? Turn on Yazi mode for
+				<kbd class="rounded-md border border-border-strong bg-white/[0.05] px-1.5 py-0.5 font-mono text-[0.82em] text-foreground-soft">j</kbd>/<kbd
+					class="rounded-md border border-border-strong bg-white/[0.05] px-1.5 py-0.5 font-mono text-[0.82em] text-foreground-soft">k</kbd
+				>, <kbd class="rounded-md border border-border-strong bg-white/[0.05] px-1.5 py-0.5 font-mono text-[0.82em] text-foreground-soft">gg</kbd
+				>, chords with a which-key popup, and single-key copy and paste.
+			</p>
+		</div>
+
+		<ul class="reveal m-0 grid list-none gap-0 p-0" style="--reveal-delay: 120ms">
+			{
+				keys.map((key, index) => (
+					<li
+						class:list={[
+							'flex items-center justify-between gap-4 py-3',
+							index !== keys.length - 1 && 'border-b border-border',
+						]}
+					>
+						<span class="inline-flex gap-[5px]">
+							{key.combo.map((part) => (
+								<Kbd>{part}</Kbd>
+							))}
+						</span>
+						<span class="text-right text-[13.5px] text-muted">{key.label}</span>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+</section>
