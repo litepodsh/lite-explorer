@@ -1,0 +1,49 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title?: string;
+	description?: string;
+}
+
+const {
+	title = 'Lite Explorer — Less chrome. More room for your files.',
+	description = 'A calm, native-feeling file explorer for macOS, Linux, and Windows. Tabs, split panes, and full keyboard control, built with Tauri and SvelteKit.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<script is:inline>
+			(() => {
+				try {
+					document.documentElement.dataset.theme = localStorage.getItem('theme') || 'dark';
+				} catch {
+					document.documentElement.dataset.theme = 'dark';
+				}
+			})();
+		</script>
+
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="color-scheme" content="dark light" />
+		<meta name="theme-color" content="#242220" />
+
+		<title>{title}</title>
+		<meta name="description" content={description} />
+
+		<meta property="og:type" content="website" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:image" content="/lite-explorer-preview.png" />
+		<meta name="twitter:card" content="summary_large_image" />
+
+		<link rel="icon" type="image/png" href="/favicon.png" />
+		<link rel="apple-touch-icon" href="/app-icon.png" />
+	</head>
+	<body>
+		<slot />
+	</body>
+</html>

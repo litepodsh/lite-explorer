@@ -1,0 +1,50 @@
+---
+import { site } from '../../lib/content';
+import Button from '../ui/Button.astro';
+import Icon from '../ui/Icon.astro';
+import ThemeToggle from '../ui/ThemeToggle.astro';
+
+const links = [
+	{ href: '#overview', label: 'Overview' },
+	{ href: '#workspace', label: 'Workspace' },
+	{ href: '#keyboard', label: 'Keyboard' },
+];
+---
+
+<header class="reveal sticky top-0 z-40 py-3">
+	<div
+		class="shell glass flex h-[52px] items-center gap-4 rounded-full bg-[var(--nav-backdrop)] px-2.5 pl-4"
+	>
+		<a class="flex items-center gap-2.5 text-sm font-semibold tracking-[-0.01em]" href="/">
+			<img src="/logo.svg" alt="" width="22" height="22" />
+			<span>{site.name}</span>
+		</a>
+
+		<nav class="ml-2 hidden gap-1 md:flex" aria-label="Sections">
+			{
+				links.map((link) => (
+					<a
+						class="ease-glass rounded-full px-3 py-1.5 text-[13.5px] text-muted transition-colors duration-200 hover:bg-[var(--overlay-1)] hover:text-foreground"
+						href={link.href}
+					>
+						{link.label}
+					</a>
+				))
+			}
+		</nav>
+
+		<div class="ml-auto flex items-center gap-1.5">
+			<a
+				class="ease-glass grid size-9 place-items-center rounded-full text-muted transition-colors duration-200 hover:bg-[var(--overlay-1)] hover:text-foreground"
+				href={site.repo}
+				target="_blank"
+				rel="noreferrer"
+				aria-label="View repository on GitHub"
+			>
+				<Icon name="github" size={17} />
+			</a>
+			<ThemeToggle />
+			<Button href={site.download} size="sm" target="_blank" rel="noreferrer">Download</Button>
+		</div>
+	</div>
+</header>

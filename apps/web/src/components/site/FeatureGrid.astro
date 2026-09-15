@@ -1,0 +1,48 @@
+---
+import Badge from '../ui/Badge.astro';
+import Card from '../ui/Card.astro';
+import Eyebrow from '../ui/Eyebrow.astro';
+
+interface Item {
+	tag: string;
+	title: string;
+	body: string;
+}
+
+interface Props {
+	items: Item[];
+}
+
+const { items } = Astro.props;
+---
+
+<section id="overview" class="shell py-[clamp(48px,7vw,88px)]">
+	<div class="reveal mb-[42px] max-w-[60ch]">
+		<Eyebrow class="mb-3.5">What it does</Eyebrow>
+		<h2 class="text-[clamp(1.9rem,3.4vw,2.9rem)]">Built for the way you actually move through folders.</h2>
+		<p class="mt-4 text-base leading-[1.65] text-muted">
+			No dashboards, no sync, no accounts. A fast local browser that stays out of the way and
+			answers to the keyboard first.
+		</p>
+	</div>
+
+	<div id="workspace" class="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+		{
+			items.map((item, index) => (
+				<Card
+					class:list={['reveal', index === 0 && 'sm:col-span-2']}
+					style={`--reveal-delay: ${(index % 3) * 90}ms`}
+				>
+					<div class="mb-[18px] flex items-center justify-between">
+						<Badge>{item.tag}</Badge>
+						<span class="font-mono text-xs text-muted-faint">
+							{String(index + 1).padStart(2, '0')}
+						</span>
+					</div>
+					<h3 class="mb-2.5 text-lg tracking-[-0.015em]">{item.title}</h3>
+					<p class="text-sm leading-[1.65] text-muted">{item.body}</p>
+				</Card>
+			))
+		}
+	</div>
+</section>

@@ -1,0 +1,24 @@
+---
+interface Props {
+	items: string[];
+}
+
+const { items } = Astro.props;
+const loop = [...items, ...items];
+---
+
+<div
+	class="my-[clamp(40px,6vw,72px)] overflow-hidden border-y border-border py-4 [-webkit-mask-image:linear-gradient(to_right,transparent,#000_12%,#000_88%,transparent)] [mask-image:linear-gradient(to_right,transparent,#000_12%,#000_88%,transparent)]"
+	aria-hidden="true"
+>
+	<div class="flex w-max animate-marquee">
+		{
+			loop.map((item) => (
+				<span class="inline-flex items-center gap-7 pr-7 text-sm font-medium tracking-[0.01em] whitespace-nowrap text-muted-dim">
+					{item}
+					<i class="size-[5px] rounded-full bg-border-strong" />
+				</span>
+			))
+		}
+	</div>
+</div>

@@ -87,3 +87,7 @@ just dev
 ## Stack
 
 Tauri 2 · SvelteKit · TypeScript
+
+## License
+
+[MIT](LICENSE) © 2026 Litepod Studio

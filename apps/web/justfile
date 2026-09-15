@@ -1,0 +1,39 @@
+# Show available commands.
+default:
+    @just --list
+
+# Install dependencies.
+i:
+    bun install
+
+# Run the Astro dev server.
+dev:
+    bun i && bun run dev
+
+# Create a production build.
+build:
+    bun run build
+
+# Preview the production build.
+preview:
+    bun run preview
+
+# Format the source with oxfmt.
+fmt:
+    bun run fmt
+
+# Check formatting without writing changes.
+fmt-check:
+    bun run fmt:check
+
+# Remove generated dependencies and build artifacts.
+[unix]
+clean:
+    rm -rf node_modules dist .astro
+
+# Remove generated dependencies and build artifacts (Windows).
+[windows]
+clean:
+    if exist node_modules rmdir /s /q node_modules
+    if exist dist rmdir /s /q dist
+    if exist .astro rmdir /s /q .astro
