@@ -257,7 +257,7 @@
           onRename={(oldPath, newName) => controller.renameItem(oldPath, newName)}
           onRenameCancel={() => controller.cancelRename()} />
       </ContextMenu.Trigger>
-      <ContextMenu.Content>
+      <ContextMenu.Content onCloseAutoFocus={(event) => { if (controller.renamingPath) event.preventDefault(); }}>
         {#if controller.contextTargets.length}
           {@const target = controller.contextTarget}
           {@const count = controller.contextTargets.length}

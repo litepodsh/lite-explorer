@@ -99,14 +99,7 @@
 
   function focusRename(node: HTMLInputElement) {
     node.focus();
-    const full = entry.name;
-    if (entry.is_directory) {
-      node.select();
-    } else {
-      const dot = full.lastIndexOf(".");
-      const end = dot > 0 ? dot : full.length;
-      node.setSelectionRange(0, end);
-    }
+    node.select();
   }
 
   // Folder part of a search result's path; empty for results directly in the searched folder.

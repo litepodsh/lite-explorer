@@ -14,17 +14,21 @@ export interface CreateItemAction {
 export const createFolderAction: CreateItemAction = {
   kind: "folder",
   label: "New Folder",
-  defaultName: () => "untitled folder",
+  defaultName: () => "Folder",
   create: (parentPath, name) =>
-    activity.track("create", `Create folder: ${name}`, parentPath, () => invoke<DirectoryEntry>("create_item", { parent: parentPath, kind: "folder", name })),
+    activity.track("create", `Create folder: ${name}`, parentPath, () =>
+      invoke<DirectoryEntry>("create_item", { parent: parentPath, kind: "folder", name }),
+    ),
 };
 
 export const createFileAction: CreateItemAction = {
   kind: "file",
   label: "New File",
-  defaultName: () => "untitled.txt",
+  defaultName: () => "File.txt",
   create: (parentPath, name) =>
-    activity.track("create", `Create file: ${name}`, parentPath, () => invoke<DirectoryEntry>("create_item", { parent: parentPath, kind: "file", name })),
+    activity.track("create", `Create file: ${name}`, parentPath, () =>
+      invoke<DirectoryEntry>("create_item", { parent: parentPath, kind: "file", name }),
+    ),
 };
 
 export const createItemActions: Record<CreateKind, CreateItemAction> = {
