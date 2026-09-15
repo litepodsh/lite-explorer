@@ -19,6 +19,7 @@ use tauri::{
 #[cfg(target_os = "macos")]
 use trash::macos::{DeleteMethod, TrashContextExtMacos};
 
+mod analytics;
 mod archive;
 mod download_progress;
 mod icons;
@@ -2720,7 +2721,11 @@ fn unlock_webview_frame_rate(window: &tauri::WebviewWindow) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let analytics = analytics::Analytics::load();
+    let sentry_client = analytics::init_sentry(analytics.gate());
+    analytics::init_minidump(&sentry_client, analytics.enabled());
     tauri::Builder::default()
+        .plugin(tauri_plugin_sentry::init(&sentry_client))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_drag::init())
@@ -2736,6 +2741,7 @@ pub fn run() {
                     }
                 });
             }
+            app.manage(analytics);
             let database = tauri::async_runtime::block_on(open_database(app.handle()))?;
             app.manage(Database(database));
             app.manage(remote::RemoteClients::default());
@@ -2758,6 +2764,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             os_detection,
+            analytics::analytics_prefs,
+            analytics::save_analytics,
             icons::file_icons,
             download_progress::read_download_progress,
             menu::set_show_hidden_files,

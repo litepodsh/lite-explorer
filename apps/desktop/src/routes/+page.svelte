@@ -25,6 +25,8 @@
   import CommandPalette from "$lib/components/custom/command-palette.svelte";
   import { platformState } from "$lib/state/platform.svelte.js";
   import { commandPaletteState, openCommandPalette, openCommandPaletteWith } from "$lib/state/command-palette.svelte";
+  import WelcomeDialog from "$lib/components/custom/analytics/welcome-dialog.svelte";
+  import { analytics } from "$lib/analytics/analytics.svelte.js";
   import AddLocationDialog from "$lib/components/custom/sidebar/add-location/add-location-dialog.svelte";
   import PasswordPrompt from "$lib/components/custom/sidebar/add-location/password-prompt.svelte";
   import NewBucketDialog from "$lib/components/custom/remote/new-bucket-dialog.svelte";
@@ -418,6 +420,7 @@
   };
 
   onMount(() => {
+    void analytics.load();
     void invoke<string>("os_detection").then((detected) => {
       platform = detected as typeof platform;
       platformState.current = platform;
@@ -499,6 +502,16 @@
         openShortcuts();
       }),
       listen("check-for-updates", () => void updates.check({ manual: true })),
+      // Debug menu: throw an uncaught error so it flows through the error reporter.
+      listen("debug-throw-exception", () => {
+        const error = new Error("Test exception thrown from the Debug menu");
+        const sentry = (window as { Sentry?: { captureException: (error: unknown) => void } }).Sentry;
+        console.log("[debug] throwing test exception", error, sentry ? "via window.Sentry" : "window.Sentry missing");
+        sentry?.captureException(error);
+        setTimeout(() => {
+          throw error;
+        });
+      }),
     ];
     // Development builds have no published release to compare against.
     const stopUpdates = dev ? () => {} : updates.start();
@@ -893,6 +906,9 @@
       name={bucketSettingsTarget.name} />
   {/if}
   <ConfirmHost />
+  {#if analytics.loaded && !analytics.welcomeSeen}
+    <WelcomeDialog />
+  {/if}
   <ConflictHost />
   <UpdateBanner />
   <CommandPalette commands={paletteCommands} {favorites} {locations} recents={activeController.recents} onNavigate={(location, opts) => openAnyLocation(location, opts)} />

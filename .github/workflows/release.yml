@@ -187,6 +187,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Anonymous crash reporting. Read by src-tauri/build.rs and baked into the binary.
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           # Signs the update packages the in-app updater downloads. The public key is in
           # tauri.conf.json. The password secret can stay unset for a key without one.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

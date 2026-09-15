@@ -40,6 +40,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "publisher": "Litepod Studio",
     "copyright": "© 2026 litepod.sh",
     "createUpdaterArtifacts": true,
     "macOS": {

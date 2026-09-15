@@ -11,6 +11,7 @@
   import { ConfirmHost, DialogSwitch, confirmation } from "$lib/components/custom/dialog/index.js";
   import SegmentedControl from "$lib/settings/segmented-control.svelte";
   import { settings } from "$lib/settings/settings.svelte.js";
+  import { analytics } from "$lib/analytics/analytics.svelte.js";
   import type { ChordTimeout, KeyboardMode } from "$lib/settings/settings.js";
   import { settingsKeyAction } from "$lib/settings/settings-keys.js";
   import { eventToken, toKeyPlatform } from "$lib/keyboard/keys.js";
@@ -31,6 +32,7 @@
   const current = $derived(settings.current);
 
   onMount(() => {
+    void analytics.load();
     void invoke<string>("os_detection").then((detected) => {
       platform = detected as typeof platform;
       platformState.current = platform;
@@ -141,6 +143,14 @@
             label="Show hidden files"
             checked={current.showHiddenFiles}
             onchange={(checked) => settings.set("showHiddenFiles", checked)} />
+          <DialogSwitch
+            label="Send anonymous crash reports"
+            description={analytics.locked
+              ? "Enabled while Lite Explorer is before 1.0. Anonymized and only used to fix crashes on different operating systems."
+              : "Anonymized and only used to fix crashes on different operating systems."}
+            checked={analytics.enabled || analytics.locked}
+            disabled={analytics.locked}
+            onchange={(checked) => void analytics.setEnabled(checked)} />
           <SegmentedControl
             label="View for new tabs"
             options={[{ value: "list", label: "List" }, { value: "grid", label: "Icons" }]}

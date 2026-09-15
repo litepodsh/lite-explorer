@@ -332,8 +332,19 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         )?;
         let switcher_submenu =
             Submenu::with_items(app, "Prototype Switcher", true, &[&prototype_switcher])?;
-        let debug_menu =
-            Submenu::with_items(app, "Debug", true, &[&developer_tools, &switcher_submenu])?;
+        let throw_exception = MenuItem::with_id(
+            app,
+            "throw-test-exception",
+            "Throw Test Exception",
+            true,
+            None::<&str>,
+        )?;
+        let debug_menu = Submenu::with_items(
+            app,
+            "Debug",
+            true,
+            &[&developer_tools, &throw_exception, &switcher_submenu],
+        )?;
         menu.append(&debug_menu)?;
         app.manage(PrototypeSwitcherMenu(prototype_switcher));
     }
@@ -391,6 +402,11 @@ pub fn handle(app: &AppHandle, id: &str) {
                 .is_checked()
                 .unwrap_or(false);
             let _ = app.emit("dev-tools", visible);
+            return;
+        }
+        if id == "throw-test-exception" {
+            // Thrown by the webview so the browser SDK reports it like a real UI error.
+            let _ = app.emit("debug-throw-exception", ());
             return;
         }
     }
