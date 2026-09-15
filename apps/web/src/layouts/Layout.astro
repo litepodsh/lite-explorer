@@ -23,6 +23,30 @@ const {
 				} catch {
 					document.documentElement.dataset.theme = 'dark';
 				}
+
+				// Drives the platform-specific window chrome (see WindowFrame.astro).
+				// `?os=macos|windows|linux|ios` forces a specific chrome (debug).
+				const ua = navigator.userAgent;
+				const touch = (navigator.maxTouchPoints || 0) > 1;
+				const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && touch);
+
+				let os = 'macos';
+				if (/Windows/i.test(ua)) {
+					os = 'windows';
+				} else if (/Linux|X11/i.test(ua) && !/Android/i.test(ua)) {
+					os = 'linux';
+				} else if (isIOS) {
+					os = 'macos';
+				}
+
+				const override = new URLSearchParams(location.search).get('os');
+				if (override === 'macos' || override === 'windows' || override === 'linux') {
+					os = override;
+				} else if (override === 'ios') {
+					os = 'macos';
+				}
+
+				document.documentElement.dataset.platform = os;
 			})();
 		</script>
 

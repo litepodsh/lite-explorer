@@ -3,6 +3,7 @@ import { hostLink, site } from '../../lib/content';
 import Button from '../ui/Button.astro';
 import Eyebrow from '../ui/Eyebrow.astro';
 import Icon from '../ui/Icon.astro';
+import WindowFrame from './WindowFrame.astro';
 ---
 
 <section class="shell grid items-center gap-[clamp(32px,5vw,64px)] pt-[clamp(56px,8vw,108px)] pb-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.1fr)]">
@@ -65,24 +66,13 @@ import Icon from '../ui/Icon.astro';
 	</div>
 
 	<div class="reveal relative" style="--reveal-delay: 200ms">
-		<figure
-			class="m-0 overflow-hidden rounded-[14px] bg-surface shadow-[0_0_0_1px_rgb(255_255_255/0.08),inset_0_1px_0_rgb(255_255_255/0.06),0_40px_90px_-30px_rgb(0_0_0/0.8),0_10px_30px_-14px_rgb(0_0_0/0.6)] transition-transform duration-700 ease-out lg:[transform:perspective(1600px)_rotateY(-4deg)_rotateX(1.4deg)] lg:hover:[transform:perspective(1600px)_rotateY(-1deg)_rotateX(0.5deg)]"
-		>
-			<div class="flex h-10 items-center gap-3 border-b border-white/[0.07] bg-gradient-to-b from-white/[0.06] to-white/[0.02] px-3.5">
-				<span class="flex gap-[7px]" aria-hidden="true">
-					<i class="size-[11px] rounded-full bg-[#ff5f57]"></i>
-					<i class="size-[11px] rounded-full bg-[#febc2e]"></i>
-					<i class="size-[11px] rounded-full bg-[#28c840]"></i>
-				</span>
-				<span class="mx-auto pr-[46px] text-[12.5px] font-medium text-muted">{site.name}</span>
-			</div>
-			<img
-				src="/preview-overview.png"
-				width="2638"
-				height="1670"
-				alt="The Lite Explorer Overview screen, showing disk capacity, volumes, and what is using space in the home folder"
-			/>
-		</figure>
+		<WindowFrame
+			title={site.name}
+			src="/preview-overview.png"
+			width={2638}
+			height={1670}
+			alt="The Lite Explorer Overview screen, showing disk capacity, volumes, and what is using space in the home folder"
+		/>
 
 		<div class="absolute -right-1.5 -bottom-[18px] inline-flex items-center gap-2.5 rounded-full bg-surface/90 px-3.5 py-2.5 font-mono text-[11.5px] text-foreground-soft shadow-[inset_0_1px_0_rgb(255_255_255/0.09),inset_0_0_0_1px_rgb(255_255_255/0.06),0_6px_16px_-8px_rgb(0_0_0/0.4)] backdrop-blur-[18px] backdrop-saturate-150" aria-hidden="true">
 			<span class="size-2 rounded-full bg-accent animate-pulse-ring"></span>

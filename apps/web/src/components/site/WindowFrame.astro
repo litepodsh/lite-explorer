@@ -1,0 +1,518 @@
+---
+interface Props {
+	title: string;
+	src: string;
+	alt: string;
+	width?: number;
+	height?: number;
+}
+
+const { title, src, alt, width, height } = Astro.props;
+---
+
+<figure
+	class="m-0 overflow-hidden rounded-[14px] bg-surface shadow-[0_0_0_1px_rgb(255_255_255/0.08),inset_0_1px_0_rgb(255_255_255/0.06),0_40px_90px_-30px_rgb(0_0_0/0.8),0_10px_30px_-14px_rgb(0_0_0/0.6)] transition-transform duration-700 ease-out lg:[transform:perspective(1600px)_rotateY(-4deg)_rotateX(1.4deg)] lg:hover:[transform:perspective(1600px)_rotateY(-1deg)_rotateX(0.5deg)]"
+>
+	<div class="window-bar flex h-10 items-center border-b border-white/[0.07] bg-gradient-to-b from-white/[0.06] to-white/[0.02] px-3.5">
+		<div class="traffic-lights chrome-macos" aria-hidden="true">
+			<div class="elastic-hit">
+				<div class="elastic-dot elastic-dot--close">
+					<div class="elastic-dot__fill"></div>
+					<div class="elastic-dot__rim" aria-hidden="true"></div>
+					<svg class="elastic-dot__icon" width="8" height="8" viewBox="0.06 0.07 7.37 7.37" fill="none">
+						<path
+							d="M5.83586 0.399464L0.384398 5.85097C0.0675738 6.1678 0.0622179 6.76406 0.399056 7.10092C0.73639 7.43777 1.34197 7.42309 1.64949 7.11555L7.10052 1.66456C7.43249 1.33261 7.42804 0.755871 7.08584 0.414122C6.74364 0.0728685 6.16783 0.0675126 5.83586 0.399464ZM7.10052 5.8461L1.64949 0.394579C1.33708 0.0826399 0.740805 0.0675126 0.399056 0.409236C0.057802 0.751456 0.0724595 1.34726 0.384398 1.65967L5.83586 7.11067C6.16736 7.44265 6.74411 7.43777 7.08584 7.09604C7.42757 6.75384 7.43249 6.17756 7.10052 5.8461Z"
+							fill="#8B0000"></path>
+					</svg>
+				</div>
+			</div>
+
+			<div class="elastic-hit">
+				<div class="elastic-dot elastic-dot--minimize">
+					<div class="elastic-dot__fill"></div>
+					<div class="elastic-dot__rim" aria-hidden="true"></div>
+					<svg class="elastic-dot__icon" width="9" height="2" viewBox="0 0 8.27153 2" fill="none">
+						<path
+							d="M0.97522 2H7.29683C7.8157 2 8.27153 1.54423 8.27153 1.00295C8.27153 0.461672 7.8157 0.00590134 7.29683 0.00590134H0.97522C0.483084 0.00590134 0 0.461672 0 1.00295C0 1.54423 0.483084 2 0.97522 2Z"
+							fill="black"></path>
+					</svg>
+				</div>
+			</div>
+
+			<div class="elastic-hit">
+				<div class="elastic-dot elastic-dot--maximize">
+					<div class="elastic-dot__fill"></div>
+					<div class="elastic-dot__rim" aria-hidden="true"></div>
+					<svg class="elastic-dot__icon" width="6" height="6" viewBox="0 0 6 6" fill="none">
+						<path d="M5 6H1.48284C1.30466 6 1.21543 5.78457 1.34142 5.65858L5.65858 1.34142C5.78457 1.21543 6 1.30466 6 1.48284V5C6 5.55228 5.55228 6 5 6Z" fill="black"></path>
+						<path d="M1 0H4.51716C4.69534 0 4.78457 0.215428 4.65858 0.341421L0.341421 4.65858C0.215428 4.78457 0 4.69534 0 4.51716V1C0 0.447715 0.447715 0 1 0Z" fill="black"></path>
+					</svg>
+				</div>
+			</div>
+		</div>
+
+		<span class="window-title text-[12.5px] font-medium text-muted">{title}</span>
+
+		<div class="window-controls--win chrome-windows" aria-hidden="true">
+			<span class="wc wc--min">
+				<svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"></path></svg>
+			</span>
+			<span class="wc wc--max">
+				<svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1"></rect></svg>
+			</span>
+			<span class="wc wc--close">
+				<svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"></path></svg>
+			</span>
+		</div>
+
+		<div class="window-controls--adw chrome-linux" aria-hidden="true">
+			<span class="wc wc--min">
+				<svg viewBox="0 0 10 10"><path d="M1 5h8" stroke="currentColor" stroke-width="1.6"></path></svg>
+			</span>
+			<span class="wc wc--max">
+				<svg viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.4"></rect></svg>
+			</span>
+			<span class="wc wc--close">
+				<svg viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.6"></path></svg>
+			</span>
+		</div>
+	</div>
+
+	<img src={src} width={width} height={height} alt={alt} />
+</figure>
+
+<style is:global>
+	@property --fill {
+		syntax: "<color>";
+		inherits: true;
+		initial-value: #f13c42;
+	}
+
+	.window-bar {
+		position: relative;
+	}
+
+	.window-title {
+		position: absolute;
+		left: 50%;
+		transform: translateX(-50%);
+		white-space: nowrap;
+		pointer-events: none;
+	}
+
+	.window-bar .chrome-windows,
+	.window-bar .chrome-linux {
+		display: none;
+	}
+
+	/* Elastic macOS traffic lights — port of the interaction by Bálint Ferenczy. */
+	.traffic-lights {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 9px;
+		margin: -9px;
+	}
+
+	.elastic-hit {
+		position: relative;
+		display: flex;
+		width: 14px;
+		height: 14px;
+		align-items: center;
+		justify-content: center;
+		touch-action: none;
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	.elastic-dot {
+		--dot: 14px;
+		--max-stretch: 3px;
+		--box: calc(var(--dot) + var(--max-stretch) + 4px);
+		--x: 0px;
+		--y: 0px;
+		--stretch-x: 0px;
+		--stretch-y: 0px;
+		--w: calc(var(--dot) + var(--stretch-x));
+		--h: calc(var(--dot) + var(--stretch-y));
+		--base: #f13c42;
+		--fill: var(--base);
+
+		position: relative;
+		width: var(--box);
+		height: var(--box);
+		translate: var(--x) var(--y);
+		scale: 1;
+		filter: drop-shadow(0 0.5px 1.5px rgb(0 0 0 / 0.34));
+		transition: scale 560ms
+			linear(
+				0,
+				0.188 6.3%,
+				0.573 12.5%,
+				0.94 18.8%,
+				1.17 25%,
+				1.243 31.3%,
+				1.201 37.5%,
+				1.109 43.8%,
+				1.018 50%,
+				0.96 56.3%,
+				0.941 62.5%,
+				0.95 68.8%,
+				0.972 75%,
+				0.995 81.3%,
+				1.009 87.5%,
+				1.014 93.8%,
+				1
+			);
+	}
+
+	.elastic-dot--close {
+		--base: #f13c42;
+	}
+
+	.elastic-dot--minimize {
+		--base: #f0ab00;
+	}
+
+	.elastic-dot--maximize {
+		--base: #00c400;
+	}
+
+	.elastic-hit:hover .elastic-dot {
+		scale: 1.1;
+		animation: elastic-hot 1.175s ease forwards;
+	}
+
+	@keyframes elastic-hot {
+		0%,
+		10.6% {
+			--fill: var(--base);
+		}
+		36.2%,
+		74.5% {
+			--fill: oklch(from var(--base) calc(l + 0.08) calc(c * 1.12) h);
+		}
+		100% {
+			--fill: var(--base);
+		}
+	}
+
+	.elastic-dot__fill {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: var(--w);
+		height: var(--h);
+		translate: -50% -50%;
+		border-radius: 50%;
+		background:
+			radial-gradient(100% 64.29% at 50% 100%, rgb(255 255 255 / 0) 64.9%, rgb(255 255 255 / 0.1) 100%),
+			radial-gradient(33.53% 50% at 50% 78.57%, rgb(255 255 255 / 0.2) 0%, rgb(255 255 255 / 0) 100%),
+			var(--fill);
+	}
+
+	.elastic-dot--minimize .elastic-dot__fill {
+		background: var(--fill);
+	}
+
+	.elastic-dot__rim {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: var(--w);
+		height: var(--h);
+		translate: -50% -50%;
+		border-radius: 50%;
+		pointer-events: none;
+		box-shadow:
+			0 -3.6px 0.5px -3px rgb(255 255 255 / 0.3) inset,
+			0 -3.75px 0.6px -2.75px rgb(255 255 255 / 0.35) inset,
+			0 3.6px 0.5px -3px rgb(255 255 255 / 0.3) inset,
+			0 3.75px 0.6px -2.75px rgb(255 255 255 / 0.35) inset;
+	}
+
+	.elastic-dot--minimize .elastic-dot__rim {
+		box-shadow:
+			0 -3.6px 0.5px -3px rgb(255 255 255 / 0.45) inset,
+			0 -3.75px 0.6px -2.75px rgb(255 255 255 / 0.5) inset,
+			0 3.6px 0.5px -3px rgb(255 255 255 / 0.45) inset,
+			0 3.75px 0.6px -2.75px rgb(255 255 255 / 0.5) inset;
+	}
+
+	.elastic-dot--maximize .elastic-dot__rim {
+		box-shadow:
+			0 -3.6px 0.5px -3px rgb(255 255 255 / 0.55) inset,
+			0 -3.75px 0.6px -2.75px rgb(255 255 255 / 0.6) inset,
+			0 3.6px 0.5px -3px rgb(255 255 255 / 0.55) inset,
+			0 3.75px 0.6px -2.75px rgb(255 255 255 / 0.6) inset;
+	}
+
+	.elastic-dot__icon {
+		position: absolute;
+		inset: 0;
+		margin: auto;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 220ms ease;
+	}
+
+	.traffic-lights:hover .elastic-dot__icon {
+		opacity: 0.6;
+	}
+
+	@media (hover: none) {
+		.elastic-dot__icon {
+			opacity: 0.6;
+		}
+	}
+
+	/* Windows · WinUI caption buttons. */
+	.window-controls--win {
+		display: flex;
+		margin-left: auto;
+		align-self: stretch;
+	}
+
+	.window-controls--win .wc {
+		display: grid;
+		place-items: center;
+		width: 46px;
+		color: var(--fg-soft);
+		transition: background-color 120ms ease, color 120ms ease;
+	}
+
+	.window-controls--win .wc:hover {
+		background: color-mix(in oklab, var(--fg) 8%, transparent);
+	}
+
+	.window-controls--win .wc--close:hover {
+		background: #c42b1c;
+		color: #fff;
+	}
+
+	.window-controls--win svg {
+		width: 10px;
+		height: 10px;
+	}
+
+	/* Linux · GNOME / libadwaita window controls. */
+	.window-controls--adw {
+		display: flex;
+		margin-left: auto;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.window-controls--adw .wc {
+		display: grid;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		color: var(--fg-soft);
+		transition: background-color 120ms ease, color 120ms ease;
+	}
+
+	.window-controls--adw .wc:hover {
+		background: color-mix(in oklab, var(--fg) 12%, transparent);
+	}
+
+	.window-controls--adw .wc--close {
+		background: color-mix(in oklab, var(--fg) 10%, transparent);
+	}
+
+	.window-controls--adw .wc--close:hover {
+		background: #c01c28;
+		color: #fff;
+	}
+
+	.window-controls--adw svg {
+		width: 9px;
+		height: 9px;
+	}
+
+	/* Platform switching, driven by <html data-platform> set before paint. */
+	html[data-platform="windows"] .window-title {
+		position: static;
+		transform: none;
+		margin-right: auto;
+	}
+
+	html[data-platform="windows"] .chrome-macos {
+		display: none;
+	}
+
+	html[data-platform="windows"] .chrome-windows {
+		display: flex;
+	}
+
+	html[data-platform="linux"] .chrome-macos {
+		display: none;
+	}
+
+	html[data-platform="linux"] .chrome-linux {
+		display: flex;
+	}
+</style>
+
+<script>
+	const DOT = 14;
+	const MAX_STRETCH = 3;
+	const FOLLOW_STIFFNESS = 250;
+	const FOLLOW_DAMPING = 15;
+	const RELEASE_STIFFNESS = 280;
+	const RELEASE_DAMPING = 14;
+	const OFFSET_SOFTNESS = 90;
+	const OFFSET_ASYMPTOTE = 10;
+	const STRETCH_SOFTNESS = 52;
+	const AREA_PRESERVE = 1;
+	const AXIS_WEIGHT_POWER = 0.5;
+
+	const AXES = ["x", "y", "stretchX", "stretchY"] as const;
+	const REST = { x: 0, y: 0, stretchX: 0, stretchY: 0 };
+
+	type Axis = (typeof AXES)[number];
+	type State = Record<Axis, number>;
+
+	function resist(distance: number, softness: number, max: number) {
+		return max * Math.tanh(distance / softness);
+	}
+
+	function axisWeights(dx: number, dy: number, power: number) {
+		const px = Math.pow(Math.abs(dx), power);
+		const py = Math.pow(Math.abs(dy), power);
+		const sum = px + py;
+		if (sum < 1e-12) return { wx: 0.5, wy: 0.5 };
+		return { wx: px / sum, wy: py / sum };
+	}
+
+	function fromPointer(dx: number, dy: number): State {
+		const dist = Math.hypot(dx, dy);
+		if (dist < 0.01) return { ...REST };
+
+		const offset = resist(dist, OFFSET_SOFTNESS, OFFSET_ASYMPTOTE);
+		const stretch = resist(dist, STRETCH_SOFTNESS, MAX_STRETCH);
+		const { wx, wy } = axisWeights(dx, dy, AXIS_WEIGHT_POWER);
+		const rawX = stretch * wx;
+		const rawY = stretch * wy;
+		const minStretch = -(DOT * 0.45);
+
+		return {
+			x: (dx / dist) * offset,
+			y: (dy / dist) * offset,
+			stretchX: Math.max(minStretch, rawX - AREA_PRESERVE * rawY),
+			stretchY: Math.max(minStretch, rawY - AREA_PRESERVE * rawX),
+		};
+	}
+
+	function springStep(pos: number, vel: number, goal: number, stiffness: number, damping: number, dt: number) {
+		const nextVel = vel + (-stiffness * (pos - goal) - damping * vel) * dt;
+		return { pos: pos + nextVel * dt, vel: nextVel };
+	}
+
+	function mountElasticDot(hit: HTMLElement) {
+		const root = hit.querySelector<HTMLElement>(".elastic-dot");
+		if (!root) return;
+
+		let mode: "idle" | "drag" | "release" = "idle";
+		let origin = { x: 0, y: 0 };
+		const current: State = { ...REST };
+		let target: State = { ...REST };
+		const velocity: State = { ...REST };
+		let raf = 0;
+		let activePointer: number | null = null;
+
+		const write = () => {
+			root.style.setProperty("--x", `${current.x}px`);
+			root.style.setProperty("--y", `${current.y}px`);
+			root.style.setProperty("--stretch-x", `${current.stretchX}px`);
+			root.style.setProperty("--stretch-y", `${current.stretchY}px`);
+		};
+
+		const ensureAnim = () => {
+			if (raf) return;
+
+			let prev = performance.now();
+			const tick = (now: number) => {
+				const dt = Math.min((now - prev) / 1000, 0.032);
+				prev = now;
+
+				let keepGoing = false;
+
+				if (mode === "drag" || mode === "release") {
+					const goal = mode === "release" ? REST : target;
+					const stiffness = mode === "release" ? RELEASE_STIFFNESS : FOLLOW_STIFFNESS;
+					const damping = mode === "release" ? RELEASE_DAMPING : FOLLOW_DAMPING;
+
+					for (const axis of AXES) {
+						const next = springStep(current[axis], velocity[axis], goal[axis], stiffness, damping, dt);
+						current[axis] = next.pos;
+						velocity[axis] = next.vel;
+					}
+
+					const err = Math.hypot(
+						current.x - goal.x,
+						current.y - goal.y,
+						current.stretchX - goal.stretchX,
+						current.stretchY - goal.stretchY,
+					);
+					const stillMoving =
+						err > 0.04 ||
+						Math.hypot(velocity.x, velocity.y, velocity.stretchX, velocity.stretchY) > 0.3;
+
+					if (mode === "release" && !stillMoving) {
+						Object.assign(velocity, REST);
+						Object.assign(current, REST);
+						mode = "idle";
+					} else if (stillMoving || mode === "drag") {
+						keepGoing = true;
+					}
+				}
+
+				write();
+
+				if (keepGoing) {
+					raf = requestAnimationFrame(tick);
+				} else {
+					raf = 0;
+				}
+			};
+
+			raf = requestAnimationFrame(tick);
+		};
+
+		const onMove = (e: PointerEvent) => {
+			if (mode !== "drag" || e.pointerId !== activePointer) return;
+			target = fromPointer(e.clientX - origin.x, e.clientY - origin.y);
+			ensureAnim();
+		};
+
+		const onEnd = (e: PointerEvent) => {
+			if (mode !== "drag" || e.pointerId !== activePointer) return;
+			activePointer = null;
+			mode = "release";
+			target = { ...REST };
+			ensureAnim();
+		};
+
+		hit.addEventListener("pointerdown", (e) => {
+			e.preventDefault();
+			activePointer = e.pointerId;
+			mode = "drag";
+			origin = { x: e.clientX, y: e.clientY };
+			target = fromPointer(0, 0);
+			ensureAnim();
+		});
+
+		window.addEventListener("pointermove", onMove);
+		window.addEventListener("pointerup", onEnd);
+		window.addEventListener("pointercancel", onEnd);
+
+		write();
+	}
+
+	if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+		document.querySelectorAll<HTMLElement>(".elastic-hit").forEach(mountElasticDot);
+	}
+</script>
