@@ -369,8 +369,9 @@ const ICON_CONTEXTS: &[&str] = &["mimetypes", "apps"];
 fn icon_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
     if let Some(home) = std::env::var_os("HOME") {
-        roots.push(PathBuf::from(home).join(".local/share/icons"));
-        roots.push(PathBuf::from(home).join(".icons"));
+        let home = PathBuf::from(home);
+        roots.push(home.join(".local/share/icons"));
+        roots.push(home.join(".icons"));
     }
     match std::env::var_os("XDG_DATA_DIRS") {
         Some(dirs) => {
