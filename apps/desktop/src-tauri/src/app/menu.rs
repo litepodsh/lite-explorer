@@ -327,7 +327,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     app.manage(ShowFpsMenu(show_fps));
     app.manage(OpenMenuItem(open_item));
     app.manage(OpenTarget(std::sync::Mutex::new(None)));
-    #[cfg(debug_assertions)]
+    // #[cfg(debug_assertions)]
     {
         let developer_tools =
             MenuItem::with_id(app, "open-dev-tools", "Developer Tools", true, None::<&str>)?;
@@ -396,7 +396,7 @@ fn order_top_level_menus<R: Runtime>(menu: &Menu<R>) -> tauri::Result<()> {
 }
 
 pub fn handle(app: &AppHandle, id: &str) {
-    #[cfg(debug_assertions)]
+    // #[cfg(debug_assertions)]
     {
         if id == "open-dev-tools" {
             if let Some(window) = app.get_webview_window("main") {
