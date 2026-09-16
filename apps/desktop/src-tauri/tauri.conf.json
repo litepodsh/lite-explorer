@@ -27,7 +27,34 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "connect-src": ["'self'", "ipc:", "http://ipc.localhost"],
+        "img-src": ["'self'", "asset:", "http://asset.localhost", "media:", "http://media.localhost", "blob:", "data:"],
+        "media-src": ["'self'", "asset:", "http://asset.localhost", "media:", "http://media.localhost", "blob:"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "font-src": ["'self'", "data:"],
+        "worker-src": ["'self'", "blob:"],
+        "frame-src": ["'self'"],
+        "object-src": ["'none'"],
+        "base-uri": ["'none'"],
+        "form-action": ["'none'"]
+      },
+      "devCsp": {
+        "default-src": ["'self'"],
+        "script-src": ["'self'", "'unsafe-eval'", "'unsafe-inline'"],
+        "connect-src": ["'self'", "ipc:", "http://ipc.localhost", "http://localhost:1420", "ws://localhost:1421"],
+        "img-src": ["'self'", "asset:", "http://asset.localhost", "media:", "http://media.localhost", "blob:", "data:"],
+        "media-src": ["'self'", "asset:", "http://asset.localhost", "media:", "http://media.localhost", "blob:"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "font-src": ["'self'", "data:"],
+        "worker-src": ["'self'", "blob:"],
+        "frame-src": ["'self'"],
+        "object-src": ["'none'"],
+        "base-uri": ["'none'"],
+        "form-action": ["'none'"]
+      }
     }
   },
   "bundle": {
