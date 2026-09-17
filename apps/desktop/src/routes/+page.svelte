@@ -85,6 +85,7 @@
   import { nextRegion, type RegionSlot } from "$lib/keyboard/focus-cycle.js";
   import { scrollPreview } from "$lib/keyboard/preview-scroll.js";
   import { settings } from "$lib/settings/settings.svelte.js";
+  import { prefersReducedMotion } from "$lib/swipe/gesture.js";
 
   // Before any store reads a preference.
   settings.load();
@@ -138,6 +139,8 @@
   let showHiddenFiles = $derived(settings.current.showHiddenFiles);
   let itemCheckboxes = $state(false);
   let showFps = $derived(settings.current.showFps);
+  /** Pointer is over the active pane's file list, where a trackpad swipe navigates. */
+  let pointerInList = $state(false);
   const jobs = new JobsStore();
   let activityOpen = $state(false);
   let finderSearch = $state<ReturnType<typeof FinderSearch>>();
@@ -446,6 +449,23 @@
     const markPointer = () => delete document.documentElement.dataset.keyboard;
     window.addEventListener("keydown", markKeyboard, true);
     window.addEventListener("pointerdown", markPointer, true);
+    const trackSwipePointer = (event: PointerEvent) => {
+      const element = document.querySelector<HTMLElement>(
+        `[data-key-scope='list'][data-pane-id='${CSS.escape(panes.activeId)}']`,
+      );
+      if (!element) {
+        pointerInList = false;
+        return;
+      }
+      const rect = element.getBoundingClientRect();
+      const inside =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+      if (inside !== pointerInList) pointerInList = inside;
+    };
+    window.addEventListener("pointermove", trackSwipePointer);
     const unlisteners = [
       listen<TransferEventPayload>("transfer-progress", ({ payload }) => {
         const previousProgress = fileDownloads.jobs[payload.id];
@@ -497,6 +517,19 @@
       listen("pane-toggle", () => panes.togglePane()),
       listen("pane-orientation", () => panes.toggleLayout()),
       listen("command-palette", () => openCommandPalette()),
+      listen<{ amount: number }>("swipe-progress", ({ payload }) => {
+        if (!settings.current.swipeNavigation || prefersReducedMotion()) return;
+        activeController.updateSwipe(payload.amount);
+      }),
+      listen<{ committed: boolean }>("swipe-end", ({ payload }) => {
+        if (!settings.current.swipeNavigation) return;
+        activeController.finishSwipe({ committed: payload.committed });
+      }),
+      listen<string>("swipe-nav", ({ payload }) => {
+        if (!settings.current.swipeNavigation) return;
+        if (payload === "back") activeController.goBack();
+        else activeController.goForward();
+      }),
       listen("open-shortcuts", () => {
         void getCurrentWindow().setFocus();
         openShortcuts();
@@ -519,6 +552,7 @@
       stopSettings();
       window.removeEventListener("keydown", markKeyboard, true);
       window.removeEventListener("pointerdown", markPointer, true);
+      window.removeEventListener("pointermove", trackSwipePointer);
       activity.publish = () => {};
       fileDownloads.jobs = {};
       stopUpdates();
@@ -533,6 +567,24 @@
     const visible = settings.current.prototypeSwitcher;
     devToolsVisible.set(visible);
     if (dev) void invoke("set_prototype_switcher", { visible }).catch(() => {});
+  });
+
+  // The native macOS swipe monitor navigates only when the pointer is over the active
+  // list and that tab has history in the swiped direction.
+  let lastSwipeContext = "";
+  $effect(() => {
+    if (platform !== "macos") return;
+    const controller = activeController;
+    const context = {
+      enabled: settings.current.swipeNavigation,
+      pointerInList,
+      canBack: controller.canBack,
+      canForward: controller.canForward,
+    };
+    const key = `${context.enabled}|${context.pointerInList}|${context.canBack}|${context.canForward}`;
+    if (key === lastSwipeContext) return;
+    lastSwipeContext = key;
+    void invoke("set_swipe_context", context);
   });
 
   // Load each pane's active tab whenever its location or active tab changes. `locationKey` is a
