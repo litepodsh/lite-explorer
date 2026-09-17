@@ -4,4 +4,5 @@ pub(crate) mod download_progress;
 pub(crate) mod general;
 pub(crate) mod icons;
 pub(crate) mod menu;
+pub(crate) mod swipe_nav;
 pub(crate) mod window;

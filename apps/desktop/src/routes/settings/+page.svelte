@@ -184,6 +184,13 @@
             options={[{ value: "row", label: "Side by side" }, { value: "column", label: "Stacked" }]}
             value={current.panesLayout}
             onchange={(value) => settings.set("panesLayout", value as "row" | "column")} />
+          {#if platform === "macos"}
+            <DialogSwitch
+              label="Swipe to navigate"
+              description="Swipe on the trackpad to go back and forward in the open folder, with a drag-follow animation."
+              checked={current.swipeNavigation}
+              onchange={(checked) => settings.set("swipeNavigation", checked)} />
+          {/if}
           <TerminalPicker
             label="Terminal"
             description="App opened by “Open Terminal Here”. Detected from what's installed."

@@ -11,6 +11,8 @@ export type Settings = {
   defaultViewMode: "list" | "grid";
   previewOpenByDefault: boolean;
   panesLayout: "row" | "column";
+  /** macOS trackpad swipe to go back and forward in the active pane. */
+  swipeNavigation: boolean;
   /** Which terminal "Open Terminal Here" launches. */
   terminalApp: TerminalApp;
   /** Command template with a `{path}` placeholder, used when `terminalApp` is "custom". */
@@ -40,6 +42,7 @@ export function defaultSettings({ dev }: { dev: boolean }): Settings {
     defaultViewMode: "list",
     previewOpenByDefault: true,
     panesLayout: "row",
+    swipeNavigation: true,
     terminalApp: "system",
     terminalCommand: "",
     showFps: dev,
@@ -58,6 +61,7 @@ const VALIDATORS: { [K in SettingKey]: (value: unknown) => value is Settings[K] 
   defaultViewMode: (value): value is "list" | "grid" => value === "list" || value === "grid",
   previewOpenByDefault: isBoolean,
   panesLayout: (value): value is "row" | "column" => value === "row" || value === "column",
+  swipeNavigation: isBoolean,
   terminalApp: (value): value is TerminalApp => typeof value === "string",
   terminalCommand: (value): value is string => typeof value === "string",
   showFps: isBoolean,

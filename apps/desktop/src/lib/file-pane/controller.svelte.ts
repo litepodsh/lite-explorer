@@ -61,6 +61,7 @@ import { settings } from "$lib/settings/settings.svelte.js";
 import type { SortColumn, SortDir } from "$lib/components/custom/file-list/sort.js";
 import type { CopyTextKind } from "$lib/keyboard/context.js";
 import { fileStem } from "$lib/keyboard/text.js";
+import type { SwipeDirection } from "$lib/swipe/gesture.js";
 
 type Recent = { name: string; path: string; kind: string; opened_at: number };
 export type SearchMode = "fuzzy" | "content";
@@ -107,6 +108,13 @@ export class FilePaneController {
   recents = $state<Recent[]>([]);
   listing = $state(false);
   listingError = $state("");
+  /** Trackpad swipe in progress: the listing follows the finger. Amount is -1..1. */
+  swipeActive = $state(false);
+  swipeSettling = $state(false);
+  swipeAmount = $state(0);
+  swipeDirection = $state<SwipeDirection | null>(null);
+  /** Bumped when the adjacent-folder cache changes, so `swipeEntries` stays reactive. */
+  prefetchVersion = $state(0);
   /** Saved network location whose share or session is gone, shown with a Reconnect button. */
   disconnected = $state<Location | null>(null);
   renamingPath = $state("");
@@ -127,6 +135,10 @@ export class FilePaneController {
   /** Registered by the mounted file list. */
   navigator: ListNavigator | null = null;
   #previewTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Directory listings of adjacent history locations, keyed by path. */
+  #listingCache = new Map<string, DirectoryEntry[]>();
+  #prefetchTimer: ReturnType<typeof setTimeout> | undefined;
+  #swipeToken = 0;
 
   recentEntries = $derived(
     this.recents.map((recent) => ({
@@ -358,6 +370,7 @@ export class FilePaneController {
   }
 
   async loadLocation(location: Location) {
+    this.#endSwipe();
     this.clearSearch();
     this.visual = null;
     const token = ++this.loadToken;
@@ -379,11 +392,20 @@ export class FilePaneController {
       this.entries = [];
       return;
     }
-    this.listing = true;
+    // Going back or forward to a prefetched folder shows it right away, then refreshes.
+    const cached = this.#listingCache.get(location.path);
+    if (cached) {
+      this.entries = cached;
+      this.listing = false;
+    } else {
+      this.listing = true;
+    }
     try {
       const result = await invoke<DirectoryEntry[]>("read_directory", { path: location.path });
       if (token !== this.loadToken) return;
       this.entries = result;
+      this.#listingCache.set(location.path, result);
+      this.prefetchAdjacent();
       this.pruneSelection();
       const owner = isNetworkPath(location.path) ? networkStatus.ownerOf(location.path) : null;
       if (owner && !isServerPath(location.path)) {
@@ -420,6 +442,50 @@ export class FilePaneController {
   /** Lists the active tab's folder again, for example after reconnecting its share. */
   reload() {
     void this.loadLocation(this.tabs.active.location);
+  }
+
+  /** Reads the adjacent history folders ahead of a swipe, so the incoming list can slide in.
+   *  Remote and network locations are left to the regular loading state. */
+  prefetchAdjacent() {
+    clearTimeout(this.#prefetchTimer);
+    this.#prefetchTimer = setTimeout(() => {
+      const tab = this.tabs.active;
+      for (const location of [tab.back.at(-1), tab.forward[0]]) {
+        if (this.#canPrefetch(location)) void this.#prefetch(location);
+      }
+    }, 250);
+  }
+
+  #canPrefetch(location: Location | undefined): location is Location {
+    return (
+      !!location &&
+      !!location.path &&
+      location.kind === "folder" &&
+      !isRemoteLike(location.path) &&
+      !isNetworkPath(location.path)
+    );
+  }
+
+  async #prefetch(location: Location) {
+    if (this.#listingCache.has(location.path)) return;
+    try {
+      const entries = await invoke<DirectoryEntry[]>("read_directory", { path: location.path });
+      this.#listingCache.set(location.path, entries);
+      this.prefetchVersion++;
+    } catch {
+      // Prefetch is best effort; a real navigation reports the error.
+    }
+  }
+
+  /** First adjacent location on a side and its prefetched entries, or null without history. */
+  swipeTarget(
+    direction: SwipeDirection,
+  ): { path: string; entries: DirectoryEntry[] | null } | null {
+    void this.prefetchVersion;
+    const tab = this.tabs.active;
+    const location = direction === "back" ? tab.back.at(-1) : tab.forward[0];
+    if (!location) return null;
+    return { path: location.path, entries: this.#listingCache.get(location.path) ?? null };
   }
 
   /** Address shown and copied for a path: the server address for network locations. */
@@ -867,6 +933,41 @@ export class FilePaneController {
   goForward() {
     this.scrollPositions.delete(this.tabs.activeId);
     this.tabs.forward();
+  }
+
+  /** A trackpad swipe moved: follow the finger. Amount is -1..1, positive is back. */
+  updateSwipe(amount: number) {
+    if (amount === 0 || this.keyboardBlocked()) return;
+    this.swipeActive = true;
+    this.swipeSettling = false;
+    this.swipeAmount = amount;
+    this.swipeDirection = amount > 0 ? "back" : "forward";
+  }
+
+  /** The swipe ended: commit the navigation or spring back. */
+  finishSwipe({ committed }: { committed: boolean }) {
+    if (!this.swipeActive) return;
+    const direction = this.swipeDirection;
+    if (committed && direction) {
+      if (direction === "back") this.goBack();
+      else this.goForward();
+      this.#endSwipe();
+      return;
+    }
+    this.swipeSettling = true;
+    this.swipeAmount = 0;
+    const token = ++this.#swipeToken;
+    setTimeout(() => {
+      if (token === this.#swipeToken) this.#endSwipe();
+    }, 260);
+  }
+
+  #endSwipe() {
+    this.#swipeToken++;
+    this.swipeActive = false;
+    this.swipeSettling = false;
+    this.swipeAmount = 0;
+    this.swipeDirection = null;
   }
 
   /** Keys that act on the file list wait while renaming, a context menu or a confirmation is open. */

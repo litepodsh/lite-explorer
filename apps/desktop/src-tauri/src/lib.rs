@@ -18,6 +18,7 @@ pub(crate) use preview::{
 };
 
 use app::db::open_database;
+use app::swipe_nav;
 use app::window::{restore_window_state, save_window_state, unlock_webview_frame_rate};
 use system::folder_usage::FolderScans;
 use tauri::{Manager, WindowEvent};
@@ -57,6 +58,7 @@ pub fn run() {
             app.manage(FolderScans(std::sync::Mutex::new(
                 std::collections::HashSet::new(),
             )));
+            app.manage(swipe_nav::SwipeState::default());
             let menu = app::menu::build(app.handle())?;
             app.manage(app::menu::AppMenu(menu.clone()));
             #[cfg(target_os = "macos")]
@@ -65,6 +67,7 @@ pub fn run() {
             for window in app.webview_windows().values() {
                 unlock_webview_frame_rate(window);
             }
+            swipe_nav::init(app.handle());
             Ok(())
         })
         .on_menu_event(|app, event| app::menu::handle(app, event.id().as_ref()))
@@ -129,6 +132,7 @@ pub fn run() {
             app::menu::set_open_target,
             app::menu::app_menu,
             app::menu::trigger_menu,
+            app::swipe_nav::set_swipe_context,
             media::media_url,
             media::viewer::open_viewer,
             media::viewer::viewer_target,
