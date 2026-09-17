@@ -93,7 +93,7 @@
   // Each folder opens with the sort last chosen in it.
   $effect.pre(() => {
     const saved = loadFolderSort(sortKey);
-    sortColumn = saved?.column ?? null;
+    sortColumn = saved?.column ?? "name";
     sortDir = saved?.dir ?? "asc";
   });
 
