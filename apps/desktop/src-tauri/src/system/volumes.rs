@@ -14,8 +14,8 @@ pub struct DeviceInfo {
 
 #[derive(Serialize)]
 pub struct VolumeInfo {
-    name: String,
-    mount_point: String,
+    pub(crate) name: String,
+    pub(crate) mount_point: String,
     file_system: Option<String>,
     total_bytes: u64,
     free_bytes: u64,
@@ -215,29 +215,18 @@ pub fn volumes() -> Vec<VolumeInfo> {
 /// Fixed and removable drives with media, the system drive first.
 #[cfg(target_os = "windows")]
 pub fn volumes() -> Vec<VolumeInfo> {
+    use std::time::Duration;
     use windows_sys::Win32::{
-        Storage::FileSystem::{GetDriveTypeW, GetLogicalDrives, GetVolumeInformationW},
+        Storage::FileSystem::{GetDriveTypeW, GetLogicalDrives},
         System::WindowsProgramming::{DRIVE_FIXED, DRIVE_REMOVABLE},
     };
-    let system_drive = std::env::var("SystemDrive")
-        .ok()
-        .and_then(|drive| drive.chars().next())
-        .unwrap_or('C')
-        .to_ascii_uppercase();
-    let mut volumes = Vec::new();
-    for letter in drive_letters(unsafe { GetLogicalDrives() }) {
-        let root = format!("{letter}:\\");
+
+    fn probe_volume_blocking(root: String, letter: char, system_drive: char) -> Option<VolumeInfo> {
+        use windows_sys::Win32::Storage::FileSystem::{GetVolumeInformationW};
         let root_wide = to_wide(&root);
-        let drive_type = unsafe { GetDriveTypeW(root_wide.as_ptr()) };
-        if drive_type != DRIVE_FIXED && drive_type != DRIVE_REMOVABLE {
-            continue;
-        }
-        // Card readers and empty removable drives report no size.
-        let Some(stats) = volume_stats(Path::new(&root)) else {
-            continue;
-        };
+        let stats = volume_stats(Path::new(&root))?;
         if stats.total_bytes == 0 {
-            continue;
+            return None;
         }
         let mut label = [0u16; 261];
         let mut file_system = [0u16; 261];
@@ -253,7 +242,7 @@ pub fn volumes() -> Vec<VolumeInfo> {
                 file_system.len() as u32,
             )
         } != 0;
-        volumes.push(VolumeInfo {
+        Some(VolumeInfo {
             name: drive_display_name(
                 &if has_info {
                     from_wide(&label)
@@ -269,7 +258,38 @@ pub fn volumes() -> Vec<VolumeInfo> {
             total_bytes: stats.total_bytes,
             free_bytes: stats.free_bytes,
             is_primary: letter == system_drive,
+        })
+    }
+
+    // A no-media card reader or floppy can hang GetDiskFreeSpaceExW / GetVolumeInformationW for a
+    // long time. Probe each fixed/removable drive on its own thread and give up quickly.
+    fn probe_volume(root: String, letter: char, system_drive: char) -> Option<VolumeInfo> {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = sender.send(probe_volume_blocking(root, letter, system_drive));
         });
+        receiver
+            .recv_timeout(Duration::from_millis(500))
+            .ok()
+            .flatten()
+    }
+
+    let system_drive = std::env::var("SystemDrive")
+        .ok()
+        .and_then(|drive| drive.chars().next())
+        .unwrap_or('C')
+        .to_ascii_uppercase();
+    let mut volumes = Vec::new();
+    for letter in drive_letters(unsafe { GetLogicalDrives() }) {
+        let root = format!("{letter}:\\");
+        let root_wide = to_wide(&root);
+        let drive_type = unsafe { GetDriveTypeW(root_wide.as_ptr()) };
+        if drive_type != DRIVE_FIXED && drive_type != DRIVE_REMOVABLE {
+            continue;
+        }
+        if let Some(volume) = probe_volume(root, letter, system_drive) {
+            volumes.push(volume);
+        }
     }
     volumes.sort_by_key(|volume| !volume.is_primary);
     volumes
@@ -469,6 +489,15 @@ pub fn device_id(_metadata: &fs::Metadata) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_disk_overview_returns_the_system_drive() {
+        let device = device_info();
+        let volumes = volumes();
+        assert!(!device.name.is_empty());
+        assert!(volumes.iter().any(|volume| volume.is_primary));
+    }
 
     #[test]
     fn drive_letters_follow_the_logical_drives_mask() {

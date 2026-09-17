@@ -27,10 +27,27 @@ pub async fn open_database(
     sqlx::query("DELETE FROM locations WHERE kind = 'cloud'")
         .execute(&pool)
         .await?;
-    for (position, location) in system_locations().iter().enumerate() {
+    let system = system_locations();
+    for (position, location) in system.iter().enumerate() {
         sqlx::query("INSERT INTO locations (path, name, kind, position) VALUES (?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET name = excluded.name, kind = excluded.kind, position = excluded.position")
             .bind(&location.path).bind(&location.name).bind(&location.kind).bind(position as i64)
             .execute(&pool).await?;
+    }
+    // Drives can come and go; drop volume rows that no longer exist so already-removed drives
+    // don't linger in the sidebar.
+    let volume_paths: Vec<&str> = system
+        .iter()
+        .filter(|location| location.kind == "volume")
+        .map(|location| location.path.as_str())
+        .collect();
+    if !volume_paths.is_empty() {
+        let placeholders = std::iter::repeat_n("?", volume_paths.len()).collect::<Vec<_>>().join(", ");
+        let sql = format!("DELETE FROM locations WHERE kind = 'volume' AND path NOT IN ({placeholders})");
+        let mut query = sqlx::query(&sql);
+        for path in &volume_paths {
+            query = query.bind(path);
+        }
+        query.execute(&pool).await?;
     }
     Ok(pool)
 }

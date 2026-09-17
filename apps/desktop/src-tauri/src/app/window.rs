@@ -44,6 +44,14 @@ pub fn restore_window_state(window: &WebviewWindow) {
     else {
         return;
     };
+    // A degenerate size (saved while the window never got a usable size) would reopen the app as a
+    // tiny 2px window. Fall back to the defaults in tauri.conf.json instead. The floor matches the
+    // window's configured minWidth/minHeight.
+    const MIN_WIDTH: u32 = 768;
+    const MIN_HEIGHT: u32 = 500;
+    if state.width < MIN_WIDTH || state.height < MIN_HEIGHT {
+        return;
+    }
     let monitor = window
         .available_monitors()
         .ok()

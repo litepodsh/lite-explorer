@@ -18,7 +18,9 @@ pub(crate) use preview::{
 };
 
 use app::db::open_database;
-use app::window::{restore_window_state, save_window_state, unlock_webview_frame_rate};
+use app::window::{restore_window_state, save_window_state};
+#[cfg(target_os = "macos")]
+use app::window::unlock_webview_frame_rate;
 use system::folder_usage::FolderScans;
 use tauri::{Manager, WindowEvent};
 

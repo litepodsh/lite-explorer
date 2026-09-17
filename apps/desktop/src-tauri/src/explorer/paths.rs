@@ -103,24 +103,37 @@ pub fn startup_volume_name() -> String {
 }
 
 pub fn system_locations() -> Vec<Location> {
-    let root = if cfg!(target_os = "windows") {
-        "C:\\"
-    } else {
-        "/"
-    };
-    let mut locations = vec![Location {
-        name: startup_volume_name(),
-        path: root.into(),
-        kind: "volume".into(),
-    }];
-    if let Some(home) = home_location() {
-        locations.push(home);
+    #[cfg(not(target_os = "macos"))]
+    {
+        let mut locations: Vec<Location> = crate::system::volumes::volumes()
+            .into_iter()
+            .map(|volume| Location {
+                name: volume.name,
+                path: volume.mount_point,
+                kind: "volume".into(),
+            })
+            .collect();
+        if let Some(home) = home_location() {
+            locations.push(home);
+        }
+        return locations;
     }
+
     #[cfg(target_os = "macos")]
-    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
-        locations.extend(macos_cloud_locations(&home));
+    {
+        let mut locations = vec![Location {
+            name: startup_volume_name(),
+            path: "/".into(),
+            kind: "volume".into(),
+        }];
+        if let Some(home) = home_location() {
+            locations.push(home);
+        }
+        if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+            locations.extend(macos_cloud_locations(&home));
+        }
+        locations
     }
-    locations
 }
 
 /// Cloud providers installed by macOS expose ordinary directories. Keeping them as local
