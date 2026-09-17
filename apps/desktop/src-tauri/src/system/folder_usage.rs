@@ -240,10 +240,13 @@ pub async fn folder_usage(
     scans: State<'_, FolderScans>,
 ) -> Result<FolderUsage, String> {
     let root = usage_root(root)?;
-    let scanning = scans.0.lock().unwrap().contains(&root);
-    load_folder_usage(&database.0, &root, scanning)
+    // Read the saved scan first: the pool has a single connection, so this waits for any scan
+    // that is mid-save. Checking the in-flight set afterwards keeps `scanning` from being stale.
+    let mut usage = load_folder_usage(&database.0, &root, false)
         .await
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    usage.scanning = scans.0.lock().unwrap().contains(&root);
+    Ok(usage)
 }
 
 pub const SCAN_PROGRESS_INTERVAL: std::time::Duration = std::time::Duration::from_millis(120);
