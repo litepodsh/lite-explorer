@@ -41,8 +41,11 @@ pub async fn open_database(
         .map(|location| location.path.as_str())
         .collect();
     if !volume_paths.is_empty() {
-        let placeholders = std::iter::repeat_n("?", volume_paths.len()).collect::<Vec<_>>().join(", ");
-        let sql = format!("DELETE FROM locations WHERE kind = 'volume' AND path NOT IN ({placeholders})");
+        let placeholders = std::iter::repeat_n("?", volume_paths.len())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql =
+            format!("DELETE FROM locations WHERE kind = 'volume' AND path NOT IN ({placeholders})");
         let mut query = sqlx::query(&sql);
         for path in &volume_paths {
             query = query.bind(path);

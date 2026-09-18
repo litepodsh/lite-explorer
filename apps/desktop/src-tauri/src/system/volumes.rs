@@ -222,7 +222,7 @@ pub fn volumes() -> Vec<VolumeInfo> {
     };
 
     fn probe_volume_blocking(root: String, letter: char, system_drive: char) -> Option<VolumeInfo> {
-        use windows_sys::Win32::Storage::FileSystem::{GetVolumeInformationW};
+        use windows_sys::Win32::Storage::FileSystem::GetVolumeInformationW;
         let root_wide = to_wide(&root);
         let stats = volume_stats(Path::new(&root))?;
         if stats.total_bytes == 0 {

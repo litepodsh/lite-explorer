@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type DirectoryEntry = { name: string; path: string; is_directory: boolean; is_hidden: boolean; size?: number; opened_at?: number; created?: number; kind?: "bucket" | "share"; relative_path?: string; snippet?: string; inner_path?: string };
+  export type DirectoryEntry = { name: string; path: string; is_directory: boolean; is_hidden: boolean; size?: number; sizeComplete?: boolean; opened_at?: number; created?: number; kind?: "bucket" | "share"; relative_path?: string; snippet?: string; inner_path?: string };
 </script>
 
 <script lang="ts">
@@ -128,6 +128,16 @@
   }
 </script>
 
+{#snippet sizeLabel()}
+  {#if entry.size != null}
+    {#key `${entry.size}:${entry.sizeComplete}`}
+      <span class:measured-size={entry.sizeComplete != null} title={entry.sizeComplete === false ? "Partial size · some contents are still unmeasured" : undefined}>{entry.sizeComplete === false ? "≥ " : ""}{formatSize(entry.size)}</span>
+    {/key}
+  {:else}
+    <span title={entry.sizeComplete === false ? "Size not calculated" : undefined}>—</span>
+  {/if}
+{/snippet}
+
 {#if view === "list"}
   <div
     role="row"
@@ -184,7 +194,9 @@
       {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </div>
     <div role="gridcell" class="px-2 text-xs text-[#9c9895]">{entryType(entry)}</div>
-    <div role="gridcell" class="px-2 text-right text-xs tabular-nums text-[#9c9895]">{entry.is_directory || entry.size == null ? "—" : formatSize(entry.size)}</div>
+    <div role="gridcell" class="px-2 text-right text-xs tabular-nums text-[#9c9895]">
+      {@render sizeLabel()}
+    </div>
     <div role="gridcell" class="px-2 text-right text-xs tabular-nums text-[#9c9895]">{entry.created == null ? "—" : formatDate(entry.created)}</div>
   </div>
 {:else}
@@ -230,14 +242,30 @@
     {:else}
       <span class="max-w-full truncate">{entry.name}</span>
     {/if}
+    {#if entry.sizeComplete != null}
+      <span class="text-[10px] tabular-nums text-[#9c9895]">{@render sizeLabel()}</span>
+    {/if}
   </button>
 {/if}
 
 <style>
+  .measured-size {
+    display: inline-block;
+    animation: size-reveal 240ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+  @keyframes size-reveal {
+    from { opacity: 0.3; transform: translateY(3px); color: #5cb9ff; }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .measured-size { animation: none; }
+  }
+
   .file-row {
     --ease: cubic-bezier(0.32, 0.72, 0, 1);
     box-shadow: inset 0 -1px 0 rgb(58 55 52 / 0.6);
     transition:
+      transform 240ms cubic-bezier(0.2, 0, 0, 1),
       background-color 140ms var(--ease),
       grid-template-columns 260ms var(--ease);
   }

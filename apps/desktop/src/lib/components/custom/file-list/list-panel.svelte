@@ -535,7 +535,7 @@
             <p class="p-4 text-center text-[13px] text-[#9c9895]">This folder is empty.</p>
           {:else}
             <div role="rowgroup" class="relative" style="height: {rows.totalSize}px;">
-              {#each rows.virtualItems as v (v.key)}
+              {#each rows.virtualItems as v (visibleEntries[v.index]?.path ?? v.key)}
                 {@const entry = visibleEntries[v.index]}
                 {#if entry}
                   {@const selected = selectedPaths.has(entry.path)}

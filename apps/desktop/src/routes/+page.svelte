@@ -16,6 +16,8 @@
   import PanelLeftIcon from "@lucide/svelte/icons/panel-left";
   import PanelRightCloseIcon from "@lucide/svelte/icons/panel-right-close";
   import PanelRightOpenIcon from "@lucide/svelte/icons/panel-right-open";
+  import CalculatorIcon from "@lucide/svelte/icons/calculator";
+  import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import Rows2Icon from "@lucide/svelte/icons/rows-2";
   import FinderSearch from "$lib/components/custom/finder-search.svelte";
   import AppSidebar from "$lib/components/custom/sidebar/app-sidebar.svelte";
@@ -705,7 +707,7 @@
   }
 
   let paletteCommands = $derived<PaletteCommand[]>(
-    PALETTE_COMMANDS.filter((id) => commands.available(id, keyboardContext("global"))).map((id) => ({
+    [...PALETTE_COMMANDS.filter((id) => commands.available(id, keyboardContext("global"))).map((id) => ({
       id,
       title: paletteTitle(id),
       shortcut: shortcutFor(id),
@@ -714,6 +716,14 @@
         if (result instanceof Promise) result.catch((error: unknown) => reportCommandError(paletteTitle(id), error));
       },
     })),
+    ...(activeController.canCalculateSizes || activeController.sizeScanning ? [{
+      id: "folder.calculateSizes",
+      title: activeController.sizeScanning ? "Cancel Size Calculation" : "Calculate Folder Sizes",
+      keywords: ["medir carpetas", "tamaños", "tamanos", "analizar", "directory sizes", "disk usage"],
+      shortcut: "",
+      run: () => activeController.sizeScanning
+        ? activeController.cancelSizeScan() : void activeController.calculateSizes(),
+    }] : [])],
   );
 
   /** What keyboard commands act on: the active pane at the moment of the key press. */
@@ -1008,6 +1018,17 @@
               aria-pressed={activeController.previewOpen}
               title={activeController.previewOpen ? "Hide preview" : "Show preview"}
               onclick={() => (activeController.previewOpen = !activeController.previewOpen)}>{#if activeController.previewOpen}<PanelRightCloseIcon />{:else}<PanelRightOpenIcon />{/if}</button>
+            <button
+              aria-label={activeController.sizeScanning ? "Cancel Size Calculation" : "Calculate Folder Sizes"}
+              title={activeController.sizeScanning ? "Cancel Size Calculation" : `Calculate Folder Sizes · ${activeController.selected}`}
+              disabled={!activeController.canCalculateSizes && !activeController.sizeScanning}
+              onclick={() => activeController.sizeScanning ? activeController.cancelSizeScan() : void activeController.calculateSizes()}>
+              {#if activeController.sizeScanning}
+                <LoaderCircleIcon class="animate-spin text-[#5cb9ff] motion-reduce:animate-none" />
+              {:else}
+                <CalculatorIcon />
+              {/if}
+            </button>
           </div>
         {/if}
         <div class="toolbar-group">

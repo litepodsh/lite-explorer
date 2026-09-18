@@ -1,5 +1,5 @@
 import { activity } from "$lib/transfers/jobs.js";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { message, open, save } from "@tauri-apps/plugin-dialog";
 import { createArchive } from "$lib/file-ops/archive.js";
 import { extraction } from "$lib/archive/extraction.svelte.js";
@@ -108,6 +108,81 @@ export class FilePaneController {
   recents = $state<Recent[]>([]);
   listing = $state(false);
   listingError = $state("");
+  sizeScanning = $state(false);
+  sizeScanMessage = $state("");
+  #sizeRequest = "";
+
+  get canCalculateSizes() {
+    return (
+      this.isBrowsableFolder() &&
+      !this.remoteListing &&
+      !isNetworkPath(this.listingPath) &&
+      !this.listing &&
+      !this.listingError &&
+      !this.disconnected &&
+      !this.searchQuery.trim()
+    );
+  }
+
+  async calculateSizes() {
+    if (!this.canCalculateSizes || this.sizeScanning) return;
+    const path = this.listingPath;
+    const requestId = crypto.randomUUID();
+    this.#sizeRequest = requestId;
+    this.sizeScanning = true;
+    this.sizeScanMessage = "";
+    for (const entry of this.entries) {
+      if (entry.is_directory) {
+        entry.size = undefined;
+        entry.sizeComplete = false;
+      }
+    }
+    this.navigator?.sort("size", "desc");
+    const channel = new Channel<{
+      sizes: { path: string; size: number; complete: boolean }[];
+      done: boolean;
+      error: string | null;
+    }>();
+    channel.onmessage = (update) => {
+      if (this.#sizeRequest !== requestId || this.listingPath !== path) return;
+      for (const item of update.sizes) {
+        const index = this.entryIndex.get(item.path);
+        if (index !== undefined) {
+          this.entries[index].size = item.size;
+          this.entries[index].sizeComplete = item.complete;
+        }
+      }
+      if (update.done) {
+        this.#sizeRequest = "";
+        this.sizeScanning = false;
+        this.sizeScanMessage = update.error
+          ? `Couldn’t calculate sizes: ${update.error}`
+          : this.entries.some((entry) => entry.sizeComplete === false)
+            ? "Sizes calculated · some items could not be read"
+            : "Sizes calculated";
+      }
+    };
+    try {
+      await invoke("scan_directory_sizes", { path, requestId, onProgress: channel });
+      // Cancellation can arrive while the start command is still being dispatched.
+      if (this.#sizeRequest !== requestId)
+        void invoke("cancel_directory_size_scan", { requestId }).catch(console.error);
+    } catch (error) {
+      if (this.#sizeRequest !== requestId) return;
+      this.#sizeRequest = "";
+      this.sizeScanning = false;
+      this.sizeScanMessage = `Couldn’t calculate sizes: ${String(error)}`;
+    }
+  }
+
+  cancelSizeScan() {
+    const requestId = this.#sizeRequest;
+    this.#sizeRequest = "";
+    if (!requestId) return;
+    this.sizeScanning = false;
+    this.sizeScanMessage = "Calculation cancelled · partial sizes kept";
+    void invoke("cancel_directory_size_scan", { requestId }).catch(console.error);
+  }
   /** Trackpad swipe in progress: the listing follows the finger. Amount is -1..1. */
   swipeActive = $state(false);
   swipeSettling = $state(false);
@@ -370,6 +445,8 @@ export class FilePaneController {
   }
 
   async loadLocation(location: Location) {
+    this.cancelSizeScan();
+    this.sizeScanMessage = "";
     this.#endSwipe();
     this.clearSearch();
     this.visual = null;
@@ -554,7 +631,8 @@ export class FilePaneController {
     if (payload.path !== this.listingPath) return;
     for (const item of payload.sizes) {
       const index = this.entryIndex.get(item.path);
-      if (index !== undefined) this.entries[index].size = item.size;
+      if (index !== undefined && this.entries[index].sizeComplete == null)
+        this.entries[index].size = item.size;
     }
   }
 
@@ -607,6 +685,8 @@ export class FilePaneController {
 
   async refreshListing(path: string) {
     if (this.listingPath !== path || !path || this.selected === "Recents") return;
+    this.cancelSizeScan();
+    this.sizeScanMessage = "";
     try {
       const result = await invoke<DirectoryEntry[]>("read_directory", { path });
       if (this.listingPath === path) {

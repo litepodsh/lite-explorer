@@ -19,9 +19,9 @@ pub(crate) use preview::{
 
 use app::db::open_database;
 use app::swipe_nav;
-use app::window::{restore_window_state, save_window_state};
 #[cfg(target_os = "macos")]
 use app::window::unlock_webview_frame_rate;
+use app::window::{restore_window_state, save_window_state};
 use system::folder_usage::FolderScans;
 use tauri::{Manager, WindowEvent};
 
@@ -139,6 +139,8 @@ pub fn run() {
             media::viewer::open_viewer,
             media::viewer::viewer_target,
             explorer::sizes::compute_directory_sizes,
+            explorer::sizes::scan_directory_sizes,
+            explorer::sizes::cancel_directory_size_scan,
             preview::read_file_preview,
             explorer::recents::record_recent,
             explorer::recents::recents,

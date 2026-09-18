@@ -1,4 +1,6 @@
 <script lang="ts">
+  import CalculatorIcon from "@lucide/svelte/icons/calculator";
+  import { onDestroy } from "svelte";
   import Clock3Icon from "@lucide/svelte/icons/clock-3";
   import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
   import FolderIcon from "@lucide/svelte/icons/folder";
@@ -80,6 +82,8 @@
     keyboardMode?: "standard" | "yazi";
     pendingKeys?: string;
   } = $props();
+
+  onDestroy(() => controller.cancelSizeScan());
 
   let statusPath = $derived(controller.selected === "Overview" ? "" : controller.listingPath);
 
@@ -413,6 +417,13 @@
           {/if}
           {#if !controller.serverRoot}<ContextMenu.Separator />{/if}
         {/if}
+        {#if !controller.contextTargets.length && controller.canCalculateSizes}
+          <ContextMenu.Item onSelect={() => controller.sizeScanning ? controller.cancelSizeScan() : void controller.calculateSizes()}>
+            <CalculatorIcon class="size-4" />
+            {controller.sizeScanning ? "Cancel Size Calculation" : "Calculate Sizes"}
+          </ContextMenu.Item>
+          <ContextMenu.Separator />
+        {/if}
         {#if !controller.remoteRoot && !controller.serverRoot}
           <ContextMenu.Item onSelect={() => void controller.createItem("folder")}>
             <FolderPlusIcon class="size-4" />
@@ -449,6 +460,9 @@
 
   <PathStatusBar
     {showFps}
+    sizeScanning={controller.sizeScanning}
+    sizeScanMessage={controller.sizeScanMessage}
+    onCancelSizeScan={() => controller.cancelSizeScan()}
     {keyboardMode}
     {pendingKeys}
     visual={Boolean(controller.visual)}

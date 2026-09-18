@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	export type PaletteCommand = { id: string; title: string; shortcut: string; run: () => void };
+	export type PaletteCommand = { id: string; title: string; keywords?: string[]; shortcut: string; run: () => void };
 </script>
 
 <script lang="ts">
@@ -183,7 +183,7 @@
 		});
 	});
 
-	const commandFuse = $derived(new Fuse(commands, { threshold: 0.4, ignoreLocation: true, keys: ["title"] }));
+	const commandFuse = $derived(new Fuse(commands, { threshold: 0.4, ignoreLocation: true, keys: ["title", "keywords"] }));
 	const commandResults = $derived(trimmed ? commandFuse.search(trimmed).map((result) => result.item) : commands);
 
 	function runCommand(command: PaletteCommand) {
