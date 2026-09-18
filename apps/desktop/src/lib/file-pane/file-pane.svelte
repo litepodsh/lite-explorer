@@ -24,6 +24,7 @@
   import ArchiveIcon from "@lucide/svelte/icons/archive";
   import FolderOutputIcon from "@lucide/svelte/icons/folder-output";
   import UnplugIcon from "@lucide/svelte/icons/unplug";
+  import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
   import type { Location } from "$lib/tabs/tabs.js";
   import { networkStatus } from "$lib/remote/network-status.svelte.js";
   import { isArchive } from "$lib/file-ops/archive.js";
@@ -38,6 +39,7 @@
   import { formatSize } from "$lib/components/custom/preview/format.js";
   import { swipeTransforms } from "$lib/swipe/gesture.js";
   import type { FilePaneController } from "./controller.svelte.js";
+  import AppleIntelligenceMark from "$lib/components/custom/ai/apple-intelligence-mark.svelte";
 
   let {
     controller,
@@ -290,7 +292,11 @@
           previewOpen={controller.previewOpen}
           onReorder={(reordered: DirectoryEntry[]) => (controller.entries = reordered)}
           onRename={(oldPath, newName) => controller.renameItem(oldPath, newName)}
-          onRenameCancel={() => controller.cancelRename()} />
+          onRenameCancel={() => controller.cancelRename()}
+          aiNameAvailable={controller.aiNameAvailable}
+          aiSuggestPath={controller.aiSuggestPath}
+          onSuggestName={(entry) => controller.suggestName(entry.path)}
+          onSuggestHandled={() => controller.clearSuggestionRequest()} />
       </ContextMenu.Trigger>
       <ContextMenu.Content onCloseAutoFocus={(event) => { if (controller.renamingPath) event.preventDefault(); }}>
         {#if controller.contextTargets.length}
@@ -365,6 +371,12 @@
                 <PencilIcon class="size-4" />
                 Rename
               </ContextMenu.Item>
+              {#if controller.aiNameAvailable}
+                <ContextMenu.Item onSelect={() => controller.suggestContextTargetName()}>
+                  <AppleIntelligenceMark size={15} />
+                  Suggest Name
+                </ContextMenu.Item>
+              {/if}
             {/if}
             <ContextMenu.Item onSelect={() => void controller.duplicateContextTargets()}>
               <CopyPlusIcon class="size-4" />
@@ -415,15 +427,20 @@
                 : count > 1 ? `Delete ${count} Items…` : "Delete…"}
             </ContextMenu.Item>
           {/if}
-          {#if !controller.serverRoot}<ContextMenu.Separator />{/if}
         {/if}
         {#if !controller.contextTargets.length && controller.canCalculateSizes}
           <ContextMenu.Item onSelect={() => controller.sizeScanning ? controller.cancelSizeScan() : void controller.calculateSizes()}>
             <CalculatorIcon class="size-4" />
             {controller.sizeScanning ? "Cancel Size Calculation" : "Calculate Sizes"}
           </ContextMenu.Item>
+        {/if}
+        {#if controller.contextTargets.length || controller.canCalculateSizes}
           <ContextMenu.Separator />
         {/if}
+        <ContextMenu.Item onSelect={() => void controller.refreshListing(controller.listingPath)}>
+          <RefreshCwIcon class="size-4" />
+          Refresh
+        </ContextMenu.Item>
         {#if !controller.remoteRoot && !controller.serverRoot}
           <ContextMenu.Item onSelect={() => void controller.createItem("folder")}>
             <FolderPlusIcon class="size-4" />

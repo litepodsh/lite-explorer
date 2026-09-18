@@ -175,6 +175,10 @@ export const EXTENDED_BINDINGS: Binding[] = [
     where: ["input"],
   }),
   binding(["<F2>"], "file.rename", "Rename", "Files", { repeat: false }),
+  binding(["Mod+Shift+R"], "file.suggestName", "Suggest name with Apple Intelligence", "Files", {
+    repeat: false,
+    platforms: ["macos"],
+  }),
   binding(["Mod+Alt+C"], "file.copyPath", "Copy path", "Files", { repeat: false }),
   binding(["Mod+L"], "palette.goToPath", "Go to path", "Search", {
     scope: "global",

@@ -41,6 +41,10 @@
     onRename,
     onRenameCancel,
     onContextMenu,
+    aiNameAvailable = false,
+    aiSuggestPath = "",
+    onSuggestName,
+    onSuggestHandled,
     onExternalDrop,
     previewPath = "",
     previewOpen = true,
@@ -76,6 +80,12 @@
     onRename?: (oldPath: string, newName: string) => void;
     onRenameCancel?: () => void;
     onContextMenu?: (entry: DirectoryEntry) => void;
+    /** Apple Intelligence is ready, so the rename field can suggest a name. */
+    aiNameAvailable?: boolean;
+    /** Path whose rename field was opened by a suggestion request (menu item or shortcut). */
+    aiSuggestPath?: string;
+    onSuggestName?: (entry: DirectoryEntry) => Promise<string | null>;
+    onSuggestHandled?: () => void;
     onExternalDrop?: (paths: string[], options: { move: boolean }) => void;
     previewPath?: string;
     previewOpen?: boolean;
@@ -559,6 +569,10 @@
                     {onRename}
                     {onRenameCancel}
                     {onContextMenu}
+                    {aiNameAvailable}
+                    aiSuggest={entry.path === aiSuggestPath}
+                    {onSuggestName}
+                    {onSuggestHandled}
                     dropTarget={entry.path === drag.overEntryPath}
                     pasted={pastedPaths.has(entry.path)}
                     {searchQuery}
@@ -591,6 +605,10 @@
                     {onRename}
                     {onRenameCancel}
                     {onContextMenu}
+                    {aiNameAvailable}
+                    aiSuggest={entry.path === aiSuggestPath}
+                    {onSuggestName}
+                    {onSuggestHandled}
                     dropTarget={entry.path === drag.overEntryPath}
                     pasted={pastedPaths.has(entry.path)}
                     {searchQuery}

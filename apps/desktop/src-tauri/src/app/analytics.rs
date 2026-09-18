@@ -19,18 +19,22 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
+use uuid::Uuid;
 
 /// Matches `identifier` in `tauri.conf.json`.
 const IDENTIFIER: &str = "xyz.sebasgc.liteexplorer";
 const PREFS_FILE: &str = "analytics.json";
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default)]
 pub struct AnalyticsPrefs {
     /// Anonymous crash and error reports. On by default.
     pub enabled: bool,
     /// Whether the first-run welcome has already been shown.
     pub welcome_seen: bool,
+    /// Random id for this install. Sent as the Sentry `user.id` so Sentry can count
+    /// unique installs. Not tied to any account, hardware or path.
+    pub install_id: String,
 }
 
 impl Default for AnalyticsPrefs {
@@ -38,6 +42,7 @@ impl Default for AnalyticsPrefs {
         Self {
             enabled: true,
             welcome_seen: false,
+            install_id: Uuid::now_v7().to_string(),
         }
     }
 }
@@ -52,20 +57,31 @@ impl Analytics {
     /// Reads the saved preference, or the default (enabled) on a first run.
     pub fn load() -> Self {
         let path = prefs_path();
-        let prefs = fs::read(&path)
+        let mut prefs = fs::read(&path)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<AnalyticsPrefs>(&bytes).ok())
             .unwrap_or_default();
-        eprintln!(
-            "[analytics] preference file: {} (enabled: {})",
-            path.display(),
-            prefs.enabled
-        );
-        Self {
-            gate: Arc::new(AtomicBool::new(prefs.enabled)),
-            prefs: Mutex::new(prefs),
-            path,
+        // Files written before the id existed deserialize with an empty one.
+        let is_new = prefs.install_id.is_empty();
+        if is_new {
+            prefs.install_id = Uuid::now_v7().to_string();
         }
+        eprintln!(
+            "[analytics] preference file: {} (enabled: {}, install: {})",
+            path.display(),
+            prefs.enabled,
+            prefs.install_id
+        );
+        let analytics = Self {
+            gate: Arc::new(AtomicBool::new(prefs.enabled)),
+            prefs: Mutex::new(prefs.clone()),
+            path,
+        };
+        // The id must survive the very first run, otherwise every launch counts as new.
+        if is_new {
+            analytics.store(prefs);
+        }
+        analytics
     }
 
     /// Shared "is reporting enabled" flag read by the Sentry hooks. Flipped live.
@@ -78,7 +94,12 @@ impl Analytics {
     }
 
     pub fn prefs(&self) -> AnalyticsPrefs {
-        *self.lock()
+        self.lock().clone()
+    }
+
+    /// Anonymous per-install id, minted on first run and stable afterwards.
+    pub fn install_id(&self) -> String {
+        self.lock().install_id.clone()
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, AnalyticsPrefs> {
@@ -87,7 +108,7 @@ impl Analytics {
 
     fn store(&self, prefs: AnalyticsPrefs) {
         self.gate.store(prefs.enabled, Ordering::Relaxed);
-        *self.lock() = prefs;
+        *self.lock() = prefs.clone();
         if let Some(parent) = self.path.parent() {
             let _ = fs::create_dir_all(parent);
         }
@@ -143,7 +164,10 @@ fn dsn() -> Option<sentry::types::Dsn> {
 /// Creates the Sentry client. The returned guard must stay alive for the app's lifetime.
 /// Without a DSN (no `.env`, no CI secret) the client is created disabled and captures
 /// nothing. An unreachable server only stalls the background transport, never startup.
-pub fn init_sentry(gate: Arc<AtomicBool>) -> sentry::ClientInitGuard {
+///
+/// `install_id` is attached as the Sentry `user.id`: that is what turns events and
+/// sessions into a unique-user count in the dashboard.
+pub fn init_sentry(gate: Arc<AtomicBool>, install_id: &str) -> sentry::ClientInitGuard {
     let before_send_gate = gate.clone();
     // Development builds never report: debug noise stays on the machine.
     let parsed_dsn = if cfg!(debug_assertions) { None } else { dsn() };
@@ -171,8 +195,10 @@ pub fn init_sentry(gate: Arc<AtomicBool>) -> sentry::ClientInitGuard {
         }
         .into(),
     );
-    // Sessions are noise for a file manager and can't be dropped by `before_send`.
-    options.auto_session_tracking = false;
+    // Release health: sessions are what Sentry turns into a Users/Sessions count.
+    // They bypass `before_send`, so they start only when reporting is on and are
+    // stopped by hand in `save_analytics` when the user opts out.
+    options.auto_session_tracking = gate.load(Ordering::Relaxed) && !cfg!(debug_assertions);
     // Both the Rust SDK and the browser events forwarded by the Tauri plugin run
     // through these hooks, so flipping the gate stops reports immediately.
     options.before_send = Some(Arc::new(move |event| {
@@ -189,7 +215,28 @@ pub fn init_sentry(gate: Arc<AtomicBool>) -> sentry::ClientInitGuard {
     options.before_breadcrumb = Some(Arc::new(move |breadcrumb| {
         (gate.load(Ordering::Relaxed) && !cfg!(debug_assertions)).then_some(breadcrumb)
     }));
-    sentry::init(options)
+    let guard = sentry::init(options);
+    sentry::configure_scope(|scope| {
+        scope.set_user(Some(sentry::protocol::User {
+            id: Some(install_id.to_string()),
+            ..Default::default()
+        }));
+    });
+    guard
+}
+
+/// One event per fresh install, so "new installs" can be split from returning users.
+/// Dropped by the gate like any other event when reporting is off.
+pub fn capture_first_run(welcome_seen: bool) {
+    if welcome_seen {
+        return;
+    }
+    sentry::with_scope(
+        |scope| scope.set_tag("install", "first_run"),
+        || {
+            sentry::capture_message("first_run", sentry::Level::Info);
+        },
+    );
 }
 
 /// Starts the native-crash reporter process. Skipped when reporting is off or there is
@@ -225,9 +272,17 @@ pub fn save_analytics(
     welcome_seen: bool,
 ) -> AnalyticsPrefs {
     let enabled = if is_locked(&app) { true } else { enabled };
+    let was_enabled = analytics.enabled();
     analytics.store(AnalyticsPrefs {
         enabled,
         welcome_seen,
+        install_id: analytics.install_id(),
     });
+    // Sessions ignore `before_send`, so opting out has to end the session itself.
+    if was_enabled && !enabled {
+        sentry::end_session();
+    } else if !was_enabled && enabled {
+        sentry::start_session();
+    }
     analytics.prefs()
 }

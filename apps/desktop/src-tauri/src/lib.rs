@@ -1,3 +1,4 @@
+mod ai;
 mod app;
 mod explorer;
 mod media;
@@ -28,15 +29,23 @@ use tauri::{Manager, WindowEvent};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let analytics = app::analytics::Analytics::load();
-    let sentry_client = app::analytics::init_sentry(analytics.gate());
+    let sentry_client = app::analytics::init_sentry(analytics.gate(), &analytics.install_id());
     app::analytics::init_minidump(&sentry_client, analytics.enabled());
-    media::register(tauri::Builder::default())
+    app::analytics::capture_first_run(analytics.prefs().welcome_seen);
+    let mut builder = media::register(tauri::Builder::default())
         .plugin(tauri_plugin_sentry::init(&sentry_client))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_process::init());
+    // Apple Intelligence is macOS 26+ on Apple silicon only; the crate's prebuilt dylib is arm64
+    // and would not link for any other target.
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    {
+        builder = builder.plugin(tauri_plugin_apple_intelligence::init());
+    }
+    builder
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 restore_window_state(&window);
@@ -75,6 +84,8 @@ pub fn run() {
         .on_menu_event(|app, event| app::menu::handle(app, event.id().as_ref()))
         .invoke_handler(tauri::generate_handler![
             app::general::os_detection,
+            ai::apple_intelligence_status,
+            ai::suggest_name,
             app::analytics::analytics_prefs,
             app::analytics::save_analytics,
             app::icons::file_icons,

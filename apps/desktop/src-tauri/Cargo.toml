@@ -1,6 +1,6 @@
 [package]
 name = "liteexplorer"
-version = "0.1.7"
+version = "0.1.8"
 description = "A cross-platform file explorer for local files, network shares, and cloud storage"
 authors = ["Litepod Studio"]
 license = "MIT"
@@ -42,7 +42,7 @@ keyring = "4.2"
 percent-encoding = "2"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "rt", "sync", "time"] }
 tokio-util = "0.7"
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "v7"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 tar = "0.4"
 flate2 = "1"
@@ -66,6 +66,7 @@ sentry = { version = "0.49", default-features = false, features = [
   "backtrace",
   "contexts",
   "panic",
+  "release-health",
   "reqwest",
   "rustls",
 ] }
@@ -97,6 +98,11 @@ objc2-foundation = { version = "0.3", features = [
   "NSURL",
   "block2",
 ] }
+
+# Apple Intelligence needs macOS 26+ on Apple silicon, and the plugin ships a prebuilt
+# arm64-only Swift dylib, so the dependency is scoped to the only target that can use it.
+[target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
+tauri-plugin-apple-intelligence = "0.12"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.60", features = [

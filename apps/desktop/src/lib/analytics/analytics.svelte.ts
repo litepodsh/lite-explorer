@@ -1,7 +1,11 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 
-export type AnalyticsPrefs = { enabled: boolean; welcome_seen: boolean };
+export type AnalyticsPrefs = {
+  enabled: boolean;
+  welcome_seen: boolean;
+  install_id: string;
+};
 
 /** Reports are anonymous, only cover crashes/errors on the user's OS, and are locked
  *  on while the app is below 1.0. The Rust side enforces the same rule. */

@@ -58,7 +58,9 @@ import {
   type VisualState,
 } from "$lib/selection/selection.js";
 import { settings } from "$lib/settings/settings.svelte.js";
+import { appleIntelligence } from "$lib/ai/apple-intelligence.svelte.js";
 import type { SortColumn, SortDir } from "$lib/components/custom/file-list/sort.js";
+import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
 import type { CopyTextKind } from "$lib/keyboard/context.js";
 import { fileStem } from "$lib/keyboard/text.js";
 import type { SwipeDirection } from "$lib/swipe/gesture.js";
@@ -193,6 +195,8 @@ export class FilePaneController {
   /** Saved network location whose share or session is gone, shown with a Reconnect button. */
   disconnected = $state<Location | null>(null);
   renamingPath = $state("");
+  /** Rename field that opened to receive a suggested name right away. */
+  aiSuggestPath = $state("");
   /** Entries the open context menu acts on: the selection when the menu opened on it. */
   contextTargets = $state<DirectoryEntry[]>([]);
   previewEntryPath = $state("");
@@ -651,7 +655,7 @@ export class FilePaneController {
     const name = nextDefaultName(kind);
     try {
       const entry = await createItemActions[kind].create(this.listingPath, name);
-      this.entries = await invoke<DirectoryEntry[]>("read_directory", { path: this.listingPath });
+      this.addEntry(entry);
       this.selectEntry(entry);
       this.renamingPath = entry.path;
     } catch (error) {
@@ -668,31 +672,62 @@ export class FilePaneController {
         parentPath(oldPath),
         () => invoke("rename_item", { path: oldPath, newName }),
       );
+      this.applyRename(oldPath, newName);
     } catch (error) {
       if (isRemoteLike(oldPath)) void this.showError("Couldn’t rename", error);
       else this.listingError = error instanceof Error ? error.message : String(error);
     } finally {
-      if (this.isBrowsableFolder()) {
-        this.entries = await invoke<DirectoryEntry[]>("read_directory", { path: this.listingPath });
-      }
       this.renamingPath = "";
+      this.aiSuggestPath = "";
     }
+  }
+
+  /** Renames the listed entry without re-reading the folder, so its measured size stays. */
+  private applyRename(oldPath: string, newName: string) {
+    const index = this.entryIndex.get(oldPath);
+    if (index === undefined) return;
+    const newPath = `${parentPath(oldPath)}${newName}`;
+    this.setEntries(renameEntry(this.entries, oldPath, newPath, newName));
+    const { paths, anchor, focus } = this.selection;
+    if (!paths.includes(oldPath) && anchor !== oldPath && focus !== oldPath) return;
+    const swap = (path: string) => (path === oldPath ? newPath : path);
+    this.setSelection({
+      paths: paths.map(swap),
+      anchor: swap(anchor),
+      focus: swap(focus),
+    });
+  }
+
+  /** Adds a created or pasted entry to the listing without re-reading the folder. */
+  addEntry(entry: DirectoryEntry) {
+    this.setEntries(upsertEntry(this.entries, entry));
+  }
+
+  /** Drops deleted entries from the listing right away, keeping the sizes already measured. */
+  removeEntries(paths: string[]) {
+    if (paths.length === 0) return;
+    this.setEntries(removePaths(this.entries, paths));
+    this.pruneSelection();
+  }
+
+  /** Replaces the listing and keeps the copy used by history navigation in sync. */
+  private setEntries(entries: DirectoryEntry[]) {
+    this.entries = entries;
+    if (this.listingPath) this.#listingCache.set(this.listingPath, entries);
   }
 
   async showError(title: string, error: unknown) {
     await message(error instanceof Error ? error.message : String(error), { title, kind: "error" });
   }
 
+  /** Folds a fresh read of the folder into the listing: measured sizes and the scan survive. */
   async refreshListing(path: string) {
     if (this.listingPath !== path || !path || this.selected === "Recents") return;
-    this.cancelSizeScan();
-    this.sizeScanMessage = "";
     try {
       const result = await invoke<DirectoryEntry[]>("read_directory", { path });
-      if (this.listingPath === path) {
-        this.entries = result;
-        this.pruneSelection();
-      }
+      if (this.listingPath !== path) return;
+      this.setEntries(mergeListing(this.entries, result));
+      this.pruneSelection();
     } catch (error) {
       this.listingError = error instanceof Error ? error.message : String(error);
     }
@@ -700,6 +735,43 @@ export class FilePaneController {
 
   renameContextTarget() {
     if (this.contextTarget) this.renamingPath = this.contextTarget.path;
+  }
+
+  /** Whether the rename field may offer Apple Intelligence suggestions here. */
+  get aiNameAvailable(): boolean {
+    return settings.current.aiNameSuggestions && appleIntelligence.available;
+  }
+
+  /** Opens the rename field on the context target and asks for a name immediately. */
+  suggestContextTargetName() {
+    const target = this.contextTarget;
+    if (!target || !this.aiNameAvailable) return;
+    this.renamingPath = target.path;
+    this.aiSuggestPath = target.path;
+  }
+
+  /** The rename field has taken the request; stop asking for it. */
+  clearSuggestionRequest() {
+    if (this.aiSuggestPath) this.aiSuggestPath = "";
+  }
+
+  /** Suggests a name for `path`, or null when the model is unavailable or failed. */
+  async suggestName(path: string): Promise<string | null> {
+    if (!this.aiNameAvailable) return null;
+    try {
+      return await appleIntelligence.suggestName(path);
+    } catch (error) {
+      void this.showError("Couldn’t suggest a name", error);
+      return null;
+    }
+  }
+
+  /** Keyboard entry: opens the rename field on the focused item and asks for a name. */
+  suggestNameFocused(showHidden: boolean): boolean {
+    if (!this.aiNameAvailable) return false;
+    if (!this.renameFocused(showHidden)) return false;
+    this.aiSuggestPath = this.renamingPath;
+    return true;
   }
 
   deleteContextTargets() {
@@ -747,12 +819,16 @@ export class FilePaneController {
           else if (remote) await deleteRemoteItems(paths);
           else if (irreversible) for (const path of paths) await deleteItem(path);
           else for (const path of paths) await trashItem(path);
-        } finally {
+        } catch (error) {
           await this.refreshListing(folder);
-          this.pruneSelection();
-          if (nextFocus && this.selection.paths.length === 0) {
-            this.setSelection({ paths: [], anchor: nextFocus, focus: nextFocus });
-          }
+          if (remote || bucket)
+            await this.showError(`Couldn’t delete ${targetLabel(targets)}`, error);
+          else this.listingError = error instanceof Error ? error.message : String(error);
+          return;
+        }
+        this.removeEntries(paths);
+        if (nextFocus && this.selection.paths.length === 0) {
+          this.setSelection({ paths: [], anchor: nextFocus, focus: nextFocus });
         }
       },
     });
@@ -807,6 +883,7 @@ export class FilePaneController {
 
   cancelRename() {
     this.renamingPath = "";
+    this.aiSuggestPath = "";
   }
 
   /** Right-click on a selected entry acts on the whole selection; on another entry it selects only that one. */

@@ -150,9 +150,9 @@
   <footer class="command-surface-footer">
     <button type="button" class="shortcut-mode-toggle" onclick={onToggleMode}
       >{mode === "yazi" ? "Turn off Yazi mode" : "Turn on Yazi mode"}</button>
-    <span><Kbd.Kbd>↑</Kbd.Kbd><Kbd.Kbd>↓</Kbd.Kbd> move</span>
-    <span><Kbd.Kbd>{recordLabel}</Kbd.Kbd> record keys</span>
-    <span><Kbd.Kbd>Esc</Kbd.Kbd> clear, close</span>
+    <span><Kbd.Kbd>↑</Kbd.Kbd><Kbd.Kbd>↓</Kbd.Kbd><span class="command-surface-footer-label">move</span></span>
+    <span><Kbd.Kbd>{recordLabel}</Kbd.Kbd><span class="command-surface-footer-label">record keys</span></span>
+    <span><Kbd.Kbd>Esc</Kbd.Kbd><span class="command-surface-footer-label">clear, close</span></span>
   </footer>
 </Command.Dialog>
 

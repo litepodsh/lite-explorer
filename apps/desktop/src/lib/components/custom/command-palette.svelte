@@ -378,7 +378,7 @@
 	bind:open={commandPaletteState.open}
 	bind:value={selectedValue}
 	shouldFilter={false}
-	class="command-surface top-[16vh]! w-[min(42rem,calc(100%-2rem))] max-w-none rounded-[14px]! p-0 shadow-2xl ring-0! bg-transparent!"
+	class="command-surface top-[16vh]! w-[min(39.2rem,calc(100%-2rem))]! max-w-none! rounded-[14px]! p-0 shadow-2xl ring-0! bg-transparent!"
 	title="Command Palette"
 	description="Search commands, favorites, locations and paths">
 	<Command.Input
@@ -389,20 +389,6 @@
 		onkeyup={(e: KeyboardEvent) => (newTabHeld = e.metaKey || e.ctrlKey)} />
 	<Command.List>
 		<Command.Empty>No results found.</Command.Empty>
-
-		{#if commandResults.length && !isPathQuery}
-			<Command.Group heading="Commands">
-				{#each commandResults as command (command.id)}
-					<Command.Item value={command.id} onSelect={() => runCommand(command)}>
-						<TerminalIcon class="size-4 text-muted-foreground" />
-						<span class="min-w-0 flex-1 truncate">{command.title}</span>
-						{#if command.shortcut}
-							<span class="ml-auto text-xs text-muted-foreground">{command.shortcut}</span>
-						{/if}
-					</Command.Item>
-				{/each}
-			</Command.Group>
-		{/if}
 
 		{#if pathResults.length}
 			<Command.Group heading="Go to Folder">
@@ -447,6 +433,20 @@
 			</Command.Group>
 		{/if}
 
+		{#if commandResults.length && !isPathQuery}
+			<Command.Group heading="Commands">
+				{#each commandResults as command (command.id)}
+					<Command.Item value={command.id} onSelect={() => runCommand(command)}>
+						<TerminalIcon class="size-4 text-muted-foreground" />
+						<span class="min-w-0 flex-1 truncate">{command.title}</span>
+						{#if command.shortcut}
+							<span class="ml-auto text-xs text-muted-foreground">{command.shortcut}</span>
+						{/if}
+					</Command.Item>
+				{/each}
+			</Command.Group>
+		{/if}
+
 		{#if locationResults.length}
 			<Command.Group heading="Locations">
 				{#each locationResults as item (item.id)}
@@ -484,11 +484,11 @@
 		{/if}
 	</Command.List>
 	<footer class="command-surface-footer">
-		<span><Kbd.Kbd>↑</Kbd.Kbd><Kbd.Kbd>↓</Kbd.Kbd> navigate</span>
-		<span><Kbd.Kbd>Tab</Kbd.Kbd> complete / cycle</span>
-		<span><Kbd.Kbd>↵</Kbd.Kbd> open</span>
-		<span><Kbd.Kbd>⌘</Kbd.Kbd><Kbd.Kbd>↵</Kbd.Kbd> new tab</span>
-		<span><Kbd.Kbd>?</Kbd.Kbd> shortcuts</span>
-		<span><Kbd.Kbd>Esc</Kbd.Kbd> close</span>
+		<span><Kbd.Kbd>↑</Kbd.Kbd><Kbd.Kbd>↓</Kbd.Kbd><span class="command-surface-footer-label">navigate</span></span>
+		<span><Kbd.Kbd>Tab</Kbd.Kbd><span class="command-surface-footer-label">complete / cycle</span></span>
+		<span><Kbd.Kbd>↵</Kbd.Kbd><span class="command-surface-footer-label">open</span></span>
+		<span><Kbd.Kbd>⌘</Kbd.Kbd><Kbd.Kbd>↵</Kbd.Kbd><span class="command-surface-footer-label">new tab</span></span>
+		<span><Kbd.Kbd>?</Kbd.Kbd><span class="command-surface-footer-label">shortcuts</span></span>
+		<span><Kbd.Kbd>Esc</Kbd.Kbd><span class="command-surface-footer-label">close</span></span>
 	</footer>
 </Command.Dialog>
