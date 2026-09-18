@@ -117,19 +117,35 @@
 
 .command-surface .command-surface-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.9rem;
+  column-gap: 0.9rem;
+  row-gap: 0.35rem;
   border-top: 1px solid #3d3a37;
   padding: 0.65rem 0.9rem;
   color: #8d8986;
   font-size: 11.5px;
 }
 
-.command-surface .command-surface-footer span {
+.command-surface .command-surface-footer > span {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.25rem;
+  flex: 0 1 auto;
+}
+
+.command-surface .command-surface-footer [data-slot="kbd"] {
+  flex: 0 0 auto;
+}
+
+/* When a hint runs out of room, the label drops below its keys. */
+.command-surface .command-surface-footer .command-surface-footer-label {
+  flex: 0 1 auto;
+  min-width: max-content;
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-transparency: reduce) {

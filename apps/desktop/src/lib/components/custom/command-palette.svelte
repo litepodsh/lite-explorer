@@ -378,7 +378,7 @@
 	bind:open={commandPaletteState.open}
 	bind:value={selectedValue}
 	shouldFilter={false}
-	class="command-surface top-[16vh]! w-[min(42rem,calc(100%-2rem))] max-w-none rounded-[14px]! p-0 shadow-2xl ring-0! bg-transparent!"
+	class="command-surface top-[16vh]! w-[min(39.2rem,calc(100%-2rem))]! max-w-none! rounded-[14px]! p-0 shadow-2xl ring-0! bg-transparent!"
 	title="Command Palette"
 	description="Search commands, favorites, locations and paths">
 	<Command.Input
@@ -484,11 +484,11 @@
 		{/if}
 	</Command.List>
 	<footer class="command-surface-footer">
-		<span><Kbd.Kbd>↑</Kbd.Kbd><Kbd.Kbd>↓</Kbd.Kbd> navigate</span>
-		<span><Kbd.Kbd>Tab</Kbd.Kbd> complete / cycle</span>
-		<span><Kbd.Kbd>↵</Kbd.Kbd> open</span>
-		<span><Kbd.Kbd>⌘</Kbd.Kbd><Kbd.Kbd>↵</Kbd.Kbd> new tab</span>
-		<span><Kbd.Kbd>?</Kbd.Kbd> shortcuts</span>
-		<span><Kbd.Kbd>Esc</Kbd.Kbd> close</span>
+		<span><Kbd.Kbd>↑</Kbd.Kbd><Kbd.Kbd>↓</Kbd.Kbd><span class="command-surface-footer-label">navigate</span></span>
+		<span><Kbd.Kbd>Tab</Kbd.Kbd><span class="command-surface-footer-label">complete / cycle</span></span>
+		<span><Kbd.Kbd>↵</Kbd.Kbd><span class="command-surface-footer-label">open</span></span>
+		<span><Kbd.Kbd>⌘</Kbd.Kbd><Kbd.Kbd>↵</Kbd.Kbd><span class="command-surface-footer-label">new tab</span></span>
+		<span><Kbd.Kbd>?</Kbd.Kbd><span class="command-surface-footer-label">shortcuts</span></span>
+		<span><Kbd.Kbd>Esc</Kbd.Kbd><span class="command-surface-footer-label">close</span></span>
 	</footer>
 </Command.Dialog>
