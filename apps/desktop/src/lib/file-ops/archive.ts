@@ -9,11 +9,17 @@ export function isArchive(name: string): boolean {
 }
 
 export function createArchive(paths: string[], destination: string): Promise<void> {
-  return activity.track("compress", `Compress ${paths.length} items`, destination, () => invoke<void>("create_archive", { paths, destination }));
+  return activity.track("compress", `Compress ${paths.length} items`, destination, () =>
+    invoke<void>("create_archive", { paths, destination }),
+  );
 }
 
 export type ArchiveEntry = { path: string; isDirectory: boolean; size: number; skipped: boolean };
-export type ArchiveListing = { entries: ArchiveEntry[]; uncompressedSize: number; truncated: boolean };
+export type ArchiveListing = {
+  entries: ArchiveEntry[];
+  uncompressedSize: number;
+  truncated: boolean;
+};
 export type ExtractionTarget = {
   name: string;
   isDirectory: boolean;
@@ -39,7 +45,11 @@ export function listArchive(path: string): Promise<ArchiveListing> {
 }
 
 /** Targets the extraction would write, and which of them already exist. */
-export function planExtraction(archive: string, destination: string, entries?: string[]): Promise<ExtractionTarget[]> {
+export function planExtraction(
+  archive: string,
+  destination: string,
+  entries?: string[],
+): Promise<ExtractionTarget[]> {
   return invoke("plan_extraction", { archive, destination, entries: entries ?? null });
 }
 

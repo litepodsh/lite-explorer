@@ -20,7 +20,11 @@ function newTab(id: string, location: Location, viewMode: ViewMode): Tab {
   return { id, location, back: [], forward: [], viewMode, selection: EMPTY_SELECTION };
 }
 
-export function createTabsState(id: string, location: Location = OVERVIEW, viewMode: ViewMode = "list"): TabsState {
+export function createTabsState(
+  id: string,
+  location: Location = OVERVIEW,
+  viewMode: ViewMode = "list",
+): TabsState {
   return { tabs: [newTab(id, location, viewMode)], activeId: id };
 }
 
@@ -37,7 +41,12 @@ function replaceActive(state: TabsState, update: (tab: Tab) => Tab): TabsState {
   return { ...state, tabs: state.tabs.map((tab) => (tab.id === active.id ? update(tab) : tab)) };
 }
 
-export function openTab(state: TabsState, id: string, location?: Location, viewMode?: ViewMode): TabsState {
+export function openTab(
+  state: TabsState,
+  id: string,
+  location?: Location,
+  viewMode?: ViewMode,
+): TabsState {
   const active = activeTab(state);
   const tabs = [...state.tabs];
   tabs.splice(
@@ -94,7 +103,13 @@ export function closeTab(state: TabsState, id: string): { state: TabsState; clos
   if (state.tabs.length === 1) {
     const tab = state.tabs[0];
     if (tab.location.kind === OVERVIEW.kind) return { state, closeWindow: true };
-    const reset: Tab = { ...tab, location: OVERVIEW, back: [], forward: [], selection: EMPTY_SELECTION };
+    const reset: Tab = {
+      ...tab,
+      location: OVERVIEW,
+      back: [],
+      forward: [],
+      selection: EMPTY_SELECTION,
+    };
     return { state: { tabs: [reset], activeId: reset.id }, closeWindow: false };
   }
   const tabs = state.tabs.filter((tab) => tab.id !== id);

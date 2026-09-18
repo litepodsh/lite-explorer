@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { focusAfterRemoval, halfPageTarget, invert, visualRange, type NavLayout } from "./selection.js";
+import {
+  focusAfterRemoval,
+  halfPageTarget,
+  invert,
+  visualRange,
+  type NavLayout,
+} from "./selection.js";
 
 const order = ["a", "b", "c", "d", "e", "f"];
 const list: NavLayout = { count: 6, columns: 1, pageRows: 4, view: "list" };
@@ -35,8 +41,16 @@ describe("invert", () => {
 describe("visualRange", () => {
   test("add mode joins the range to the starting selection", () => {
     const visual = { mode: "add" as const, anchor: "c", base: ["a"] };
-    expect(visualRange(order, visual, "e")).toEqual({ paths: ["a", "c", "d", "e"], anchor: "c", focus: "e" });
-    expect(visualRange(order, visual, "b")).toEqual({ paths: ["a", "b", "c"], anchor: "c", focus: "b" });
+    expect(visualRange(order, visual, "e")).toEqual({
+      paths: ["a", "c", "d", "e"],
+      anchor: "c",
+      focus: "e",
+    });
+    expect(visualRange(order, visual, "b")).toEqual({
+      paths: ["a", "b", "c"],
+      anchor: "c",
+      focus: "b",
+    });
   });
 
   test("remove mode takes the range out of the starting selection", () => {

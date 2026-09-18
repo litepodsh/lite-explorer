@@ -6,17 +6,13 @@ use std::{
     thread,
 };
 
-use crate::{archive::Flow, epoch_millis, DirectoryEntry};
+use crate::{epoch_millis, explorer::archive::Flow, DirectoryEntry};
 use serde::{Deserialize, Serialize};
 
-mod containers;
-mod documents;
-mod mail;
-mod text;
-
-use containers::{ArchiveKind, Codec};
-use documents::DocumentKind;
-use mail::MailKind;
+use super::containers::{ArchiveKind, Codec};
+use super::documents::DocumentKind;
+use super::mail::MailKind;
+use super::{containers, documents, mail, text};
 
 const MAX_RESULTS: usize = 1_000;
 const MAX_CONTENT_BYTES: u64 = 2 * 1024 * 1024;
@@ -287,7 +283,7 @@ fn archive_match(
 /// First line containing `needle` (already lowercased), cut to a snippet around the match.
 /// Lowercases line by line: lowercasing can change byte lengths (e.g. `İ`), so an offset
 /// found in a lowercased copy of the whole text is not a valid offset into the original.
-fn matching_line(text: &str, needle: &str) -> Option<String> {
+pub(crate) fn matching_line(text: &str, needle: &str) -> Option<String> {
     text.lines().find_map(|line| {
         let line = line.trim();
         if !line.to_lowercase().contains(needle) {

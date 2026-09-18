@@ -65,7 +65,11 @@ describe("prune", () => {
 });
 
 it("orders selected paths like the list", () => {
-  expect(orderedPaths({ paths: ["e", "a", "c"], anchor: "", focus: "" }, order)).toEqual(["a", "c", "e"]);
+  expect(orderedPaths({ paths: ["e", "a", "c"], anchor: "", focus: "" }, order)).toEqual([
+    "a",
+    "c",
+    "e",
+  ]);
 });
 
 describe("navTarget", () => {
@@ -111,19 +115,33 @@ describe("applyNav", () => {
   const current = selectOnly("b");
 
   it("selects only the target without modifiers", () => {
-    expect(applyNav(current, order, "c", { shift: false, primary: false })).toEqual(selectOnly("c"));
+    expect(applyNav(current, order, "c", { shift: false, primary: false })).toEqual(
+      selectOnly("c"),
+    );
   });
 
   it("extends from the anchor with Shift", () => {
-    expect(applyNav(current, order, "d", { shift: true, primary: false }).paths).toEqual(["b", "c", "d"]);
+    expect(applyNav(current, order, "d", { shift: true, primary: false }).paths).toEqual([
+      "b",
+      "c",
+      "d",
+    ]);
   });
 
   it("moves only the focus with the primary modifier", () => {
-    expect(applyNav(current, order, "d", { shift: false, primary: true })).toEqual({ paths: ["b"], anchor: "b", focus: "d" });
+    expect(applyNav(current, order, "d", { shift: false, primary: true })).toEqual({
+      paths: ["b"],
+      anchor: "b",
+      focus: "d",
+    });
   });
 
   it("adds a range with both modifiers", () => {
     const selection = toggle(selectOnly("a"), "e");
-    expect(applyNav(selection, order, "f", { shift: true, primary: true }).paths).toEqual(["a", "e", "f"]);
+    expect(applyNav(selection, order, "f", { shift: true, primary: true }).paths).toEqual([
+      "a",
+      "e",
+      "f",
+    ]);
   });
 });

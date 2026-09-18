@@ -108,9 +108,20 @@ describe("removeJob / isRunning", () => {
 
 test("file activities publish active and terminal states, preserving results and failures", async () => {
   const events: TransferEventPayload[] = [];
-  const publish = (event: TransferEventPayload) => { events.push(event); };
+  const publish = (event: TransferEventPayload) => {
+    events.push(event);
+  };
   let finish!: (value: string) => void;
-  const pending = trackJob(publish, "copy", "Copy: a.txt", "/dest", () => new Promise<string>((resolve) => { finish = resolve; }));
+  const pending = trackJob(
+    publish,
+    "copy",
+    "Copy: a.txt",
+    "/dest",
+    () =>
+      new Promise<string>((resolve) => {
+        finish = resolve;
+      }),
+  );
   expect(events.map((event) => event.state)).toEqual(["active"]);
   expect(events[0].cancellable).toBe(false);
   finish("copied path");
@@ -118,7 +129,9 @@ test("file activities publish active and terminal states, preserving results and
   expect(events.map((event) => event.state)).toEqual(["active", "done"]);
   expect(events[1].id).toBe(events[0].id);
   const failure = new Error("Permission denied");
-  const caught = await trackJob(publish, "delete", "Delete: b.txt", "", async () => { throw failure; }).catch((error) => error);
+  const caught = await trackJob(publish, "delete", "Delete: b.txt", "", async () => {
+    throw failure;
+  }).catch((error) => error);
   expect(caught).toBe(failure);
   expect(events.slice(2).map((event) => event.state)).toEqual(["active", "failed"]);
   expect(events[3].error).toBe("Permission denied");
@@ -129,7 +142,19 @@ test("file activities publish active and terminal states, preserving results and
 });
 
 test("activity timestamps cover every kind and freeze on every terminal state", () => {
-  const kinds = ["copy", "move", "delete", "create", "rename", "compress", "extract", "upload", "download", "send", "receive"] as const;
+  const kinds = [
+    "copy",
+    "move",
+    "delete",
+    "create",
+    "rename",
+    "compress",
+    "extract",
+    "upload",
+    "download",
+    "send",
+    "receive",
+  ] as const;
   for (const kind of kinds) {
     const first = upsert([], event({ kind, startedAt: 1000 }));
     const paused = upsert(first, event({ kind, state: "paused", startedAt: 2000 }));

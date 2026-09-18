@@ -398,6 +398,13 @@
   font-size: 13px;
   text-align: left;
 }
+.finder-sources button > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .finder-sources button:hover {
   background: #353230;
 }
@@ -687,6 +694,7 @@
   box-shadow: inset 0 0 0 2px rgb(10 155 255 / 0.7);
 }
 .finder-sources svg {
+  flex-shrink: 0;
   width: 17px;
   height: 17px;
   stroke-width: 1.8;
@@ -909,13 +917,13 @@
 .panes[data-layout="column"] > .file-pane + .file-pane {
   --toolbar-overlap: 0px;
 }
-.file-pane:not(:has([data-pane-tab-bar].open)) > [aria-label="Overview"] {
+.file-pane:not(:has([data-pane-tab-bar].open)) [aria-label="Overview"] {
   margin-top: calc(-1 * var(--toolbar-overlap));
   padding-top: var(--toolbar-overlap);
   scroll-padding-top: var(--toolbar-overlap);
 }
 /* File list and grid rows scroll under the toolbar too; the list pads itself by `--content-overlap`. */
-.file-pane:not(:has([data-pane-tab-bar].open)) > [data-slot="context-menu-trigger"] {
+.file-pane:not(:has([data-pane-tab-bar].open)) [data-slot="context-menu-trigger"] {
   --content-overlap: var(--toolbar-overlap);
   margin-top: calc(-1 * var(--toolbar-overlap));
 }

@@ -57,7 +57,7 @@ fn accelerators() -> &'static [MenuAccelerator] {
     static ACCELERATORS: OnceLock<Vec<MenuAccelerator>> = OnceLock::new();
     ACCELERATORS.get_or_init(|| {
         serde_json::from_str(include_str!(
-            "../../src/lib/keyboard/menu-accelerators.json"
+            "../../../src/lib/keyboard/menu-accelerators.json"
         ))
         .expect("menu-accelerators.json is valid")
     })
@@ -224,9 +224,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             app_submenu.insert(&PredefinedMenuItem::separator(app)?, 3)?;
         }
     }
-    let file_index = items.iter().position(|item| match item {
-        MenuItemKind::Submenu(submenu) if submenu.text().ok().as_deref() == Some("File") => true,
-        _ => false,
+    let file_index = items.iter().position(|item| {
+        matches!(
+            item,
+            MenuItemKind::Submenu(submenu)
+                if submenu.text().ok().as_deref() == Some("File")
+        )
     });
     match file_index {
         Some(index) => {
@@ -252,15 +255,21 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
                 app,
                 "File",
                 true,
-                &[&new_tab, &new_tab_other, &new_folder, &new_file, &settings_item, &close_tab],
+                &[
+                    &new_tab,
+                    &new_tab_other,
+                    &new_folder,
+                    &new_file,
+                    &settings_item,
+                    &close_tab,
+                ],
             )?;
-            let view_index = items.iter().position(|item| match item {
-                MenuItemKind::Submenu(submenu)
-                    if submenu.text().ok().as_deref() == Some("View") =>
-                {
-                    true
-                }
-                _ => false,
+            let view_index = items.iter().position(|item| {
+                matches!(
+                    item,
+                    MenuItemKind::Submenu(submenu)
+                        if submenu.text().ok().as_deref() == Some("View")
+                )
             });
             match view_index {
                 Some(index) => menu.insert(&file_menu, index)?,
@@ -318,7 +327,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     app.manage(ShowFpsMenu(show_fps));
     app.manage(OpenMenuItem(open_item));
     app.manage(OpenTarget(std::sync::Mutex::new(None)));
-    #[cfg(debug_assertions)]
+    // #[cfg(debug_assertions)]
     {
         let developer_tools =
             MenuItem::with_id(app, "open-dev-tools", "Developer Tools", true, None::<&str>)?;
@@ -387,7 +396,7 @@ fn order_top_level_menus<R: Runtime>(menu: &Menu<R>) -> tauri::Result<()> {
 }
 
 pub fn handle(app: &AppHandle, id: &str) {
-    #[cfg(debug_assertions)]
+    // #[cfg(debug_assertions)]
     {
         if id == "open-dev-tools" {
             if let Some(window) = app.get_webview_window("main") {
@@ -411,11 +420,15 @@ pub fn handle(app: &AppHandle, id: &str) {
         }
     }
     // With Settings focused, Close Tab closes that window instead of a tab behind it.
+    // Close Tab (Cmd/Ctrl+W) closes the focused auxiliary window (Settings, Viewer)
+    // instead of a tab in the main window behind it.
     if id == "close-tab" {
-        if let Some(window) = app.get_webview_window(SETTINGS_WINDOW) {
-            if window.is_focused().unwrap_or(false) {
-                let _ = window.close();
-                return;
+        for label in [SETTINGS_WINDOW, crate::media::viewer::VIEWER_WINDOW] {
+            if let Some(window) = app.get_webview_window(label) {
+                if window.is_focused().unwrap_or(false) {
+                    let _ = window.close();
+                    return;
+                }
             }
         }
     }

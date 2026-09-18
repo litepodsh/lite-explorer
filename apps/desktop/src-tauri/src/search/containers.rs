@@ -12,7 +12,7 @@ use flate2::read::MultiGzDecoder;
 use liblzma::read::XzDecoder;
 use ruzstd::decoding::StreamingDecoder;
 
-use crate::archive::{self, EntryInfo, Flow};
+use crate::explorer::archive::{self, EntryInfo, Flow};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum Codec {

@@ -12,7 +12,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use base64::Engine;
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqlitePool};
 use tauri::{AppHandle, Manager};
@@ -23,11 +22,8 @@ use super::{
     Protocol, Security, Settings, KEYCHAIN_SERVICE,
 };
 use crate::remote::read_optional_secret;
-use crate::transfer::{self, TransferEvent, TransferRegistry};
-use crate::{
-    image_mime, set_pdf_preview, DirectoryEntry, FilePreview, PreviewKind, IMAGE_MAX_BYTES,
-    PDF_MAX_BYTES, PREVIEW_MAX_BYTES,
-};
+use crate::remote::transfer::{self, TransferEvent, TransferRegistry};
+use crate::{media_preview_kind, DirectoryEntry, FilePreview, PreviewKind, PREVIEW_MAX_BYTES};
 
 mod ftp;
 mod sftp;
@@ -672,33 +668,13 @@ pub async fn file_preview(
     if item.is_dir {
         return Ok(preview);
     }
-    let extension = Path::new(&item.name)
+    if let Some(kind) = Path::new(&item.name)
         .extension()
-        .and_then(|extension| extension.to_str());
-    if let Some(mime) = extension.and_then(image_mime) {
-        if item.size >= IMAGE_MAX_BYTES as u64 {
-            return Err(format!(
-                "Image exceeds {} MB preview limit",
-                IMAGE_MAX_BYTES / (1024 * 1024)
-            ));
-        }
-        let bytes = session.read_head(&at.remote, IMAGE_MAX_BYTES).await?;
-        preview.kind = PreviewKind::Image;
-        preview.src = Some(format!(
-            "data:{mime};base64,{}",
-            base64::engine::general_purpose::STANDARD.encode(&bytes)
-        ));
-        return Ok(preview);
-    }
-    if extension.is_some_and(|extension| extension.eq_ignore_ascii_case("pdf")) {
-        if item.size > PDF_MAX_BYTES as u64 {
-            return Err(format!(
-                "PDF exceeds {} MB preview limit",
-                PDF_MAX_BYTES / (1024 * 1024)
-            ));
-        }
-        let bytes = session.read_head(&at.remote, PDF_MAX_BYTES).await?;
-        set_pdf_preview(&mut preview, bytes);
+        .and_then(|extension| extension.to_str())
+        .and_then(media_preview_kind)
+    {
+        // Media is downloaded to the cache and streamed from there by the media protocol.
+        preview.kind = kind;
         return Ok(preview);
     }
     // One byte past the limit tells a truncated file from one that fits exactly.
@@ -731,6 +707,27 @@ pub async fn download_to_cache(
     sessions: &Sessions,
     path: &str,
 ) -> Result<String, String> {
+    download_to_cache_with_limit(app, pool, sessions, path, Some(OPEN_MAX_BYTES)).await
+}
+
+/// Copies a server file into the app cache without the "Open" size cap, so large
+/// media can be streamed from the cache by the media protocol.
+pub async fn download_media_to_cache(
+    app: &AppHandle,
+    pool: &SqlitePool,
+    sessions: &Sessions,
+    path: &str,
+) -> Result<String, String> {
+    download_to_cache_with_limit(app, pool, sessions, path, None).await
+}
+
+async fn download_to_cache_with_limit(
+    app: &AppHandle,
+    pool: &SqlitePool,
+    sessions: &Sessions,
+    path: &str,
+    max_bytes: Option<u64>,
+) -> Result<String, String> {
     let at = server_path(path)?;
     let root = app
         .path()
@@ -742,11 +739,11 @@ pub async fn download_to_cache(
     if item.is_dir {
         return Err("Folders can’t be opened as files".into());
     }
-    if item.size > OPEN_MAX_BYTES {
+    if let Some(max) = max_bytes.filter(|max| item.size > *max) {
         return Err(format!(
             "{} is larger than {} MB. Download it instead.",
             item.name,
-            OPEN_MAX_BYTES / (1024 * 1024)
+            max / (1024 * 1024)
         ));
     }
     if let Some(folder) = local.parent() {

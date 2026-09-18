@@ -11,7 +11,13 @@ test("temporary download names and honest progress for unknown totals", () => {
   expect(downloadFraction(251, 1000)).toBe(0.251);
   expect(downloadFraction(0, 1000)).toBe(0);
   expect(downloadFraction(1100, 1000)).toBe(1);
-  for (const [done, total] of [[10, 0], [10, -1], [-1, 100], [NaN, 100], [10, Infinity]]) {
+  for (const [done, total] of [
+    [10, 0],
+    [10, -1],
+    [-1, 100],
+    [NaN, 100],
+    [10, Infinity],
+  ]) {
     expect(downloadFraction(done, total)).toBeNull();
   }
 });

@@ -8,10 +8,27 @@ export type Selection = { paths: string[]; anchor: string; focus: string };
 
 export const EMPTY_SELECTION: Selection = { paths: [], anchor: "", focus: "" };
 
-export type NavKey = "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "PageUp" | "PageDown" | "Home" | "End";
+export type NavKey =
+  | "ArrowUp"
+  | "ArrowDown"
+  | "ArrowLeft"
+  | "ArrowRight"
+  | "PageUp"
+  | "PageDown"
+  | "Home"
+  | "End";
 
 export function isNavKey(key: string): key is NavKey {
-  return ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"].includes(key);
+  return [
+    "ArrowUp",
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight",
+    "PageUp",
+    "PageDown",
+    "Home",
+    "End",
+  ].includes(key);
 }
 
 export function selectOnly(path: string): Selection {
@@ -44,7 +61,11 @@ export function addRange(selection: Selection, order: string[], path: string): S
   const anchor = order.includes(selection.anchor) ? selection.anchor : path;
   const added = new Set(range(order, anchor, path));
   const kept = new Set(selection.paths);
-  return { paths: order.filter((candidate) => kept.has(candidate) || added.has(candidate)), anchor, focus: path };
+  return {
+    paths: order.filter((candidate) => kept.has(candidate) || added.has(candidate)),
+    anchor,
+    focus: path,
+  };
 }
 
 export function selectAll(order: string[]): Selection {
@@ -58,7 +79,11 @@ export function prune(selection: Selection, order: string[]): Selection {
   const paths = selection.paths.filter((path) => listed.has(path));
   const anchor = listed.has(selection.anchor) ? selection.anchor : (paths[0] ?? "");
   const focus = listed.has(selection.focus) ? selection.focus : (paths.at(-1) ?? "");
-  if (paths.length === selection.paths.length && anchor === selection.anchor && focus === selection.focus) {
+  if (
+    paths.length === selection.paths.length &&
+    anchor === selection.anchor &&
+    focus === selection.focus
+  ) {
     return selection;
   }
   return { paths, anchor, focus };
@@ -148,7 +173,9 @@ export function visualRange(order: string[], visual: VisualState, focus: string)
   const covered = new Set(range(order, visual.anchor, focus));
   const base = new Set(visual.base);
   const paths = order.filter((path) =>
-    visual.mode === "add" ? base.has(path) || covered.has(path) : base.has(path) && !covered.has(path),
+    visual.mode === "add"
+      ? base.has(path) || covered.has(path)
+      : base.has(path) && !covered.has(path),
   );
   return { paths, anchor: visual.anchor, focus };
 }
@@ -160,5 +187,10 @@ export function focusAfterRemoval(order: string[], removed: string[]): string {
   if (last < 0) return "";
   const after = order.slice(last + 1).find((path) => !gone.has(path));
   if (after) return after;
-  return order.slice(0, last).reverse().find((path) => !gone.has(path)) ?? "";
+  return (
+    order
+      .slice(0, last)
+      .reverse()
+      .find((path) => !gone.has(path)) ?? ""
+  );
 }

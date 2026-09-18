@@ -1,6 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { message } from "@tauri-apps/plugin-dialog";
-import { extractArchiveJob, planExtraction, type ExtractionTarget, type Resolution } from "$lib/file-ops/archive.js";
+import {
+  extractArchiveJob,
+  planExtraction,
+  type ExtractionTarget,
+  type Resolution,
+} from "$lib/file-ops/archive.js";
 import type { TransferEventPayload } from "$lib/transfers/jobs.js";
 import { runExtraction, type ExtractionRequest } from "./run-extraction.js";
 
@@ -36,7 +41,13 @@ class Extraction {
         askConflict: (target, destination) => this.#ask(target, destination),
         newJobId: () => crypto.randomUUID(),
         onStart: (jobId) =>
-          this.#setRunning(request.archive, { jobId, filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 }),
+          this.#setRunning(request.archive, {
+            jobId,
+            filesDone: 0,
+            filesTotal: 0,
+            bytesDone: 0,
+            bytesTotal: 0,
+          }),
       });
       if (result.status === "skipped") return;
       const { outcome } = result;
@@ -46,10 +57,13 @@ class Extraction {
           outcome.failed.length === 1
             ? `Couldn’t extract “${outcome.failed[0].name}”`
             : `Couldn’t extract ${outcome.failed.length} items`;
-        await message(outcome.failed.map((failure) => `${failure.name}: ${failure.error}`).join("\n"), {
-          title,
-          kind: "error",
-        });
+        await message(
+          outcome.failed.map((failure) => `${failure.name}: ${failure.error}`).join("\n"),
+          {
+            title,
+            kind: "error",
+          },
+        );
       }
     } catch (error) {
       await message(error instanceof Error ? error.message : String(error), {

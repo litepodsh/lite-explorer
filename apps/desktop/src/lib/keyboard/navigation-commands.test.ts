@@ -15,7 +15,9 @@ function setup() {
 describe("navigationCommands", () => {
   test("every app binding points at a registered command", () => {
     const registry = setup();
-    const missing = APP_BINDINGS.filter((item) => item.command && !registry.has(item.command)).map((item) => item.command);
+    const missing = APP_BINDINGS.filter((item) => item.command && !registry.has(item.command)).map(
+      (item) => item.command,
+    );
     expect([...new Set(missing)]).toEqual([]);
   });
 
@@ -52,7 +54,11 @@ describe("navigationCommands", () => {
 
   test("list commands wait while the list is blocked", () => {
     const calls: string[] = [];
-    const result = setup().run("file.rename", fakeContext(calls, { list: { blocked: () => true } }), {});
+    const result = setup().run(
+      "file.rename",
+      fakeContext(calls, { list: { blocked: () => true } }),
+      {},
+    );
     expect(result).toBe(false);
     expect(calls).toEqual([]);
   });

@@ -14,7 +14,8 @@ export class CommandRegistry<C> {
   /** Returns a function that unregisters these commands. */
   register(commands: Command<C>[]): () => void {
     for (const command of commands) {
-      if (this.#commands.has(command.id)) throw new Error(`Command “${command.id}” is already registered`);
+      if (this.#commands.has(command.id))
+        throw new Error(`Command “${command.id}” is already registered`);
       this.#commands.set(command.id, command);
     }
     return () => {

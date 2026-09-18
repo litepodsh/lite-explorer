@@ -3,7 +3,9 @@ import { formatSize } from "$lib/components/custom/preview/format.js";
 
 /** Paths for the tree: extractable entries only, directories ending with `/`. */
 export function toTreePaths(entries: readonly ArchiveEntry[]): string[] {
-  return entries.filter((entry) => !entry.skipped).map((entry) => (entry.isDirectory ? `${entry.path}/` : entry.path));
+  return entries
+    .filter((entry) => !entry.skipped)
+    .map((entry) => (entry.isDirectory ? `${entry.path}/` : entry.path));
 }
 
 export function fromTreePath(path: string): string {
@@ -13,12 +15,16 @@ export function fromTreePath(path: string): string {
 /** Archive paths to extract, without entries already covered by a selected folder. */
 export function collapseSelection(paths: readonly string[]): string[] {
   const unique = [...new Set(paths.map(fromTreePath))].sort();
-  return unique.filter((path) => !unique.some((other) => other !== path && path.startsWith(`${other}/`)));
+  return unique.filter(
+    (path) => !unique.some((other) => other !== path && path.startsWith(`${other}/`)),
+  );
 }
 
 export function sizeByTreePath(entries: readonly ArchiveEntry[]): Map<string, number> {
   return new Map(
-    entries.filter((entry) => !entry.skipped && !entry.isDirectory).map((entry) => [entry.path, entry.size]),
+    entries
+      .filter((entry) => !entry.skipped && !entry.isDirectory)
+      .map((entry) => [entry.path, entry.size]),
   );
 }
 

@@ -3,7 +3,15 @@ import type { Scope } from "./scope.js";
 import menuAccelerators from "./menu-accelerators.json";
 
 export type Mode = "standard" | "yazi";
-export type Category = "Navigation" | "Selection" | "Files" | "Search" | "Sort" | "Tabs & Panes" | "Preview" | "App";
+export type Category =
+  | "Navigation"
+  | "Selection"
+  | "Files"
+  | "Search"
+  | "Sort"
+  | "Tabs & Panes"
+  | "Preview"
+  | "App";
 
 export type Binding = {
   /** One key, or two for a chord. Authored form: `Mod+Shift+P`, `Ctrl+d`, `<Space>`, `g`. */
@@ -49,10 +57,24 @@ export const MENU_META: Record<string, { desc: string; category: Category }> = {
 const TEXT_FIELDS: Binding["where"] = ["input", "monaco"];
 
 function nav(key: string, command: string, desc: string): Binding {
-  return { keys: [key], command, scope: "list", mode: "standard", desc, category: "Navigation", modifiers: ["Shift", "Mod"] };
+  return {
+    keys: [key],
+    command,
+    scope: "list",
+    mode: "standard",
+    desc,
+    category: "Navigation",
+    modifiers: ["Shift", "Mod"],
+  };
 }
 
-function standard(keys: string, command: string, desc: string, category: Category, extra: Partial<Binding> = {}): Binding {
+function standard(
+  keys: string,
+  command: string,
+  desc: string,
+  category: Category,
+  extra: Partial<Binding> = {},
+): Binding {
   return { keys: [keys], command, scope: "list", mode: "standard", desc, category, ...extra };
 }
 
@@ -69,16 +91,34 @@ export const STANDARD_BINDINGS: Binding[] = [
   standard("<Space>", "selection.only", "Select focused item", "Selection"),
   standard("Mod+<Space>", "selection.toggle", "Toggle focused item", "Selection"),
   standard("Mod+A", "selection.all", "Select all", "Selection"),
-  standard("<Esc>", "app.escape", "Clear selection or leave checkbox mode", "Selection", { scope: "global" }),
+  standard("<Esc>", "app.escape", "Clear selection or leave checkbox mode", "Selection", {
+    scope: "global",
+  }),
   standard("<Delete>", "file.trash", "Move to Trash", "Files", { repeat: false }),
   standard("<Backspace>", "file.trash", "Move to Trash", "Files", { repeat: false }),
-  ...["Shift+<Delete>", "Shift+<Backspace>", "Meta+<Delete>", "Meta+<Backspace>", "Shift+Meta+<Delete>", "Shift+Meta+<Backspace>"].map(
-    (keys) => standard(keys, "file.deletePermanent", "Delete permanently", "Files", { repeat: false }),
+  ...[
+    "Shift+<Delete>",
+    "Shift+<Backspace>",
+    "Meta+<Delete>",
+    "Meta+<Backspace>",
+    "Shift+Meta+<Delete>",
+    "Shift+Meta+<Backspace>",
+  ].map((keys) =>
+    standard(keys, "file.deletePermanent", "Delete permanently", "Files", { repeat: false }),
   ),
-  standard("Mod+C", "file.copy", "Copy to transfer clipboard", "Files", { scope: "global", repeat: false }),
-  standard("Mod+X", "file.cut", "Cut to transfer clipboard", "Files", { scope: "global", repeat: false }),
+  standard("Mod+C", "file.copy", "Copy to transfer clipboard", "Files", {
+    scope: "global",
+    repeat: false,
+  }),
+  standard("Mod+X", "file.cut", "Cut to transfer clipboard", "Files", {
+    scope: "global",
+    repeat: false,
+  }),
   standard("Mod+V", "file.paste", "Paste here", "Files", { scope: "global", repeat: false }),
-  standard("Mod+F", "search.focus", "Search this folder", "Search", { scope: "global", where: ["input"] }),
+  standard("Mod+F", "search.focus", "Search this folder", "Search", {
+    scope: "global",
+    where: ["input"],
+  }),
   standard("Mod+Shift+P", "palette.open", "Command palette", "App", {
     scope: "global",
     where: ["input", "dialog", "monaco"],
@@ -91,18 +131,36 @@ export const STANDARD_BINDINGS: Binding[] = [
     menuId: "new-tab-other",
     repeat: false,
   }),
-  standard("Mod+<Left>", "pane.left", "Focus left pane", "Tabs & Panes", { scope: "global", where: TEXT_FIELDS }),
-  standard("Mod+<Right>", "pane.right", "Focus right pane", "Tabs & Panes", { scope: "global", where: TEXT_FIELDS }),
+  standard("Mod+<Left>", "pane.left", "Focus left pane", "Tabs & Panes", {
+    scope: "global",
+    where: TEXT_FIELDS,
+  }),
+  standard("Mod+<Right>", "pane.right", "Focus right pane", "Tabs & Panes", {
+    scope: "global",
+    where: TEXT_FIELDS,
+  }),
   ...Array.from({ length: 9 }, (_, index) =>
-    standard(`Mod+${index + 1}`, "tab.goto", index === 8 ? "Go to last tab" : `Go to tab ${index + 1}`, "Tabs & Panes", {
-      scope: "global",
-      where: TEXT_FIELDS,
-      args: { digit: index + 1 },
-    }),
+    standard(
+      `Mod+${index + 1}`,
+      "tab.goto",
+      index === 8 ? "Go to last tab" : `Go to tab ${index + 1}`,
+      "Tabs & Panes",
+      {
+        scope: "global",
+        where: TEXT_FIELDS,
+        args: { digit: index + 1 },
+      },
+    ),
   ),
 ];
 
-function binding(keys: string[], command: string, desc: string, category: Category, extra: Partial<Binding> = {}): Binding {
+function binding(
+  keys: string[],
+  command: string,
+  desc: string,
+  category: Category,
+  extra: Partial<Binding> = {},
+): Binding {
   return { keys, command, scope: "list", mode: "standard", desc, category, ...extra };
 }
 
@@ -112,16 +170,43 @@ const FIELDS_AND_CODE: Binding["where"] = ["input", "monaco"];
 export const EXTENDED_BINDINGS: Binding[] = [
   binding(["Alt+<Up>"], "folder.parent", "Parent folder", "Navigation"),
   binding(["Mod+["], "history.back", "Back", "Navigation", { scope: "global", where: ["input"] }),
-  binding(["Mod+]"], "history.forward", "Forward", "Navigation", { scope: "global", where: ["input"] }),
+  binding(["Mod+]"], "history.forward", "Forward", "Navigation", {
+    scope: "global",
+    where: ["input"],
+  }),
   binding(["<F2>"], "file.rename", "Rename", "Files", { repeat: false }),
   binding(["Mod+Alt+C"], "file.copyPath", "Copy path", "Files", { repeat: false }),
-  binding(["Mod+L"], "palette.goToPath", "Go to path", "Search", { scope: "global", where: FIELDS_AND_CODE, repeat: false }),
-  binding(["Mod+Alt+P"], "preview.toggle", "Show or hide preview", "Preview", { scope: "global", repeat: false }),
-  binding(["<F1>"], "app.shortcuts", "Keyboard shortcuts", "App", { scope: "global", where: ["input"], repeat: false }),
-  binding(["Mod+/"], "app.shortcuts", "Keyboard shortcuts", "App", { scope: "global", where: ["input"], repeat: false }),
-  binding(["<F6>"], "region.next", "Next region", "Navigation", { scope: "global", where: FIELDS_AND_CODE }),
-  binding(["Shift+<F6>"], "region.prev", "Previous region", "Navigation", { scope: "global", where: FIELDS_AND_CODE }),
-  binding(["Mod+Shift+E"], "region.sidebar", "Focus sidebar", "Navigation", { scope: "global", where: FIELDS_AND_CODE }),
+  binding(["Mod+L"], "palette.goToPath", "Go to path", "Search", {
+    scope: "global",
+    where: FIELDS_AND_CODE,
+    repeat: false,
+  }),
+  binding(["Mod+Alt+P"], "preview.toggle", "Show or hide preview", "Preview", {
+    scope: "global",
+    repeat: false,
+  }),
+  binding(["<F1>"], "app.shortcuts", "Keyboard shortcuts", "App", {
+    scope: "global",
+    where: ["input"],
+    repeat: false,
+  }),
+  binding(["Mod+/"], "app.shortcuts", "Keyboard shortcuts", "App", {
+    scope: "global",
+    where: ["input"],
+    repeat: false,
+  }),
+  binding(["<F6>"], "region.next", "Next region", "Navigation", {
+    scope: "global",
+    where: FIELDS_AND_CODE,
+  }),
+  binding(["Shift+<F6>"], "region.prev", "Previous region", "Navigation", {
+    scope: "global",
+    where: FIELDS_AND_CODE,
+  }),
+  binding(["Mod+Shift+E"], "region.sidebar", "Focus sidebar", "Navigation", {
+    scope: "global",
+    where: FIELDS_AND_CODE,
+  }),
   binding(["<Up>"], "sidebar.prev", "Previous sidebar item", "Navigation", { scope: "sidebar" }),
   binding(["<Down>"], "sidebar.next", "Next sidebar item", "Navigation", { scope: "sidebar" }),
   binding(["<Esc>"], "region.list", "Back to the file list", "Navigation", { scope: "sidebar" }),
@@ -129,7 +214,13 @@ export const EXTENDED_BINDINGS: Binding[] = [
   binding(["<Esc>"], "region.list", "Back to the file list", "Navigation", { scope: "monaco" }),
 ];
 
-function yazi(keys: string, command: string, desc: string, category: Category, extra: Partial<Binding> = {}): Binding {
+function yazi(
+  keys: string,
+  command: string,
+  desc: string,
+  category: Category,
+  extra: Partial<Binding> = {},
+): Binding {
   return { keys: keys.split(" "), command, scope: "list", mode: "yazi", desc, category, ...extra };
 }
 
@@ -137,7 +228,9 @@ const sortBindings = (["name", "size", "date", "type"] as const).flatMap((column
   const key = { name: "n", size: "s", date: "m", type: "e" }[column];
   return [
     yazi(`, ${key}`, `sort.${column}`, `Sort by ${column}`, "Sort", { args: { dir: "asc" } }),
-    yazi(`, ${key.toUpperCase()}`, `sort.${column}`, `Sort by ${column}, descending`, "Sort", { args: { dir: "desc" } }),
+    yazi(`, ${key.toUpperCase()}`, `sort.${column}`, `Sort by ${column}, descending`, "Sort", {
+      args: { dir: "desc" },
+    }),
   ];
 });
 
@@ -155,8 +248,14 @@ export const YAZI_BINDINGS: Binding[] = [
   yazi("<Space>", "selection.toggleNext", "Toggle and move down", "Selection", { overrides: true }),
   yazi("Ctrl+a", "selection.all", "Select all", "Selection", { platforms: ["macos"] }),
   yazi("Ctrl+r", "selection.invert", "Invert selection", "Selection"),
-  yazi("v", "selection.visual", "Visual mode: select a range", "Selection", { args: { mode: "add" }, repeat: false }),
-  yazi("V", "selection.visual", "Visual mode: deselect a range", "Selection", { args: { mode: "remove" }, repeat: false }),
+  yazi("v", "selection.visual", "Visual mode: select a range", "Selection", {
+    args: { mode: "add" },
+    repeat: false,
+  }),
+  yazi("V", "selection.visual", "Visual mode: deselect a range", "Selection", {
+    args: { mode: "remove" },
+    repeat: false,
+  }),
   yazi("o", "file.open", "Open selection", "Files", { repeat: false }),
   yazi("y", "file.copy", "Copy to transfer clipboard", "Files", { repeat: false }),
   yazi("x", "file.cut", "Cut to transfer clipboard", "Files", { repeat: false }),
@@ -172,7 +271,10 @@ export const YAZI_BINDINGS: Binding[] = [
   yazi("c d", "file.copyDirPath", "Copy folder path", "Files"),
   yazi("c f", "file.copyName", "Copy name", "Files"),
   yazi("c n", "file.copyStem", "Copy name without extension", "Files"),
-  yazi(".", "view.toggleHidden", "Show or hide hidden files", "App", { scope: "global", repeat: false }),
+  yazi(".", "view.toggleHidden", "Show or hide hidden files", "App", {
+    scope: "global",
+    repeat: false,
+  }),
   yazi("s", "search.focus", "Search this folder", "Search", { scope: "global" }),
   yazi("/", "search.focus", "Search this folder", "Search", { scope: "global" }),
   yazi("S", "search.content", "Search file contents", "Search", { scope: "global" }),
@@ -186,22 +288,41 @@ export const YAZI_BINDINGS: Binding[] = [
   yazi("g s", "go.shared", "Go to Shared", "Navigation", { scope: "global" }),
   yazi("t t", "tab.new", "New tab here", "Tabs & Panes", { scope: "global" }),
   ...Array.from({ length: 9 }, (_, index) =>
-    yazi(`${index + 1}`, "tab.goto", index === 8 ? "Go to last tab" : `Go to tab ${index + 1}`, "Tabs & Panes", {
-      scope: "global",
-      args: { digit: index + 1 },
-    }),
+    yazi(
+      `${index + 1}`,
+      "tab.goto",
+      index === 8 ? "Go to last tab" : `Go to tab ${index + 1}`,
+      "Tabs & Panes",
+      {
+        scope: "global",
+        args: { digit: index + 1 },
+      },
+    ),
   ),
   yazi("[", "tab.prev", "Previous tab", "Tabs & Panes", { scope: "global" }),
   yazi("]", "tab.next", "Next tab", "Tabs & Panes", { scope: "global" }),
   yazi("{", "tab.moveLeft", "Move tab left", "Tabs & Panes", { scope: "global" }),
   yazi("}", "tab.moveRight", "Move tab right", "Tabs & Panes", { scope: "global" }),
   yazi("Ctrl+h", "pane.left", "Focus left pane", "Tabs & Panes", { scope: "global" }),
-  yazi("Ctrl+l", "pane.right", "Focus right pane", "Tabs & Panes", { scope: "global", platforms: ["macos"] }),
-  yazi("Ctrl+l", "pane.right", "Focus right pane", "Tabs & Panes", { scope: "global", platforms: ["windows", "linux"], overrides: true }),
-  yazi("\\", "pane.toggleSecond", "Show or hide second pane", "Tabs & Panes", { scope: "global", repeat: false }),
+  yazi("Ctrl+l", "pane.right", "Focus right pane", "Tabs & Panes", {
+    scope: "global",
+    platforms: ["macos"],
+  }),
+  yazi("Ctrl+l", "pane.right", "Focus right pane", "Tabs & Panes", {
+    scope: "global",
+    platforms: ["windows", "linux"],
+    overrides: true,
+  }),
+  yazi("\\", "pane.toggleSecond", "Show or hide second pane", "Tabs & Panes", {
+    scope: "global",
+    repeat: false,
+  }),
   yazi("J", "preview.scrollDown", "Scroll preview down", "Preview"),
   yazi("K", "preview.scrollUp", "Scroll preview up", "Preview"),
-  yazi("i", "preview.toggle", "Show or hide preview", "Preview", { scope: "global", repeat: false }),
+  yazi("i", "preview.toggle", "Show or hide preview", "Preview", {
+    scope: "global",
+    repeat: false,
+  }),
   yazi("w", "app.activity", "Show or hide activity", "App", { scope: "global", repeat: false }),
   yazi("?", "app.shortcuts", "Keyboard shortcuts", "App", { scope: "global", repeat: false }),
   yazi("~", "app.shortcuts", "Keyboard shortcuts", "App", { scope: "global", repeat: false }),
@@ -216,23 +337,65 @@ export const YAZI_BINDINGS: Binding[] = [
 
 /** Shortcuts components handle themselves; listed in the dialog only. */
 export const COMPONENT_BINDINGS: Binding[] = [
-  { keys: ["Mod+F"], scope: "preview", mode: "standard", source: "component", desc: "Find in code or archive preview", category: "Preview" },
-  { keys: ["Mod+="], scope: "preview", mode: "standard", source: "component", desc: "Larger preview text", category: "Preview" },
-  { keys: ["Mod+-"], scope: "preview", mode: "standard", source: "component", desc: "Smaller preview text", category: "Preview" },
-  { keys: ["Mod+0"], scope: "preview", mode: "standard", source: "component", desc: "Default preview text size", category: "Preview" },
+  {
+    keys: ["Mod+F"],
+    scope: "preview",
+    mode: "standard",
+    source: "component",
+    desc: "Find in code or archive preview",
+    category: "Preview",
+  },
+  {
+    keys: ["Mod+="],
+    scope: "preview",
+    mode: "standard",
+    source: "component",
+    desc: "Larger preview text",
+    category: "Preview",
+  },
+  {
+    keys: ["Mod+-"],
+    scope: "preview",
+    mode: "standard",
+    source: "component",
+    desc: "Smaller preview text",
+    category: "Preview",
+  },
+  {
+    keys: ["Mod+0"],
+    scope: "preview",
+    mode: "standard",
+    source: "component",
+    desc: "Default preview text size",
+    category: "Preview",
+  },
 ];
 
-export const APP_BINDINGS: Binding[] = [...STANDARD_BINDINGS, ...EXTENDED_BINDINGS, ...YAZI_BINDINGS];
+export const APP_BINDINGS: Binding[] = [
+  ...STANDARD_BINDINGS,
+  ...EXTENDED_BINDINGS,
+  ...YAZI_BINDINGS,
+];
 
 /** Bindings that list menu accelerators no app binding already runs. */
 export function menuBindings(appBindings: Binding[]): Binding[] {
   const covered = new Set(appBindings.flatMap((item) => (item.menuId ? [item.menuId] : [])));
-  return MENU_ACCELERATORS.filter(({ id }) => !covered.has(id)).map(({ id, accelerator }): Binding => {
-    const authored = acceleratorToAuthored(accelerator);
-    const meta = MENU_META[id];
-    if (!authored || !meta) throw new Error(`Menu accelerator “${id}” has no keymap entry`);
-    return { keys: [authored], menuId: id, source: "menu", scope: "global", mode: "standard", desc: meta.desc, category: meta.category };
-  });
+  return MENU_ACCELERATORS.filter(({ id }) => !covered.has(id)).map(
+    ({ id, accelerator }): Binding => {
+      const authored = acceleratorToAuthored(accelerator);
+      const meta = MENU_META[id];
+      if (!authored || !meta) throw new Error(`Menu accelerator “${id}” has no keymap entry`);
+      return {
+        keys: [authored],
+        menuId: id,
+        source: "menu",
+        scope: "global",
+        mode: "standard",
+        desc: meta.desc,
+        category: meta.category,
+      };
+    },
+  );
 }
 
 export function allBindings(): Binding[] {
@@ -267,7 +430,9 @@ export function findConflicts(bindings: Binding[], platform: KeyPlatform): strin
         seen.add(key);
       }
       const visible = inMode.filter((item) => reachable(scope).includes(item.scope));
-      const prefixes = new Set(visible.filter((item) => item.keys.length > 1).map((item) => tokens(item)[0]));
+      const prefixes = new Set(
+        visible.filter((item) => item.keys.length > 1).map((item) => tokens(item)[0]),
+      );
       for (const item of own) {
         if (item.keys.length === 1 && prefixes.has(tokens(item)[0])) {
           problems.push(`${mode} ${scope}: “${label(item)}” is also the start of a chord`);
@@ -276,11 +441,17 @@ export function findConflicts(bindings: Binding[], platform: KeyPlatform): strin
     }
   }
 
-  const standardKeys = new Set(active.filter((item) => item.mode === "standard").map((item) => `${item.scope} ${label(item)}`));
+  const standardKeys = new Set(
+    active.filter((item) => item.mode === "standard").map((item) => `${item.scope} ${label(item)}`),
+  );
   for (const item of active.filter((candidate) => candidate.mode === "yazi")) {
     const clash = standardKeys.has(`${item.scope} ${label(item)}`);
-    if (clash && !item.overrides) problems.push(`yazi ${item.scope}: “${label(item)}” replaces a standard binding without overrides`);
-    if (!clash && item.overrides) problems.push(`yazi ${item.scope}: “${label(item)}” overrides nothing`);
+    if (clash && !item.overrides)
+      problems.push(
+        `yazi ${item.scope}: “${label(item)}” replaces a standard binding without overrides`,
+      );
+    if (!clash && item.overrides)
+      problems.push(`yazi ${item.scope}: “${label(item)}” overrides nothing`);
   }
   return problems;
 }

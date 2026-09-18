@@ -19,9 +19,11 @@
   import ImageView from "./image-view.svelte";
   import BinaryView from "./binary-view.svelte";
   import PdfView from "./pdf-view.svelte";
+  import MediaView from "./media-view.svelte";
+  import { fetchMediaUrl, openViewer } from "./media.js";
   import ArchiveView from "$lib/archive/archive-view.svelte";
   import { fontSizeForShortcut, lineHeightFor, parseFontSize } from "./font-size.js";
-  import { isCsvName, isHtmlName, isMarkdownName, languageFor } from "./languages.js";
+  import { isCsvName, isHtmlName, isMarkdownName, isMediaKind, languageFor } from "./languages.js";
   import { analyzeHtmlSafety } from "./html-safety.js";
   import type { FilePreview } from "./types.js";
   import { fetchDefaultApp, type OpenWithApp } from "$lib/file-ops/open.js";
@@ -39,6 +41,7 @@
   let preview = $state.raw<FilePreview | null>(null);
   let defaultApp = $state.raw<OpenWithApp | null>(null);
   let previewPath = $state("");
+  let mediaUrl = $state("");
   let error = $state("");
   let slow = $state(false);
   let findOpen = $state(false);
@@ -49,6 +52,7 @@
   let contentRoot = $state<HTMLElement | null>(null);
   let codeView = $state<ReturnType<typeof CodeView> | null>(null);
   let pdfView = $state<ReturnType<typeof PdfView> | null>(null);
+  let mediaView = $state<ReturnType<typeof MediaView> | null>(null);
   let findBar = $state<ReturnType<typeof FindBar> | null>(null);
   let token = 0;
 
@@ -88,11 +92,19 @@
         defaultApp = app;
         previewPath = path;
         error = "";
+        // Media is streamed: ask for a range-served URL before rendering the view.
+        mediaUrl = "";
+        if (isMediaKind(result.kind)) {
+          const media = await fetchMediaUrl(path);
+          if (request !== token) return;
+          mediaUrl = media.url;
+        }
       } catch (reason) {
         if (request !== token) return;
         preview = null;
         defaultApp = null;
         previewPath = path;
+        mediaUrl = "";
         error = reason instanceof Error ? reason.message : String(reason);
       } finally {
         if (request === token) {
@@ -143,6 +155,12 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
+{#snippet mediaSpinner()}
+  <div class="grid flex-1 place-items-center">
+    <span class="size-6 animate-spin rounded-full border-2 border-white/20 border-t-white/70" aria-label="Loading"></span>
+  </div>
+{/snippet}
+
 <aside class="flex h-full min-w-0 flex-col bg-[#242220]" aria-label="Preview">
   <div
     class="relative m-3 mb-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-[#1f1d1b] transition-opacity duration-150 {slow
@@ -163,9 +181,36 @@
     {:else if preview.kind === "binary"}
       <BinaryView name={preview.name} />
     {:else if preview.kind === "pdf"}
-      <PdfView bind:this={pdfView} src={preview.src ?? ""} name={preview.name} />
+      {#if mediaUrl}
+        <PdfView
+          bind:this={pdfView}
+          src={mediaUrl}
+          name={preview.name}
+          onMaximize={() => openViewer(previewPath)} />
+      {:else}
+        {@render mediaSpinner()}
+      {/if}
     {:else if preview.kind === "image"}
-      <ImageView src={preview.src ?? ""} name={preview.name} />
+      {#if mediaUrl}
+        <ImageView src={mediaUrl} name={preview.name} onMaximize={() => openViewer(previewPath)} />
+      {:else}
+        {@render mediaSpinner()}
+      {/if}
+    {:else if preview.kind === "video" || preview.kind === "audio"}
+      {#if mediaUrl}
+        <MediaView
+          bind:this={mediaView}
+          src={mediaUrl}
+          name={preview.name}
+          kind={preview.kind}
+          path={previewPath}
+          onMaximize={() => {
+            mediaView?.pause();
+            void openViewer(previewPath);
+          }} />
+      {:else}
+        {@render mediaSpinner()}
+      {/if}
     {:else if !preview.content}
       <div class="grid flex-1 place-items-center text-[13px] text-[#9c9895]">Empty file</div>
     {:else}

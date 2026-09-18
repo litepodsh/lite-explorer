@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { findShortcut, shortcutLabel, type MenuNode } from "./menu.js";
 
-const key = (code: string, mods: Partial<{ ctrl: boolean; shift: boolean; alt: boolean }> = {}) => ({
+const key = (
+  code: string,
+  mods: Partial<{ ctrl: boolean; shift: boolean; alt: boolean }> = {},
+) => ({
   code,
   ctrlKey: mods.ctrl ?? false,
   metaKey: false,
@@ -11,7 +14,12 @@ const key = (code: string, mods: Partial<{ ctrl: boolean; shift: boolean; alt: b
 
 /** Id of an item or check node, or the kind of a predefined one. */
 const nameOf = (node: MenuNode | null) =>
-  node && (node.type === "item" || node.type === "check" ? node.id : node.type === "predefined" ? node.kind : node.type);
+  node &&
+  (node.type === "item" || node.type === "check"
+    ? node.id
+    : node.type === "predefined"
+      ? node.kind
+      : node.type);
 
 const nodes: MenuNode[] = [
   {
@@ -27,7 +35,9 @@ const nodes: MenuNode[] = [
   {
     type: "submenu",
     label: "Edit",
-    children: [{ type: "predefined", kind: "copy", label: "Copy", accelerator: "CmdOrCtrl+C", info: null }],
+    children: [
+      { type: "predefined", kind: "copy", label: "Copy", accelerator: "CmdOrCtrl+C", info: null },
+    ],
   },
   {
     type: "submenu",
@@ -52,7 +62,15 @@ const nodes: MenuNode[] = [
   {
     type: "submenu",
     label: "Window",
-    children: [{ type: "predefined", kind: "minimize", label: "Minimize", accelerator: "CmdOrCtrl+M", info: null }],
+    children: [
+      {
+        type: "predefined",
+        kind: "minimize",
+        label: "Minimize",
+        accelerator: "CmdOrCtrl+M",
+        info: null,
+      },
+    ],
   },
 ];
 

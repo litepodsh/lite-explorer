@@ -1,4 +1,6 @@
 <script lang="ts">
+  import CalculatorIcon from "@lucide/svelte/icons/calculator";
+  import { onDestroy } from "svelte";
   import Clock3Icon from "@lucide/svelte/icons/clock-3";
   import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
   import FolderIcon from "@lucide/svelte/icons/folder";
@@ -34,6 +36,7 @@
   import { folderScan, OverviewPanel } from "$lib/components/custom/overview/index.js";
   import { TabBar } from "$lib/components/custom/tabs/index.js";
   import { formatSize } from "$lib/components/custom/preview/format.js";
+  import { swipeTransforms } from "$lib/swipe/gesture.js";
   import type { FilePaneController } from "./controller.svelte.js";
 
   let {
@@ -80,6 +83,8 @@
     pendingKeys?: string;
   } = $props();
 
+  onDestroy(() => controller.cancelSizeScan());
+
   let statusPath = $derived(controller.selected === "Overview" ? "" : controller.listingPath);
 
   // Lets archive entries dragged from any preview extract into this pane.
@@ -103,6 +108,13 @@
   });
   let reconnecting = $derived(
     controller.disconnected ? networkStatus.status(controller.disconnected.path).state === "connecting" : false,
+  );
+
+  let swipe = $derived(swipeTransforms(controller.swipeAmount, controller.canBack, controller.canForward));
+  let incoming = $derived(
+    controller.swipeActive && controller.swipeDirection
+      ? controller.swipeTarget(controller.swipeDirection)
+      : null,
   );
 </script>
 
@@ -133,6 +145,29 @@
     onCrossPaneDrop={onCrossPaneDrop}
     onNew={() => controller.tabs.open()} />
 
+  <div
+    class="swipe-stage"
+    class:swiping={controller.swipeActive}
+    class:settling={controller.swipeSettling}>
+    {#if controller.swipeActive && controller.swipeDirection}
+      <div class="swipe-pane incoming" style:transform={`translate3d(${swipe.incoming}%, 0, 0)`}>
+        {#if incoming?.entries}
+          <div class="swipe-incoming-fill" inert>
+            <ListPanel
+              previewing
+              entries={incoming.entries}
+              view={controller.viewMode}
+              showHidden={showHiddenFiles}
+              sortKey={incoming.path}
+              previewOpen={false}
+              scrollTop={0} />
+          </div>
+        {:else}
+          <section class="finder-empty" aria-live="polite"><p>Loading…</p></section>
+        {/if}
+      </div>
+    {/if}
+    <div class="swipe-pane current" style:transform={`translate3d(${swipe.current}%, 0, 0)`}>
   {#if controller.selected === "Overview"}
     <OverviewPanel
       showHidden={showHiddenFiles}
@@ -382,6 +417,13 @@
           {/if}
           {#if !controller.serverRoot}<ContextMenu.Separator />{/if}
         {/if}
+        {#if !controller.contextTargets.length && controller.canCalculateSizes}
+          <ContextMenu.Item onSelect={() => controller.sizeScanning ? controller.cancelSizeScan() : void controller.calculateSizes()}>
+            <CalculatorIcon class="size-4" />
+            {controller.sizeScanning ? "Cancel Size Calculation" : "Calculate Sizes"}
+          </ContextMenu.Item>
+          <ContextMenu.Separator />
+        {/if}
         {#if !controller.remoteRoot && !controller.serverRoot}
           <ContextMenu.Item onSelect={() => void controller.createItem("folder")}>
             <FolderPlusIcon class="size-4" />
@@ -413,9 +455,14 @@
       <p>Select a favorite or location to view its files.</p>
     </section>
   {/if}
+    </div>
+  </div>
 
   <PathStatusBar
     {showFps}
+    sizeScanning={controller.sizeScanning}
+    sizeScanMessage={controller.sizeScanMessage}
+    onCancelSizeScan={() => controller.cancelSizeScan()}
     {keyboardMode}
     {pendingKeys}
     visual={Boolean(controller.visual)}
@@ -432,3 +479,47 @@
         ? `Analyzing ${folderScan.rootName}… ${formatSize(folderScan.scannedBytes)}`
         : null)} />
 </section>
+
+<style>
+  .swipe-stage {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+  .swipe-pane {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    background: #242220;
+    will-change: transform;
+  }
+  .swipe-pane.current {
+    z-index: 1;
+  }
+  .swipe-incoming-fill {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    pointer-events: none;
+  }
+  /* Following the finger is instant; releasing settles with a short slide. */
+  .swipe-stage.swiping .swipe-pane {
+    transition: none;
+  }
+  .swipe-stage.settling .swipe-pane {
+    transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .swipe-stage.settling .swipe-pane {
+      transition: none;
+    }
+  }
+</style>

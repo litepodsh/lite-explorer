@@ -56,7 +56,16 @@ const NAMED_KEYS: Record<string, string> = {
   End: "<End>",
 };
 
-const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "AltGraph", "Meta", "CapsLock", "Fn", "OS"]);
+const MODIFIER_KEYS = new Set([
+  "Shift",
+  "Control",
+  "Alt",
+  "AltGraph",
+  "Meta",
+  "CapsLock",
+  "Fn",
+  "OS",
+]);
 const FUNCTION_KEY = /^F([1-9]|1[0-9]|2[0-4])$/;
 
 /** Label for a `KeyboardEvent.code`, or null for keys no shortcut uses. */
@@ -158,7 +167,12 @@ export function acceleratorToAuthored(text: string): string | null {
 }
 
 const MAC_MODIFIERS: Record<Modifier, string> = { Ctrl: "⌃", Alt: "⌥", Shift: "⇧", Meta: "⌘" };
-const PC_MODIFIERS: Record<Modifier, string> = { Ctrl: "Ctrl", Alt: "Alt", Shift: "Shift", Meta: "Super" };
+const PC_MODIFIERS: Record<Modifier, string> = {
+  Ctrl: "Ctrl",
+  Alt: "Alt",
+  Shift: "Shift",
+  Meta: "Super",
+};
 
 const SHARED_NAMES: Record<string, string> = {
   "<Up>": "↑",
@@ -172,8 +186,20 @@ const SHARED_NAMES: Record<string, string> = {
   "<Home>": "Home",
   "<End>": "End",
 };
-const MAC_NAMES: Record<string, string> = { ...SHARED_NAMES, "<Enter>": "↩", "<Backspace>": "⌫", "<Delete>": "⌦", "<Tab>": "⇥" };
-const PC_NAMES: Record<string, string> = { ...SHARED_NAMES, "<Enter>": "Enter", "<Backspace>": "Backspace", "<Delete>": "Del", "<Tab>": "Tab" };
+const MAC_NAMES: Record<string, string> = {
+  ...SHARED_NAMES,
+  "<Enter>": "↩",
+  "<Backspace>": "⌫",
+  "<Delete>": "⌦",
+  "<Tab>": "⇥",
+};
+const PC_NAMES: Record<string, string> = {
+  ...SHARED_NAMES,
+  "<Enter>": "Enter",
+  "<Backspace>": "Backspace",
+  "<Delete>": "Del",
+  "<Tab>": "Tab",
+};
 
 /** Label for one token: `⇧⌘P` on macOS, `Ctrl+Shift+P` elsewhere. */
 export function formatToken(token: string, platform: KeyPlatform): string {
@@ -183,7 +209,8 @@ export function formatToken(token: string, platform: KeyPlatform): string {
   const names = platform === "macos" ? MAC_NAMES : PC_NAMES;
   const name = names[key] ?? (key.startsWith("<") && key.endsWith(">") ? key.slice(1, -1) : key);
   const modifiers = parts as Modifier[];
-  if (platform === "macos") return modifiers.map((modifier) => MAC_MODIFIERS[modifier]).join("") + name;
+  if (platform === "macos")
+    return modifiers.map((modifier) => MAC_MODIFIERS[modifier]).join("") + name;
   return [...modifiers.map((modifier) => PC_MODIFIERS[modifier]), name].join("+");
 }
 

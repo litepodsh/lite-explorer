@@ -26,7 +26,9 @@ export function readScopeFacts(target: EventTarget | null, modalOpen: boolean): 
   const element = target instanceof Element ? target : null;
   const marked = element?.closest("[data-key-scope]")?.getAttribute("data-key-scope");
   return {
-    dialog: modalOpen || Boolean(element?.closest("[role='dialog'], [role='alertdialog'], [role='menu']")),
+    dialog:
+      modalOpen ||
+      Boolean(element?.closest("[role='dialog'], [role='alertdialog'], [role='menu']")),
     monaco: Boolean(element?.closest(".monaco-editor")),
     input: Boolean(element?.closest("input, textarea, select, [contenteditable='true']")),
     control: Boolean(element?.closest("button, a")) && !element?.closest("[data-entry-path]"),

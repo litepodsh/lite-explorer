@@ -1,6 +1,17 @@
 import type { FileProgress } from "./download-progress.js";
 
-export type JobKind = "upload" | "download" | "copy" | "move" | "delete" | "send" | "receive" | "extract" | "create" | "rename" | "compress";
+export type JobKind =
+  | "upload"
+  | "download"
+  | "copy"
+  | "move"
+  | "delete"
+  | "send"
+  | "receive"
+  | "extract"
+  | "create"
+  | "rename"
+  | "compress";
 export type JobState = "active" | "paused" | "done" | "failed" | "cancelled";
 
 export type Job = {
@@ -65,7 +76,7 @@ export function upsert(state: Job[], event: TransferEventPayload): Job[] {
     error: event.error ?? undefined,
     cancellable: event.cancellable,
     startedAt: existing?.startedAt ?? event.startedAt ?? now,
-    finishedAt: running ? undefined : existing?.finishedAt ?? event.finishedAt ?? now,
+    finishedAt: running ? undefined : (existing?.finishedAt ?? event.finishedAt ?? now),
   };
   if (existing) return state.map((job) => (job.id === event.id ? next : job));
   return [...state, next];
@@ -95,9 +106,17 @@ export async function trackJob<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   const event: TransferEventPayload = {
-    id: crypto.randomUUID(), kind, label, destination,
-    filesTotal: 0, filesDone: 0, bytesTotal: 0, bytesDone: 0,
-    state: "active", cancellable: false, startedAt: Date.now(),
+    id: crypto.randomUUID(),
+    kind,
+    label,
+    destination,
+    filesTotal: 0,
+    filesDone: 0,
+    bytesTotal: 0,
+    bytesDone: 0,
+    state: "active",
+    cancellable: false,
+    startedAt: Date.now(),
   };
   publish({ ...event });
   try {
@@ -105,7 +124,12 @@ export async function trackJob<T>(
     publish({ ...event, state: "done", finishedAt: Date.now() });
     return result;
   } catch (error) {
-    publish({ ...event, state: "failed", finishedAt: Date.now(), error: error instanceof Error ? error.message : String(error) });
+    publish({
+      ...event,
+      state: "failed",
+      finishedAt: Date.now(),
+      error: error instanceof Error ? error.message : String(error),
+    });
     throw error;
   }
 }

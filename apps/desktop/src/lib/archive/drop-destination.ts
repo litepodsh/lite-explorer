@@ -14,7 +14,10 @@ export type DropCandidate =
   | { kind: "pane"; paneId: string }
   | { kind: "entry"; paneId: string; path: string };
 
-export function resolveDestination(candidate: DropCandidate | null, panes: ReadonlyMap<string, PaneFolder>): string | null {
+export function resolveDestination(
+  candidate: DropCandidate | null,
+  panes: ReadonlyMap<string, PaneFolder>,
+): string | null {
   if (!candidate) return null;
   if (candidate.kind === "favorite") return candidate.path;
   const pane = panes.get(candidate.paneId);

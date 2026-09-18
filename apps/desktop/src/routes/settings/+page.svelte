@@ -10,9 +10,11 @@
   import WindowControls from "$lib/components/custom/titlebar/window-controls.svelte";
   import { ConfirmHost, DialogSwitch, confirmation } from "$lib/components/custom/dialog/index.js";
   import SegmentedControl from "$lib/settings/segmented-control.svelte";
+  import TerminalPicker, { type TerminalOption } from "$lib/settings/terminal-picker.svelte";
   import { settings } from "$lib/settings/settings.svelte.js";
+  import { detectTerminals, type TerminalInfo } from "$lib/file-ops/open.js";
   import { analytics } from "$lib/analytics/analytics.svelte.js";
-  import type { ChordTimeout, KeyboardMode } from "$lib/settings/settings.js";
+  import type { ChordTimeout, KeyboardMode, TerminalApp } from "$lib/settings/settings.js";
   import { settingsKeyAction } from "$lib/settings/settings-keys.js";
   import { eventToken, toKeyPlatform } from "$lib/keyboard/keys.js";
   import { platformState } from "$lib/state/platform.svelte.js";
@@ -29,10 +31,27 @@
   let active = $state<SectionId>("keyboard");
   let platform = $state<"macos" | "windows" | "linux" | "unknown">("unknown");
   let navButtons = $state<HTMLButtonElement[]>([]);
+  let terminals = $state<TerminalInfo[]>([]);
   const current = $derived(settings.current);
+
+  /** System default and Custom are always offered; the rest comes from detection. */
+  const terminalOptions = $derived.by<TerminalOption[]>(() => {
+    const options: TerminalOption[] = [
+      { id: "system", name: "System default", icon: null },
+      ...terminals.map((terminal) => ({ id: terminal.id, name: terminal.name, icon: terminal.icon })),
+      { id: "custom", name: "Custom…", icon: null },
+    ];
+    if (!options.some((option) => option.id === current.terminalApp)) {
+      options.splice(options.length - 1, 0, { id: current.terminalApp, name: current.terminalApp, icon: null });
+    }
+    return options;
+  });
 
   onMount(() => {
     void analytics.load();
+    void detectTerminals()
+      .then((detected) => (terminals = detected))
+      .catch(() => {});
     void invoke<string>("os_detection").then((detected) => {
       platform = detected as typeof platform;
       platformState.current = platform;
@@ -165,6 +184,34 @@
             options={[{ value: "row", label: "Side by side" }, { value: "column", label: "Stacked" }]}
             value={current.panesLayout}
             onchange={(value) => settings.set("panesLayout", value as "row" | "column")} />
+          {#if platform === "macos"}
+            <DialogSwitch
+              label="Swipe to navigate"
+              description="Swipe on the trackpad to go back and forward in the open folder, with a drag-follow animation."
+              checked={current.swipeNavigation}
+              onchange={(checked) => settings.set("swipeNavigation", checked)} />
+          {/if}
+          <TerminalPicker
+            label="Terminal"
+            description="App opened by “Open Terminal Here”. Detected from what's installed."
+            options={terminalOptions}
+            value={current.terminalApp}
+            onchange={(id) => settings.set("terminalApp", id)} />
+          {#if current.terminalApp === "custom"}
+            <div class="field">
+              <div class="field-copy">
+                <label for="settings-terminal-command">Command</label>
+                <p>Use <code>{'{path}'}</code> for the focused folder.</p>
+              </div>
+              <input
+                id="settings-terminal-command"
+                type="text"
+                value={current.terminalCommand}
+                placeholder={"kitty --directory {path}"}
+                spellcheck="false"
+                onchange={(event) => settings.set("terminalCommand", event.currentTarget.value)} />
+            </div>
+          {/if}
         </div></div>
       {:else}
         <h1>Advanced</h1>
@@ -348,6 +395,48 @@
   .secondary-button:focus-visible {
     outline: 2px solid rgb(10 155 255 / 0.6);
     outline-offset: 2px;
+  }
+  .field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .field-copy {
+    min-width: 0;
+  }
+  .field-copy label {
+    color: #eceae8;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+  .field-copy p {
+    margin: 3px 0 0;
+    color: #8f8b88;
+    font-size: 11.5px;
+    line-height: 1.4;
+  }
+  .field-copy code {
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: rgb(255 255 255 / 8%);
+    font-size: 11px;
+  }
+  .field input {
+    flex-shrink: 0;
+    width: 220px;
+    max-width: 220px;
+    padding: 5px 8px;
+    border: 1px solid rgb(255 255 255 / 8%);
+    border-radius: 8px;
+    background: #1f1d1b;
+    color: #f2f1f0;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .field input:focus-visible {
+    outline: 2px solid rgb(10 155 255 / 0.6);
+    outline-offset: 1px;
   }
   @media (prefers-reduced-motion: reduce) {
     .settings-nav button,

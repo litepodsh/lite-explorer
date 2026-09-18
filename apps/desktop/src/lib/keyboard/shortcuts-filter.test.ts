@@ -19,7 +19,11 @@ const bindings: Binding[] = [
   b(["Ctrl+d"], "Down half a page"),
   b(["Mod+Shift+P"], "Command palette", { mode: "standard", scope: "global", category: "App" }),
   b(["Shift+<Delete>"], "Delete permanently", { mode: "standard", category: "Files" }),
-  b(["Meta+<Backspace>"], "Delete permanently", { mode: "standard", category: "Files", platforms: ["macos"] }),
+  b(["Meta+<Backspace>"], "Delete permanently", {
+    mode: "standard",
+    category: "Files",
+    platforms: ["macos"],
+  }),
   b(["<Tab>"], "Unrelated tab key", { mode: "standard" }),
 ];
 
@@ -27,7 +31,9 @@ describe("shortcutRows", () => {
   test("merges keys of the same command and skips other platforms", () => {
     const mac = shortcutRows(bindings, "macos").find((row) => row.desc === "Delete permanently");
     expect(mac?.sequences).toEqual([["Shift+<Delete>"], ["Meta+<Backspace>"]]);
-    const windows = shortcutRows(bindings, "windows").find((row) => row.desc === "Delete permanently");
+    const windows = shortcutRows(bindings, "windows").find(
+      (row) => row.desc === "Delete permanently",
+    );
     expect(windows?.sequences).toEqual([["Shift+<Delete>"]]);
   });
 });
@@ -78,7 +84,9 @@ describe("filterShortcuts", () => {
 
   test("fuzzy matches come last and only for rows not matched yet", () => {
     const fuzzy = (rest: typeof rows) => rest.filter((row) => row.desc === "Go home");
-    expect(filterShortcuts(rows, "hme", "macos", fuzzy).map((row) => row.desc)).toEqual(["Go home"]);
+    expect(filterShortcuts(rows, "hme", "macos", fuzzy).map((row) => row.desc)).toEqual([
+      "Go home",
+    ]);
   });
 });
 

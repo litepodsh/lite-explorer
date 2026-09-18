@@ -10,7 +10,9 @@ export function scrollPreview(container: HTMLElement, direction: 1 | -1): boolea
   }
   const candidates = [container, ...container.querySelectorAll<HTMLElement>("*")];
   const scrollable = candidates.find(
-    (element) => element.scrollHeight > element.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(element).overflowY),
+    (element) =>
+      element.scrollHeight > element.clientHeight + 1 &&
+      /(auto|scroll)/.test(getComputedStyle(element).overflowY),
   );
   if (!scrollable) return false;
   scrollable.scrollBy({ top: deltaY });

@@ -1,4 +1,10 @@
-import { createVirtualizer, elementScroll, observeElementOffset, observeElementRect, type Virtualizer } from "@tanstack/svelte-virtual";
+import {
+  createVirtualizer,
+  elementScroll,
+  observeElementOffset,
+  observeElementRect,
+  type Virtualizer,
+} from "@tanstack/svelte-virtual";
 
 type RowVirtualizerOptions = {
   count: () => number;

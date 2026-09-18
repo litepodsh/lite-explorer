@@ -17,6 +17,8 @@ class FolderScan {
   error = $state("");
   /** Bumped every time a scan finishes, so views can re-read what the scan affects. */
   completions = $state(0);
+  /** Bumped when a scan settles (done or error), so loads can detect stale snapshots. */
+  settled = $state(0);
 
   rootName = $derived((this.usage && baseName(this.usage.root)) || "home folder");
 
@@ -40,12 +42,14 @@ class FolderScan {
         this.scanning = false;
         this.currentFolder = null;
         this.completions += 1;
+        this.settled += 1;
       }),
       listen<FolderUsageError>("folder-usage-error", ({ payload }) => {
         if (this.usage && payload.root !== this.usage.root) return;
         this.scanning = false;
         this.currentFolder = null;
         this.error = payload.message;
+        this.settled += 1;
       }),
     ]).then(() => undefined);
     return this.#listening;
@@ -54,9 +58,18 @@ class FolderScan {
   /** Shows the saved scan right away and rescans when it is missing or older than 30 minutes. */
   async load(): Promise<void> {
     await this.listen();
+    const settledBefore = this.settled;
     const usage = await invoke<FolderUsage>("folder_usage");
+    if (this.scanning) {
+      // A scan is already being tracked; its own events will settle it. Don't replace the
+      // live state with a snapshot that may be older or carry a stale `scanning` flag.
+      return;
+    }
     this.usage = usage;
-    this.scanning = usage.scanning;
+    // Rust captures the snapshot's `scanning` flag before reading the database, so it can
+    // be stale by the time it reaches us (the scan may have finished while we waited, and
+    // its done/error event already applied). Only believe it if nothing settled meanwhile.
+    if (usage.scanning && this.settled === settledBefore) this.scanning = true;
     if (!usage.scanning && isStale(usage.scanned_at, Date.now() / 1000)) await this.refresh();
   }
 

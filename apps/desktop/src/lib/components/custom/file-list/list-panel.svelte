@@ -50,6 +50,7 @@
     pastedPaths = new Set<string>(),
     searchQuery = "",
     onFilesChanged,
+    previewing = false,
   } = $props<{
     entries?: DirectoryEntry[];
     onFilesChanged?: () => void;
@@ -85,6 +86,8 @@
     pastedPaths?: Set<string>;
     /** Content-search query to highlight inside result snippets. */
     searchQuery?: string;
+    /** Rendered as a non-interactive preview of another folder (swipe animation). */
+    previewing?: boolean;
   }>();
 
   let sortColumn = $state<SortColumn | null>(null);
@@ -93,7 +96,7 @@
   // Each folder opens with the sort last chosen in it.
   $effect.pre(() => {
     const saved = loadFolderSort(sortKey);
-    sortColumn = saved?.column ?? null;
+    sortColumn = saved?.column ?? "name";
     sortDir = saved?.dir ?? "asc";
   });
 
@@ -153,6 +156,7 @@
 
   // Other lists drop entries on this one through the shared registry.
   $effect(() => {
+    if (previewing) return;
     const id = paneId;
     const handler = (paths: string[], options: { move: boolean }) => onExternalDrop?.(paths, options);
     drag.paneDrops.set(id, handler);
@@ -390,6 +394,7 @@
     .map((entry) => entry.path).slice(0, 512).join("\0"));
 
   $effect(() => {
+    if (previewing) return;
     const paths = downloadPaths ? downloadPaths.split("\0") : [];
     const refresh = onFilesChanged;
     let stopped = false;
@@ -456,7 +461,7 @@
   }
 </script>
 
-<Resizable.PaneGroup direction="horizontal" autoSaveId="preview-panel" class="min-h-0 min-w-0 flex-1">
+<Resizable.PaneGroup direction="horizontal" autoSaveId={previewing ? undefined : "preview-panel"} class="min-h-0 min-w-0 flex-1">
   <Resizable.Pane id="file-list" order={1} minSize={30} bind:ref={listPaneEl}>
     <div
       role={view === "list" ? "grid" : undefined}
@@ -517,10 +522,10 @@
         bind:this={scrollEl}
         bind:clientWidth={containerW}
         data-file-list
-        data-pane-id={paneId}
-        data-key-scope="list"
-        tabindex="0"
-        onclick={handleBlankClick}
+        data-pane-id={previewing ? undefined : paneId}
+        data-key-scope={previewing ? undefined : "list"}
+        tabindex={previewing ? undefined : 0}
+        onclick={previewing ? undefined : handleBlankClick}
         onscroll={() => scrollEl && onScroll?.(scrollEl.scrollTop)}
         class="list-scroll min-h-0 min-w-0 flex-1 overflow-auto px-2 pb-2 [scrollbar-gutter:stable]"
         class:with-header={view === "list"}
@@ -530,7 +535,7 @@
             <p class="p-4 text-center text-[13px] text-[#9c9895]">This folder is empty.</p>
           {:else}
             <div role="rowgroup" class="relative" style="height: {rows.totalSize}px;">
-              {#each rows.virtualItems as v (v.key)}
+              {#each rows.virtualItems as v (visibleEntries[v.index]?.path ?? v.key)}
                 {@const entry = visibleEntries[v.index]}
                 {#if entry}
                   {@const selected = selectedPaths.has(entry.path)}
@@ -557,7 +562,7 @@
                     dropTarget={entry.path === drag.overEntryPath}
                     pasted={pastedPaths.has(entry.path)}
                     {searchQuery}
-                    onPointerDown={startEntryDrag} />
+                    onPointerDown={previewing ? undefined : startEntryDrag} />
                 {/if}
               {/each}
             </div>
@@ -589,7 +594,7 @@
                     dropTarget={entry.path === drag.overEntryPath}
                     pasted={pastedPaths.has(entry.path)}
                     {searchQuery}
-                    onPointerDown={startEntryDrag} />
+                    onPointerDown={previewing ? undefined : startEntryDrag} />
                 {/each}
               </div>
             {/each}

@@ -92,3 +92,18 @@ describe("sortEntries", () => {
     expect(input.map((entry) => entry.name)).toEqual(["b", "a"]);
   });
 });
+
+it("sorts measured folders before files, largest first within each group", () => {
+  const input = [
+    entry("small folder", true, 2),
+    entry("huge file", false, 1000),
+    entry("large folder", true, 30),
+    entry("small file", false, 1),
+  ];
+  expect(names(sortEntries(input, "size", "desc"))).toEqual([
+    "large folder",
+    "small folder",
+    "huge file",
+    "small file",
+  ]);
+});

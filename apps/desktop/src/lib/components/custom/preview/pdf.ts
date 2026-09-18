@@ -55,15 +55,20 @@ type OpenOptions = {
   onPassword?: (updateCallback: (password: string) => void, reason: number) => void;
 };
 
-/** Opens a PDF from its data URL, keeping the loading task so it can be destroyed. */
-export async function openPdf(dataUrl: string, options: OpenOptions = {}): Promise<PdfHandle> {
+/**
+ * Opens a PDF from a data URL or a streamable URL (e.g. `media://`), keeping the
+ * loading task so it can be destroyed. Streamed URLs let pdf.js request byte ranges
+ * instead of buffering the whole document.
+ */
+export async function openPdf(source: string, options: OpenOptions = {}): Promise<PdfHandle> {
   const pdfjs = await loadPdfjs();
-  const data = await pdfBytesFromDataUrl(dataUrl);
-  const task = pdfjs.getDocument({
-    data,
-    // Embedded fonts cover the common case; system fonts fill the rest.
-    useSystemFonts: true,
-  });
+  const task = source.startsWith("data:")
+    ? pdfjs.getDocument({
+        data: await pdfBytesFromDataUrl(source),
+        // Embedded fonts cover the common case; system fonts fill the rest.
+        useSystemFonts: true,
+      })
+    : pdfjs.getDocument({ url: source, useSystemFonts: true });
   options.onTask?.(task);
   if (options.onPassword) {
     const onPassword = options.onPassword;

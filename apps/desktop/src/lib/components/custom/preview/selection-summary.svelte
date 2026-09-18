@@ -13,7 +13,7 @@
   const files = $derived(entries.length - folders);
   const bytes = $derived(entries.reduce((sum, entry) => sum + (entry.size ?? 0), 0));
   // Folder sizes arrive later from the background scan; until then the total is a lower bound.
-  const sizesPending = $derived(entries.some((entry) => entry.is_directory && entry.size == null));
+  const sizesPending = $derived(entries.some((entry) => entry.sizeComplete === false || (entry.is_directory && entry.size == null)));
 
   /** Most common kinds: extension for files, "Folder" for folders. */
   const kinds = $derived.by(() => {

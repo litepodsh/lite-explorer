@@ -9,7 +9,17 @@ import {
   type KeyInput,
 } from "./keys.js";
 
-const press = (key: string, code: string, mods: Partial<{ ctrl: boolean; alt: boolean; shift: boolean; meta: boolean; composing: boolean }> = {}): KeyInput => ({
+const press = (
+  key: string,
+  code: string,
+  mods: Partial<{
+    ctrl: boolean;
+    alt: boolean;
+    shift: boolean;
+    meta: boolean;
+    composing: boolean;
+  }> = {},
+): KeyInput => ({
   key,
   code,
   ctrlKey: mods.ctrl ?? false,
@@ -49,7 +59,9 @@ describe("eventToken", () => {
     expect(eventToken(press("p", "KeyP", { meta: true, shift: true }))).toBe("Shift+Meta+P");
     expect(eventToken(press("π", "KeyP", { alt: true }))).toBe("Alt+P");
     expect(eventToken(press("&", "Digit1", { ctrl: true }))).toBe("Ctrl+1");
-    expect(eventToken(press("Backspace", "Backspace", { meta: true, shift: true }))).toBe("Shift+Meta+<Backspace>");
+    expect(eventToken(press("Backspace", "Backspace", { meta: true, shift: true }))).toBe(
+      "Shift+Meta+<Backspace>",
+    );
   });
 
   test("non-Latin letters fall back to the physical key", () => {

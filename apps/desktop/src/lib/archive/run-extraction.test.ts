@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { ExtractionJobRequest, ExtractionOutcome, ExtractionTarget, Resolution } from "$lib/file-ops/archive.js";
+import type {
+  ExtractionJobRequest,
+  ExtractionOutcome,
+  ExtractionTarget,
+  Resolution,
+} from "$lib/file-ops/archive.js";
 import { runExtraction, type ExtractionDeps } from "./run-extraction.js";
 
 const target = (name: string, exists: boolean): ExtractionTarget => ({
@@ -43,10 +48,13 @@ describe("runExtraction", () => {
   });
 
   test("asks once per existing target in order and passes the answers", async () => {
-    const { deps, asked, extracted } = fakes([target("a", true), target("b", false), target("c", true)], {
-      a: "keepBoth",
-      c: "replace",
-    });
+    const { deps, asked, extracted } = fakes(
+      [target("a", true), target("b", false), target("c", true)],
+      {
+        a: "keepBoth",
+        c: "replace",
+      },
+    );
     await runExtraction({ ...request, entries: ["x/a", "b", "c"] }, deps);
     expect(asked).toEqual(["a", "c"]);
     expect(extracted[0].resolutions).toEqual({ a: "keepBoth", c: "replace" });

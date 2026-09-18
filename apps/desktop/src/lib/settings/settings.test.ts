@@ -11,7 +11,9 @@ import {
   type SettingsStorage,
 } from "./settings.js";
 
-function memoryStorage(initial: Record<string, string> = {}): SettingsStorage & { data: Map<string, string> } {
+function memoryStorage(
+  initial: Record<string, string> = {},
+): SettingsStorage & { data: Map<string, string> } {
   const data = new Map(Object.entries(initial));
   return {
     data,
@@ -27,6 +29,8 @@ describe("defaultSettings", () => {
     expect(defaultSettings({ dev: false }).showFps).toBe(false);
     expect(defaultSettings({ dev: false }).keyboardMode).toBe("standard");
     expect(defaultSettings({ dev: false }).chordTimeoutMs).toBe(1500);
+    expect(defaultSettings({ dev: false }).terminalApp).toBe("system");
+    expect(defaultSettings({ dev: false }).terminalCommand).toBe("");
   });
 });
 
@@ -42,6 +46,11 @@ describe("validation", () => {
     expect(isValidSetting("chordTimeoutMs", 3000)).toBe(true);
     expect(isValidSetting("chordTimeoutMs", 2000)).toBe(false);
     expect(isValidSetting("showFps", "true")).toBe(false);
+    expect(isValidSetting("terminalApp", "ghostty")).toBe(true);
+    expect(isValidSetting("terminalApp", "my-term")).toBe(true);
+    expect(isValidSetting("terminalApp", 42)).toBe(false);
+    expect(isValidSetting("terminalCommand", "kitty --directory {path}")).toBe(true);
+    expect(isValidSetting("terminalCommand", 42)).toBe(false);
   });
 });
 
@@ -65,7 +74,12 @@ describe("parseSettings", () => {
 
 describe("migrateLegacy", () => {
   test("reads the old keys", () => {
-    const old: Record<string, string> = { "show-hidden-files": "true", "show-fps": "false", "dev-tools": "true", "panes-layout": "column" };
+    const old: Record<string, string> = {
+      "show-hidden-files": "true",
+      "show-fps": "false",
+      "dev-tools": "true",
+      "panes-layout": "column",
+    };
     const settings = migrateLegacy((key) => old[key] ?? null, defaultSettings({ dev: true }));
     expect(settings.showHiddenFiles).toBe(true);
     expect(settings.showFps).toBe(false);
@@ -90,7 +104,10 @@ describe("loadSettings", () => {
   });
 
   test("reads saved settings without migrating", () => {
-    const storage = memoryStorage({ [SETTINGS_STORAGE_KEY]: JSON.stringify({ keyboardMode: "yazi" }), "show-hidden-files": "true" });
+    const storage = memoryStorage({
+      [SETTINGS_STORAGE_KEY]: JSON.stringify({ keyboardMode: "yazi" }),
+      "show-hidden-files": "true",
+    });
     const { settings } = loadSettings(storage, defaultSettings({ dev: false }));
     expect(settings.keyboardMode).toBe("yazi");
     expect(settings.showHiddenFiles).toBe(false);

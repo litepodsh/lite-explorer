@@ -145,14 +145,19 @@ fn dsn() -> Option<sentry::types::Dsn> {
 /// nothing. An unreachable server only stalls the background transport, never startup.
 pub fn init_sentry(gate: Arc<AtomicBool>) -> sentry::ClientInitGuard {
     let before_send_gate = gate.clone();
-    let parsed_dsn = dsn();
-    match &parsed_dsn {
-        Some(dsn) => eprintln!(
-            "[analytics] Sentry enabled for {} project {}",
-            dsn.host(),
-            dsn.project_id()
-        ),
-        None => eprintln!("[analytics] SENTRY_DSN missing or invalid; reporting disabled"),
+    // Development builds never report: debug noise stays on the machine.
+    let parsed_dsn = if cfg!(debug_assertions) { None } else { dsn() };
+    if cfg!(debug_assertions) {
+        eprintln!("[analytics] development build; Sentry reporting disabled");
+    } else {
+        match &parsed_dsn {
+            Some(dsn) => eprintln!(
+                "[analytics] Sentry enabled for {} project {}",
+                dsn.host(),
+                dsn.project_id()
+            ),
+            None => eprintln!("[analytics] SENTRY_DSN missing or invalid; reporting disabled"),
+        }
     }
     // `ClientOptions` is `#[non_exhaustive]`, so it can only be built field by field.
     let mut options = sentry::ClientOptions::default();
@@ -171,7 +176,7 @@ pub fn init_sentry(gate: Arc<AtomicBool>) -> sentry::ClientInitGuard {
     // Both the Rust SDK and the browser events forwarded by the Tauri plugin run
     // through these hooks, so flipping the gate stops reports immediately.
     options.before_send = Some(Arc::new(move |event| {
-        let enabled = before_send_gate.load(Ordering::Relaxed);
+        let enabled = before_send_gate.load(Ordering::Relaxed) && !cfg!(debug_assertions);
         // Confirms an event reached the Rust client (UI errors arrive here too).
         eprintln!(
             "[analytics] event captured (enabled={enabled}, level={:?}, platform={}): {}",
@@ -182,7 +187,7 @@ pub fn init_sentry(gate: Arc<AtomicBool>) -> sentry::ClientInitGuard {
         enabled.then_some(event)
     }));
     options.before_breadcrumb = Some(Arc::new(move |breadcrumb| {
-        gate.load(Ordering::Relaxed).then_some(breadcrumb)
+        (gate.load(Ordering::Relaxed) && !cfg!(debug_assertions)).then_some(breadcrumb)
     }));
     sentry::init(options)
 }

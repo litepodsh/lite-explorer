@@ -1,11 +1,19 @@
 import { normalizeToken, type KeyPlatform } from "../keyboard/keys.js";
 import type { KeyboardMode } from "./settings.js";
 
-export type SettingsKeyAction = { kind: "close" } | { kind: "section"; index: number } | { kind: "move"; delta: 1 | -1 };
+export type SettingsKeyAction =
+  | { kind: "close" }
+  | { kind: "section"; index: number }
+  | { kind: "move"; delta: 1 | -1 };
 
 export function settingsKeyAction(
   token: string,
-  { platform, mode, inNav, sectionCount }: { platform: KeyPlatform; mode: KeyboardMode; inNav: boolean; sectionCount: number },
+  {
+    platform,
+    mode,
+    inNav,
+    sectionCount,
+  }: { platform: KeyPlatform; mode: KeyboardMode; inNav: boolean; sectionCount: number },
 ): SettingsKeyAction | null {
   if (token === "<Esc>" || token === normalizeToken("Mod+W", platform)) return { kind: "close" };
   for (let index = 0; index < Math.min(sectionCount, 9); index++) {

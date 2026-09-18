@@ -1,4 +1,12 @@
-export type PreviewKind = "text" | "binary" | "directory" | "image" | "archive" | "pdf";
+export type PreviewKind =
+  | "text"
+  | "binary"
+  | "directory"
+  | "image"
+  | "archive"
+  | "pdf"
+  | "video"
+  | "audio";
 
 export type FilePreview = {
   name: string;
