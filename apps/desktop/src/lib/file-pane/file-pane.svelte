@@ -39,7 +39,6 @@
   import { formatSize } from "$lib/components/custom/preview/format.js";
   import { swipeTransforms } from "$lib/swipe/gesture.js";
   import type { FilePaneController } from "./controller.svelte.js";
-  import AppleIntelligenceMark from "$lib/components/custom/ai/apple-intelligence-mark.svelte";
 
   let {
     controller,
@@ -292,11 +291,7 @@
           previewOpen={controller.previewOpen}
           onReorder={(reordered: DirectoryEntry[]) => (controller.entries = reordered)}
           onRename={(oldPath, newName) => controller.renameItem(oldPath, newName)}
-          onRenameCancel={() => controller.cancelRename()}
-          aiNameAvailable={controller.aiNameAvailable}
-          aiSuggestPath={controller.aiSuggestPath}
-          onSuggestName={(entry) => controller.suggestName(entry.path)}
-          onSuggestHandled={() => controller.clearSuggestionRequest()} />
+          onRenameCancel={() => controller.cancelRename()} />
       </ContextMenu.Trigger>
       <ContextMenu.Content onCloseAutoFocus={(event) => { if (controller.renamingPath) event.preventDefault(); }}>
         {#if controller.contextTargets.length}
@@ -371,12 +366,6 @@
                 <PencilIcon class="size-4" />
                 Rename
               </ContextMenu.Item>
-              {#if controller.aiNameAvailable}
-                <ContextMenu.Item onSelect={() => controller.suggestContextTargetName()}>
-                  <AppleIntelligenceMark size={15} />
-                  Suggest Name
-                </ContextMenu.Item>
-              {/if}
             {/if}
             <ContextMenu.Item onSelect={() => void controller.duplicateContextTargets()}>
               <CopyPlusIcon class="size-4" />

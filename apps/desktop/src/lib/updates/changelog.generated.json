@@ -1,6 +1,26 @@
 {
   "releases": [
     {
+      "version": "0.1.10",
+      "date": "2026-09-18",
+      "groups": [
+        {
+          "kind": "removed",
+          "label": "Removed",
+          "items": [
+            "Apple Intelligence name suggestions, to stop the launch crash: the bundled model dylib, the"
+          ]
+        },
+        {
+          "kind": "fixed",
+          "label": "Fixed",
+          "items": [
+            "Crash on launch on macOS: the Apple Intelligence dylib was linked weakly and never loaded from"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.1.9",
       "date": "2026-09-17",
       "groups": [

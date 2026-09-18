@@ -3,7 +3,6 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { devToolsVisible } from "$lib/stores/devTools";
-  import { appleIntelligence } from "$lib/ai/apple-intelligence.svelte.js";
   import { onMount, tick, untrack } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -429,7 +428,6 @@
 
   onMount(() => {
     void analytics.load();
-    void appleIntelligence.load();
     void invoke<string>("os_detection").then((detected) => {
       platform = detected as typeof platform;
       platformState.current = platform;
@@ -760,7 +758,6 @@
         trashSelection: (options) => controller.trashSelection(options),
         openSelection: () => controller.openSelection(),
         renameFocused: () => controller.renameFocused(showHidden),
-        suggestNameFocused: () => controller.suggestNameFocused(showHidden),
         createItem: (kind) => controller.createFromKeyboard(kind),
         copyText: (kind) => controller.copyText(kind, showHidden),
         enqueueSelected: (mode) => controller.enqueueSelected(mode),

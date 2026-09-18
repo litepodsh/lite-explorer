@@ -32,7 +32,6 @@ export function fakeContext(calls: string[], overrides: ContextOverrides = {}): 
       trashSelection: ({ permanent }) => record(calls, `trash ${permanent}`),
       openSelection: () => record(calls, "open"),
       renameFocused: () => record(calls, "rename"),
-      suggestNameFocused: () => record(calls, "suggestName"),
       createItem: (kind) => record(calls, `create ${kind}`),
       copyText: (kind) => record(calls, `copy ${kind}`),
       enqueueSelected: (mode) => record(calls, `enqueue ${mode}`),

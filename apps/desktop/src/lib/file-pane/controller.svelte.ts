@@ -58,7 +58,6 @@ import {
   type VisualState,
 } from "$lib/selection/selection.js";
 import { settings } from "$lib/settings/settings.svelte.js";
-import { appleIntelligence } from "$lib/ai/apple-intelligence.svelte.js";
 import type { SortColumn, SortDir } from "$lib/components/custom/file-list/sort.js";
 import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
 import type { CopyTextKind } from "$lib/keyboard/context.js";
@@ -195,8 +194,6 @@ export class FilePaneController {
   /** Saved network location whose share or session is gone, shown with a Reconnect button. */
   disconnected = $state<Location | null>(null);
   renamingPath = $state("");
-  /** Rename field that opened to receive a suggested name right away. */
-  aiSuggestPath = $state("");
   /** Entries the open context menu acts on: the selection when the menu opened on it. */
   contextTargets = $state<DirectoryEntry[]>([]);
   previewEntryPath = $state("");
@@ -678,7 +675,6 @@ export class FilePaneController {
       else this.listingError = error instanceof Error ? error.message : String(error);
     } finally {
       this.renamingPath = "";
-      this.aiSuggestPath = "";
     }
   }
 
@@ -735,43 +731,6 @@ export class FilePaneController {
 
   renameContextTarget() {
     if (this.contextTarget) this.renamingPath = this.contextTarget.path;
-  }
-
-  /** Whether the rename field may offer Apple Intelligence suggestions here. */
-  get aiNameAvailable(): boolean {
-    return settings.current.aiNameSuggestions && appleIntelligence.available;
-  }
-
-  /** Opens the rename field on the context target and asks for a name immediately. */
-  suggestContextTargetName() {
-    const target = this.contextTarget;
-    if (!target || !this.aiNameAvailable) return;
-    this.renamingPath = target.path;
-    this.aiSuggestPath = target.path;
-  }
-
-  /** The rename field has taken the request; stop asking for it. */
-  clearSuggestionRequest() {
-    if (this.aiSuggestPath) this.aiSuggestPath = "";
-  }
-
-  /** Suggests a name for `path`, or null when the model is unavailable or failed. */
-  async suggestName(path: string): Promise<string | null> {
-    if (!this.aiNameAvailable) return null;
-    try {
-      return await appleIntelligence.suggestName(path);
-    } catch (error) {
-      void this.showError("Couldn’t suggest a name", error);
-      return null;
-    }
-  }
-
-  /** Keyboard entry: opens the rename field on the focused item and asks for a name. */
-  suggestNameFocused(showHidden: boolean): boolean {
-    if (!this.aiNameAvailable) return false;
-    if (!this.renameFocused(showHidden)) return false;
-    this.aiSuggestPath = this.renamingPath;
-    return true;
   }
 
   deleteContextTargets() {
@@ -883,7 +842,6 @@ export class FilePaneController {
 
   cancelRename() {
     this.renamingPath = "";
-    this.aiSuggestPath = "";
   }
 
   /** Right-click on a selected entry acts on the whole selection; on another entry it selects only that one. */

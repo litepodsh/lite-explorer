@@ -20,8 +20,6 @@ export type Settings = {
   showFps: boolean;
   /** Development builds only. */
   prototypeSwitcher: boolean;
-  /** Offers Apple Intelligence name suggestions in the rename field (macOS 26+ only). */
-  aiNameSuggestions: boolean;
 };
 
 export type SettingKey = keyof Settings;
@@ -49,7 +47,6 @@ export function defaultSettings({ dev }: { dev: boolean }): Settings {
     terminalCommand: "",
     showFps: dev,
     prototypeSwitcher: false,
-    aiNameSuggestions: true,
   };
 }
 
@@ -69,7 +66,6 @@ const VALIDATORS: { [K in SettingKey]: (value: unknown) => value is Settings[K] 
   terminalCommand: (value): value is string => typeof value === "string",
   showFps: isBoolean,
   prototypeSwitcher: isBoolean,
-  aiNameSuggestions: isBoolean,
 };
 
 export function isSettingKey(key: string): key is SettingKey {

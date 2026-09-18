@@ -9,6 +9,20 @@ in `assets/`, so a release can show screenshots.
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-09-18
+
+### Removed
+
+- Apple Intelligence name suggestions, to stop the launch crash: the bundled model dylib, the
+  suggestion button in the rename field, the “Suggest Name” context menu item, its `Mod+Shift+R`
+  shortcut and the “Apple Intelligence names” switch in Settings are all gone.
+
+### Fixed
+
+- Crash on launch on macOS: the Apple Intelligence dylib was linked weakly and never loaded from
+  the app bundle, so checking availability jumped to a null pointer and killed the app seconds
+  after opening.
+
 ## [0.1.9] - 2026-09-17
 
 ### Added

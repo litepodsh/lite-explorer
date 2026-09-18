@@ -14,9 +14,6 @@
   import { isPrimaryModifier } from "$lib/state/platform.svelte.js";
   import SelectionCheckbox from "./selection-checkbox.svelte";
   import { checkboxReveal } from "./checkbox-reveal.js";
-  import AiNameButton from "$lib/components/custom/ai/ai-name-button.svelte";
-  import { Typewriter } from "$lib/ai/typewriter.js";
-
   let {
     entry,
     downloadSnapshot,
@@ -39,12 +36,6 @@
     onRename,
     onRenameCancel,
     onContextMenu,
-    /** Apple Intelligence is ready on this Mac, so the rename field can offer a suggestion. */
-    aiNameAvailable = false,
-    /** The panel asked for a suggestion without a click (menu item or keyboard shortcut). */
-    aiSuggest = false,
-    onSuggestName,
-    onSuggestHandled,
     style = "",
     searchQuery = "",
   } = $props<{
@@ -76,11 +67,6 @@
     onRename?: (oldPath: string, newName: string) => void;
     onRenameCancel?: () => void;
     onContextMenu?: (entry: DirectoryEntry) => void;
-    aiNameAvailable?: boolean;
-    aiSuggest?: boolean;
-    /** Resolves to the suggested name, or null when the caller already reported the failure. */
-    onSuggestName?: (entry: DirectoryEntry) => Promise<string | null>;
-    onSuggestHandled?: () => void;
     /** Content-search query to highlight inside the snippet. */
     searchQuery?: string;
     style?: string;
@@ -134,34 +120,6 @@
     return { before: (cut > 0 ? "…" : "") + text.slice(cut, at), match: text.slice(at, at + searchQuery.length), after: text.slice(at + searchQuery.length) };
   });
 
-  const typewriter = new Typewriter();
-  let thinking = $state(false);
-  let typing = $state(false);
-
-  // Panel-level triggers (context menu, shortcut) open the field and ask right away.
-  $effect(() => {
-    if (renaming && aiSuggest) {
-      onSuggestHandled?.();
-      void suggestName();
-    }
-  });
-
-  $effect(() => () => typewriter.cancel());
-
-  async function suggestName() {
-    if (thinking || !onSuggestName) return;
-    thinking = true;
-    try {
-      const name = await onSuggestName(entry);
-      if (!name) return;
-      typing = true;
-      await typewriter.start(name, (value) => (editName = value));
-    } finally {
-      thinking = false;
-      typing = false;
-    }
-  }
-
   function commitRename() {
     const value = editName.trim();
     if (value === "" || value === entry.name) onRenameCancel?.();
@@ -207,7 +165,7 @@
     <div role="gridcell" class="flex min-w-0 items-center gap-2 px-2">
       <span class="min-w-0 flex-1 truncate">
       {#if renaming}
-        <span class="relative flex w-full items-center gap-0.5 overflow-hidden rounded-sm border bg-[#1f1d1b] pr-1 transition-colors duration-300 motion-reduce:transition-none {typing ? 'border-[#a66bff]/70' : 'border-[#0a84ff]/60'} {thinking ? 'animate-[pulse_1.15s_ease-in-out_infinite] motion-reduce:animate-none' : ''}">
+        <span class="relative flex w-full items-center gap-0.5 overflow-hidden rounded-sm border border-[#0a84ff]/60 bg-[#1f1d1b] pr-1 transition-colors duration-300 motion-reduce:transition-none">
           <input
             bind:value={editName}
             use:focusRename
@@ -218,21 +176,6 @@
               else if (event.key === "Escape") onRenameCancel?.();
             }}
             onblur={commitRename} />
-          {#if thinking || typing}
-            <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px animate-[pulse_1.1s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-[#a66bff] to-transparent motion-reduce:animate-none"></span>
-          {/if}
-          {#if thinking}
-            <span class="flex flex-none items-center gap-[2px] pr-0.5" aria-hidden="true">
-              {#each [0, 130, 260] as delay (delay)}
-                <span
-                  class="size-[3px] animate-bounce rounded-full bg-[#a66bff] motion-reduce:animate-none"
-                  style="animation-delay: {delay}ms"></span>
-              {/each}
-            </span>
-          {/if}
-          {#if aiNameAvailable}
-            <AiNameButton {thinking} onSuggest={suggestName} />
-          {/if}
         </span>
       {:else}
         {#if entry.relative_path != null}
@@ -287,7 +230,7 @@
     {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </span>
     {#if renaming}
-      <span class="relative flex max-w-full items-center gap-0.5 overflow-hidden rounded-sm border bg-[#1f1d1b] pr-1 transition-colors duration-300 motion-reduce:transition-none {typing ? 'border-[#a66bff]/70' : 'border-[#0a84ff]/60'} {thinking ? 'animate-[pulse_1.15s_ease-in-out_infinite] motion-reduce:animate-none' : ''}">
+      <span class="relative flex max-w-full items-center gap-0.5 overflow-hidden rounded-sm border border-[#0a84ff]/60 bg-[#1f1d1b] pr-1 transition-colors duration-300 motion-reduce:transition-none">
         <input
           bind:value={editName}
           use:focusRename
@@ -298,21 +241,6 @@
             else if (event.key === "Escape") onRenameCancel?.();
           }}
           onblur={commitRename} />
-        {#if thinking || typing}
-          <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px animate-[pulse_1.1s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-[#a66bff] to-transparent motion-reduce:animate-none"></span>
-        {/if}
-        {#if thinking}
-          <span class="flex flex-none items-center gap-[2px] pr-0.5" aria-hidden="true">
-            {#each [0, 130, 260] as delay (delay)}
-              <span
-                class="size-[3px] animate-bounce rounded-full bg-[#a66bff] motion-reduce:animate-none"
-                style="animation-delay: {delay}ms"></span>
-            {/each}
-          </span>
-        {/if}
-        {#if aiNameAvailable}
-          <AiNameButton as="span" {thinking} onSuggest={suggestName} />
-        {/if}
       </span>
     {:else}
       <span class="max-w-full truncate">{entry.name}</span>
