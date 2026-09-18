@@ -183,6 +183,17 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
           printf 'APPLE_SIGNING_IDENTITY=%s\n' "$signing_identity" >> "$GITHUB_ENV"
 
+      # build.rs bakes SENTRY_DSN into the binary at compile time, so a missing secret
+      # silently ships a build with reporting disabled. Fail before spending a build.
+      - name: Check the Sentry DSN
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          if [ -z "$SENTRY_DSN" ]; then
+            echo "::error::SENTRY_DSN secret is empty; the release would ship with crash reporting disabled."
+            exit 1
+          fi
+
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@v0
         env:
