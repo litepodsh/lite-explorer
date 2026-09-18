@@ -88,6 +88,25 @@ just dev
 
 Tauri 2 · SvelteKit · TypeScript
 
+## Origins
+
+Lite Explorer is an extraction of several tools built before it:
+
+- An interface for connecting to **S3** and **SMB**. Projects like
+  [Nicebucket](https://github.com/nicebucket-org/nicebucket) did not save the
+  connections you made, so you had to re-enter them every time. That was the
+  original motivation for saving and reusing connections here.
+- A **SFTP** client, which became the base for the file explorer side.
+- A couple of internal tools used in the backoffice at work.
+
+So this was not "vibe-coded". AI was used to port existing code from those
+previous projects into this one — which, up to that point, was maybe better
+described as *vibe-copied*.
+
+The user interface takes inspiration from macOS **Finder** and
+[Spacedrive](https://github.com/spacedriveapp/spacedrive).
+
+
 ## License
 
 [MIT](LICENSE) © 2026 Litepod Studio
