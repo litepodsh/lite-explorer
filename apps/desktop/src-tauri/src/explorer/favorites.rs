@@ -77,7 +77,7 @@ pub fn linux_favorites() -> Vec<Location> {
         config.join("gtk-4.0/bookmarks"),
         config.join("gtk-3.0/bookmarks"),
     ] {
-        if let Ok(contents) = fs::read_to_string(bookmarks) {
+        if let Ok(contents) = std::fs::read_to_string(bookmarks) {
             for line in contents.lines() {
                 if let Some(path) = line.split_whitespace().next().and_then(file_url_path) {
                     add_location(&mut locations, &mut seen, path);
