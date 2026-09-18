@@ -597,7 +597,6 @@ pub fn set_prototype_switcher(app: AppHandle, visible: bool) {
     }
 }
 
-#[cfg(debug_assertions)]
 pub struct PrototypeSwitcherMenu(pub CheckMenuItem<Wry>);
 
 pub struct OpenMenuItem(pub MenuItem<Wry>);
