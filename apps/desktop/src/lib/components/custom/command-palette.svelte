@@ -390,20 +390,6 @@
 	<Command.List>
 		<Command.Empty>No results found.</Command.Empty>
 
-		{#if commandResults.length && !isPathQuery}
-			<Command.Group heading="Commands">
-				{#each commandResults as command (command.id)}
-					<Command.Item value={command.id} onSelect={() => runCommand(command)}>
-						<TerminalIcon class="size-4 text-muted-foreground" />
-						<span class="min-w-0 flex-1 truncate">{command.title}</span>
-						{#if command.shortcut}
-							<span class="ml-auto text-xs text-muted-foreground">{command.shortcut}</span>
-						{/if}
-					</Command.Item>
-				{/each}
-			</Command.Group>
-		{/if}
-
 		{#if pathResults.length}
 			<Command.Group heading="Go to Folder">
 				{#each pathResults as item (item.id)}
@@ -441,6 +427,20 @@
 						</span>
 						{#if item.subtitle}
 							<span class="ml-auto truncate text-xs text-muted-foreground">{item.subtitle}</span>
+						{/if}
+					</Command.Item>
+				{/each}
+			</Command.Group>
+		{/if}
+
+		{#if commandResults.length && !isPathQuery}
+			<Command.Group heading="Commands">
+				{#each commandResults as command (command.id)}
+					<Command.Item value={command.id} onSelect={() => runCommand(command)}>
+						<TerminalIcon class="size-4 text-muted-foreground" />
+						<span class="min-w-0 flex-1 truncate">{command.title}</span>
+						{#if command.shortcut}
+							<span class="ml-auto text-xs text-muted-foreground">{command.shortcut}</span>
 						{/if}
 					</Command.Item>
 				{/each}
