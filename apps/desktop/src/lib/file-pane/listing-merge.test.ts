@@ -3,7 +3,13 @@ import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
 import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
 
 function entry(path: string, extra: Partial<DirectoryEntry> = {}): DirectoryEntry {
-  return { name: path.split("/").at(-1) ?? path, path, is_directory: false, is_hidden: false, ...extra };
+  return {
+    name: path.split("/").at(-1) ?? path,
+    path,
+    is_directory: false,
+    is_hidden: false,
+    ...extra,
+  };
 }
 
 describe("mergeListing", () => {

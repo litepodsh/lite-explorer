@@ -1,10 +1,7 @@
 import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
 
 /** Folder sizes are measured on demand and live only in the listing, so a re-read has to keep them. */
-export function mergeListing(
-  previous: DirectoryEntry[],
-  next: DirectoryEntry[],
-): DirectoryEntry[] {
+export function mergeListing(previous: DirectoryEntry[], next: DirectoryEntry[]): DirectoryEntry[] {
   if (previous.length === 0) return next;
   const measured = new Map<string, Pick<DirectoryEntry, "size" | "sizeComplete">>();
   for (const entry of previous) {

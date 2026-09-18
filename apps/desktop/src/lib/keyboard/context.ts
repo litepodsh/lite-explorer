@@ -30,6 +30,8 @@ export type ListActions = {
   trashSelection(options: { permanent: boolean }): boolean;
   openSelection(): boolean;
   renameFocused(): boolean;
+  /** Opens the rename field and asks Apple Intelligence for a name. */
+  suggestNameFocused(): boolean;
   createItem(kind: CreateKind): boolean;
   copyText(kind: CopyTextKind): boolean;
   enqueueSelected(mode: ClipboardMode): boolean;

@@ -45,6 +45,7 @@ export function navigationCommands(): AppCommand[] {
       context.list.startVisual(args.mode === "remove" ? "remove" : "add"),
     ),
     listCommand("file.rename", "Rename", (context) => context.list.renameFocused()),
+    listCommand("file.suggestName", "Suggest Name", (context) => context.list.suggestNameFocused()),
     listCommand("file.newFile", "New File", (context) => context.list.createItem("file")),
     listCommand("file.newFolder", "New Folder", (context) => context.list.createItem("folder")),
     listCommand("file.copyPath", "Copy Path", (context) => context.list.copyText("path")),

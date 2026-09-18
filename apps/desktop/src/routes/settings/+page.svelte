@@ -18,6 +18,7 @@
   import { settingsKeyAction } from "$lib/settings/settings-keys.js";
   import { eventToken, toKeyPlatform } from "$lib/keyboard/keys.js";
   import { platformState } from "$lib/state/platform.svelte.js";
+  import { appleIntelligence } from "$lib/ai/apple-intelligence.svelte.js";
 
   settings.load();
 
@@ -33,6 +34,7 @@
   let navButtons = $state<HTMLButtonElement[]>([]);
   let terminals = $state<TerminalInfo[]>([]);
   const current = $derived(settings.current);
+  const aiStatus = $derived(appleIntelligence.status);
 
   /** System default and Custom are always offered; the rest comes from detection. */
   const terminalOptions = $derived.by<TerminalOption[]>(() => {
@@ -220,6 +222,15 @@
             label="Show FPS meter"
             checked={current.showFps}
             onchange={(checked) => settings.set("showFps", checked)} />
+          {#if platform === "macos"}
+            <DialogSwitch
+              label="Apple Intelligence names"
+              description={aiStatus?.available
+                ? "Suggests a clearer name in the rename field. Runs on-device; nothing leaves this Mac."
+                : (aiStatus?.reason ?? "Checking Apple Intelligence…")}
+              checked={current.aiNameSuggestions}
+              onchange={(checked) => settings.set("aiNameSuggestions", checked)} />
+          {/if}
           {#if dev}
             <DialogSwitch
               label="Show prototype switcher"

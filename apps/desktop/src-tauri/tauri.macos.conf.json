@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "macOS": {
+      "bundleName": "Lite Explorer"
+    },
+    "resources": ["resources/libappleai.dylib"]
+  }
+}
