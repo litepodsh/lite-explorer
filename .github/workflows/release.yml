@@ -186,6 +186,7 @@ jobs:
       # build.rs bakes SENTRY_DSN into the binary at compile time, so a missing secret
       # silently ships a build with reporting disabled. Fail before spending a build.
       - name: Check the Sentry DSN
+        shell: bash
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
