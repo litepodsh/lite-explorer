@@ -9,6 +9,7 @@ use tauri::{
 };
 
 pub const CHECK_FOR_UPDATES: &str = "check-for-updates";
+pub const OPEN_RELEASE_NOTES: &str = "open-release-notes";
 
 pub const SETTINGS_WINDOW: &str = "settings";
 const OPEN_SETTINGS: &str = "open-settings";
@@ -214,7 +215,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         accelerator(OPEN_SETTINGS),
     )?;
     set_about_icon(app, &menu, &info)?;
-    add_check_for_updates(app, &menu)?;
+    add_help_items(app, &menu)?;
     let items = menu.items()?;
     // macOS keeps Settings in the app menu, after About.
     #[cfg(target_os = "macos")]
@@ -475,6 +476,8 @@ pub fn handle(app: &AppHandle, id: &str) {
         let _ = app.emit("command-palette", ());
     } else if id == CHECK_FOR_UPDATES {
         let _ = app.emit("check-for-updates", ());
+    } else if id == OPEN_RELEASE_NOTES {
+        let _ = app.emit("open-release-notes", ());
     }
 }
 
@@ -537,12 +540,20 @@ fn set_about_icon<R: Runtime>(
     Ok(())
 }
 
-/// Puts "Check for Updates…" right after About: in the app menu on macOS, in Help elsewhere.
-fn add_check_for_updates<R: Runtime>(app: &AppHandle<R>, menu: &Menu<R>) -> tauri::Result<()> {
-    let item = MenuItem::with_id(
+/// Puts "Check for Updates…" and "Release Notes…" right after About: in the app menu on macOS,
+/// in Help elsewhere.
+fn add_help_items<R: Runtime>(app: &AppHandle<R>, menu: &Menu<R>) -> tauri::Result<()> {
+    let check = MenuItem::with_id(
         app,
         CHECK_FOR_UPDATES,
         "Check for Updates…",
+        true,
+        None::<&str>,
+    )?;
+    let notes = MenuItem::with_id(
+        app,
+        OPEN_RELEASE_NOTES,
+        "Release Notes…",
         true,
         None::<&str>,
     )?;
@@ -552,7 +563,8 @@ fn add_check_for_updates<R: Runtime>(app: &AppHandle<R>, menu: &Menu<R>) -> taur
         };
         let about = submenu.items()?.iter().position(is_about);
         if let Some(index) = about {
-            return submenu.insert(&item, index + 1);
+            submenu.insert(&check, index + 1)?;
+            return submenu.insert(&notes, index + 2);
         }
     }
     let help = menu.items()?.into_iter().find_map(|entry| match entry {
@@ -560,8 +572,11 @@ fn add_check_for_updates<R: Runtime>(app: &AppHandle<R>, menu: &Menu<R>) -> taur
         _ => None,
     });
     match help {
-        Some(help) => help.append(&item),
-        None => menu.append(&Submenu::with_items(app, "Help", true, &[&item])?),
+        Some(help) => {
+            help.append(&check)?;
+            help.append(&notes)
+        }
+        None => menu.append(&Submenu::with_items(app, "Help", true, &[&check, &notes])?),
     }
 }
 

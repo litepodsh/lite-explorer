@@ -25,6 +25,8 @@ class Updates {
   /** Shows download progress; automatic checks only surface a finished download. */
   manual = $state(false);
   dismissed = $state(false);
+  /** Release notes of the pending update, straight from latest.json. */
+  notes = $state<string | null>(null);
   #update: Update | null = null;
 
   /** Starts periodic checks. Returns a function that stops them. */
@@ -92,6 +94,7 @@ class Updates {
       return;
     }
     this.#update = update;
+    this.notes = update.body ?? null;
     this.status = { state: "ready", version };
   }
 

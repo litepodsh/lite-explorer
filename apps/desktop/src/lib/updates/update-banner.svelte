@@ -3,6 +3,7 @@
   import XIcon from "@lucide/svelte/icons/x";
   import { formatSize } from "$lib/components/custom/preview/format.js";
   import { updates } from "./updates.svelte.js";
+  import { whatsNew } from "./whats-new.svelte.js";
 
   let status = $derived(updates.status);
   let visible = $derived(
@@ -31,6 +32,10 @@
       {/if}
     </span>
     {#if status.state !== "downloading"}
+      <button
+        class="update-notes"
+        onclick={() => whatsNew.showForUpdate(status.version, updates.notes)}
+        >What’s New</button>
       <button
         class="update-restart"
         disabled={status.state === "installing"}
@@ -69,6 +74,24 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .update-notes {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+    color: #cfccc9;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .update-notes:hover {
+    background: #3a3734;
+    color: #e8e5e2;
+  }
+  .update-notes:active {
+    transform: scale(0.98);
+  }
   .update-restart {
     flex-shrink: 0;
     padding: 4px 10px;
@@ -101,6 +124,7 @@
     background: #3a3734;
     color: #e8e5e2;
   }
+  .update-notes:focus-visible,
   .update-restart:focus-visible,
   .update-dismiss:focus-visible {
     outline: 2px solid rgb(255 255 255 / 0.32);

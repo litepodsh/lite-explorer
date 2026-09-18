@@ -1,0 +1,172 @@
+{
+  "releases": [
+    {
+      "version": "0.1.9",
+      "date": "2026-09-17",
+      "groups": [
+        {
+          "kind": "added",
+          "label": "Added",
+          "items": [
+            "Release notes in the Help menu, listing every version newest first.",
+            "“What’s New” dialog after an update, plus a “What’s New” button in the update banner."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.8",
+      "date": "2026-09-17",
+      "groups": [
+        {
+          "kind": "added",
+          "label": "Added",
+          "items": [
+            "Rename suggestions on macOS."
+          ]
+        },
+        {
+          "kind": "fixed",
+          "label": "Fixed",
+          "items": [
+            "Command palette layout and command order.",
+            "Folders no longer refresh when nothing changed.",
+            "Release workflow validates the Sentry DSN before building."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.7",
+      "date": "2026-09-17",
+      "groups": [
+        {
+          "kind": "added",
+          "label": "Added",
+          "items": [
+            "Folder sizes in the file list.",
+            "Drag left or right to go back and forward.",
+            "Open the current folder in an external terminal.",
+            "Developer tools in pre-1.0 builds.",
+            "Sort by name by default."
+          ]
+        },
+        {
+          "kind": "fixed",
+          "label": "Fixed",
+          "items": [
+            "Infinite loading on Windows.",
+            "Windows volumes missing from the sidebar.",
+            "Long location names overflowing the sidebar.",
+            "AI folder and file reorganization."
+          ]
+        },
+        {
+          "kind": "security",
+          "label": "Security",
+          "items": [
+            "Content security policy for the webview."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.6",
+      "date": "2026-09-15",
+      "groups": [
+        {
+          "kind": "added",
+          "label": "Added",
+          "items": [
+            "Anonymous crash reporting, off in debug builds."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.5",
+      "date": "2026-09-15",
+      "groups": [
+        {
+          "kind": "added",
+          "label": "Added",
+          "items": [
+            "Spanish README."
+          ]
+        },
+        {
+          "kind": "changed",
+          "label": "Changed",
+          "items": [
+            "README rewritten around the current feature set."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.4",
+      "date": "2026-09-14",
+      "groups": [
+        {
+          "kind": "added",
+          "label": "Added",
+          "items": [
+            "Multiple selection, first pass.",
+            "Search inside file contents.",
+            "Content search and file tree inside zip archives.",
+            "Linux title bar."
+          ]
+        },
+        {
+          "kind": "fixed",
+          "label": "Fixed",
+          "items": [
+            "Sidebar app icon and trigger alignment.",
+            "Dragging files to other apps.",
+            "Copy container layout.",
+            "Menu order."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.2",
+      "date": "2026-09-14",
+      "groups": [
+        {
+          "kind": "changed",
+          "label": "Changed",
+          "items": [
+            "Maintenance release after the signing change."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.1",
+      "date": "2026-09-14",
+      "groups": [
+        {
+          "kind": "added",
+          "label": "Added",
+          "items": [
+            "Apple code signing for macOS builds."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-09-13",
+      "groups": [
+        {
+          "kind": "added",
+          "label": "Added",
+          "items": [
+            "First release: browsing, tabs, panes, archive extraction, preview and AI-assisted file actions."
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -18,40 +18,47 @@ fn main() {
 /// there — the dylib simply resolves to nothing, and `ai::apple_intelligence_ready` refuses to
 /// call into it before it has checked the OS version.
 fn bundle_apple_intelligence() {
-    // The plugin crate emits its link-search path for this target only, so anything else has
-    // nothing to bundle and nothing to link.
-    #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-    return;
+    // Build scripts are compiled for the host, so `#[cfg(target_arch)]` would describe the
+    // machine doing the build, not the slice being linked. On an arm64 runner building the
+    // x86_64 half of a universal binary that mismatch emitted `-weak-lappleai` without the
+    // plugin's link path (the plugin is target-gated in Cargo.toml), so ld failed with
+    // "library 'appleai' not found". Read the target from cargo's env instead.
+    if !is_target("macos", "aarch64") {
+        return;
+    }
 
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    {
-        let Some(dylib) = find_prebuilt("libappleai.dylib") else {
-            println!("cargo:warning=couldn't find libappleai.dylib in the cargo registry; Apple Intelligence name suggestions will be unavailable");
-            return;
-        };
-        let resources = std::path::PathBuf::from("resources");
-        let target = resources.join("libappleai.dylib");
-        if std::fs::create_dir_all(&resources).is_err() || std::fs::copy(&dylib, &target).is_err() {
-            println!("cargo:warning=couldn't copy libappleai.dylib into src-tauri/resources");
-            return;
-        }
-        println!("cargo:rerun-if-changed={}", target.display());
-        // Weak: a missing or too-new dylib must not stop the app from launching.
-        println!("cargo:rustc-link-arg=-Wl,-weak-lappleai");
-        // Bundled builds resolve it from the app's Resources directory.
-        println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Resources");
-        // Dev builds: Tauri serves no bundle resources, so point at the copy in the source tree.
-        let absolute = std::fs::canonicalize(&target);
-        if let Ok(path) = absolute {
-            if let Some(parent) = path.parent() {
-                println!("cargo:rustc-link-arg=-Wl,-rpath,{}", parent.display());
-            }
+    let Some(dylib) = find_prebuilt("libappleai.dylib") else {
+        println!("cargo:warning=couldn't find libappleai.dylib in the cargo registry; Apple Intelligence name suggestions will be unavailable");
+        return;
+    };
+    let resources = std::path::PathBuf::from("resources");
+    let target = resources.join("libappleai.dylib");
+    if std::fs::create_dir_all(&resources).is_err() || std::fs::copy(&dylib, &target).is_err() {
+        println!("cargo:warning=couldn't copy libappleai.dylib into src-tauri/resources");
+        return;
+    }
+    println!("cargo:rerun-if-changed={}", target.display());
+    // Weak: a missing or too-new dylib must not stop the app from launching.
+    println!("cargo:rustc-link-arg=-Wl,-weak-lappleai");
+    // Bundled builds resolve it from the app's Resources directory.
+    println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Resources");
+    // Dev builds: Tauri serves no bundle resources, so point at the copy in the source tree.
+    let absolute = std::fs::canonicalize(&target);
+    if let Ok(path) = absolute {
+        if let Some(parent) = path.parent() {
+            println!("cargo:rustc-link-arg=-Wl,-rpath,{}", parent.display());
         }
     }
 }
 
+/// True when cargo is compiling for `os`/`arch`. Uses the env cargo sets for build scripts,
+/// because `cfg!(target_*)` here would report the host running the build.
+fn is_target(os: &str, arch: &str) -> bool {
+    std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok(os)
+        && std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok(arch)
+}
+
 /// Locates a file shipped inside a crate's extracted sources (`$CARGO_HOME/registry/src/...`).
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 fn find_prebuilt(file_name: &str) -> Option<std::path::PathBuf> {
     let home = std::env::var_os("CARGO_HOME")
         .map(std::path::PathBuf::from)

@@ -1,4 +1,4 @@
 {
-  "ignorePatterns": [],
+  "ignorePatterns": ["src/lib/updates/changelog.generated.json"],
   "bracketSameLine": true
 }

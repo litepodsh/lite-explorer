@@ -69,7 +69,9 @@
   import { OVERVIEW, type Location } from "$lib/tabs/tabs.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import UpdateBanner from "$lib/updates/update-banner.svelte";
+  import ChangelogDialog from "$lib/updates/changelog-dialog.svelte";
   import { updates } from "$lib/updates/updates.svelte.js";
+  import { whatsNew } from "$lib/updates/whats-new.svelte.js";
   import { TransferClipboard } from "$lib/transfer-clipboard/queue.svelte.js";
   import { CommandRegistry } from "$lib/keyboard/commands.js";
   import { KeyboardDispatcher } from "$lib/keyboard/dispatcher.svelte.js";
@@ -539,6 +541,10 @@
         openShortcuts();
       }),
       listen("check-for-updates", () => void updates.check({ manual: true })),
+      listen("open-release-notes", () => {
+        void getCurrentWindow().setFocus();
+        whatsNew.show();
+      }),
       // Debug menu: throw an uncaught error so it flows through the error reporter.
       listen("debug-throw-exception", () => {
         const error = new Error("Test exception thrown from the Debug menu");
@@ -552,6 +558,7 @@
     ];
     // Development builds have no published release to compare against.
     const stopUpdates = dev ? () => {} : updates.start();
+    void whatsNew.checkOnLaunch();
     return () => {
       stopSettings();
       window.removeEventListener("keydown", markKeyboard, true);
@@ -976,6 +983,7 @@
   {/if}
   <ConflictHost />
   <UpdateBanner />
+  <ChangelogDialog bind:open={whatsNew.open} version={whatsNew.version} notes={whatsNew.notes} />
   <CommandPalette commands={paletteCommands} {favorites} {locations} recents={activeController.recents} onNavigate={(location, opts) => openAnyLocation(location, opts)} />
   <WhichKey pending={keyboard.pending} enabled={settings.current.showWhichKey} platform={toKeyPlatform(platform)} />
   <ShortcutsDialog
