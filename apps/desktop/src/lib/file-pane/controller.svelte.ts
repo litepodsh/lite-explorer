@@ -59,6 +59,7 @@ import {
 } from "$lib/selection/selection.js";
 import { settings } from "$lib/settings/settings.svelte.js";
 import type { SortColumn, SortDir } from "$lib/components/custom/file-list/sort.js";
+import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
 import type { CopyTextKind } from "$lib/keyboard/context.js";
 import { fileStem } from "$lib/keyboard/text.js";
 import type { SwipeDirection } from "$lib/swipe/gesture.js";
@@ -651,7 +652,7 @@ export class FilePaneController {
     const name = nextDefaultName(kind);
     try {
       const entry = await createItemActions[kind].create(this.listingPath, name);
-      this.entries = await invoke<DirectoryEntry[]>("read_directory", { path: this.listingPath });
+      this.addEntry(entry);
       this.selectEntry(entry);
       this.renamingPath = entry.path;
     } catch (error) {
@@ -668,31 +669,61 @@ export class FilePaneController {
         parentPath(oldPath),
         () => invoke("rename_item", { path: oldPath, newName }),
       );
+      this.applyRename(oldPath, newName);
     } catch (error) {
       if (isRemoteLike(oldPath)) void this.showError("Couldn’t rename", error);
       else this.listingError = error instanceof Error ? error.message : String(error);
     } finally {
-      if (this.isBrowsableFolder()) {
-        this.entries = await invoke<DirectoryEntry[]>("read_directory", { path: this.listingPath });
-      }
       this.renamingPath = "";
     }
+  }
+
+  /** Renames the listed entry without re-reading the folder, so its measured size stays. */
+  private applyRename(oldPath: string, newName: string) {
+    const index = this.entryIndex.get(oldPath);
+    if (index === undefined) return;
+    const newPath = `${parentPath(oldPath)}${newName}`;
+    this.setEntries(renameEntry(this.entries, oldPath, newPath, newName));
+    const { paths, anchor, focus } = this.selection;
+    if (!paths.includes(oldPath) && anchor !== oldPath && focus !== oldPath) return;
+    const swap = (path: string) => (path === oldPath ? newPath : path);
+    this.setSelection({
+      paths: paths.map(swap),
+      anchor: swap(anchor),
+      focus: swap(focus),
+    });
+  }
+
+  /** Adds a created or pasted entry to the listing without re-reading the folder. */
+  addEntry(entry: DirectoryEntry) {
+    this.setEntries(upsertEntry(this.entries, entry));
+  }
+
+  /** Drops deleted entries from the listing right away, keeping the sizes already measured. */
+  removeEntries(paths: string[]) {
+    if (paths.length === 0) return;
+    this.setEntries(removePaths(this.entries, paths));
+    this.pruneSelection();
+  }
+
+  /** Replaces the listing and keeps the copy used by history navigation in sync. */
+  private setEntries(entries: DirectoryEntry[]) {
+    this.entries = entries;
+    if (this.listingPath) this.#listingCache.set(this.listingPath, entries);
   }
 
   async showError(title: string, error: unknown) {
     await message(error instanceof Error ? error.message : String(error), { title, kind: "error" });
   }
 
+  /** Folds a fresh read of the folder into the listing: measured sizes and the scan survive. */
   async refreshListing(path: string) {
     if (this.listingPath !== path || !path || this.selected === "Recents") return;
-    this.cancelSizeScan();
-    this.sizeScanMessage = "";
     try {
       const result = await invoke<DirectoryEntry[]>("read_directory", { path });
-      if (this.listingPath === path) {
-        this.entries = result;
-        this.pruneSelection();
-      }
+      if (this.listingPath !== path) return;
+      this.setEntries(mergeListing(this.entries, result));
+      this.pruneSelection();
     } catch (error) {
       this.listingError = error instanceof Error ? error.message : String(error);
     }
@@ -747,12 +778,15 @@ export class FilePaneController {
           else if (remote) await deleteRemoteItems(paths);
           else if (irreversible) for (const path of paths) await deleteItem(path);
           else for (const path of paths) await trashItem(path);
-        } finally {
+        } catch (error) {
           await this.refreshListing(folder);
-          this.pruneSelection();
-          if (nextFocus && this.selection.paths.length === 0) {
-            this.setSelection({ paths: [], anchor: nextFocus, focus: nextFocus });
-          }
+          if (remote || bucket) await this.showError(`Couldn’t delete ${targetLabel(targets)}`, error);
+          else this.listingError = error instanceof Error ? error.message : String(error);
+          return;
+        }
+        this.removeEntries(paths);
+        if (nextFocus && this.selection.paths.length === 0) {
+          this.setSelection({ paths: [], anchor: nextFocus, focus: nextFocus });
         }
       },
     });
