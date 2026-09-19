@@ -28,8 +28,12 @@ use tokio::sync::OnceCell;
 
 use super::write;
 use crate::{
-    media_preview_kind, now_secs, utf8_boundary, Database, DirectoryEntry, FilePreview, Location,
-    PreviewKind, PREVIEW_MAX_BYTES, PREVIEW_SNIFF_BYTES,
+    apply_text_extension_kind, classify_preview_bytes, media_preview_kind, now_secs,
+    preview::arrow, preview::avro, preview::calendar, preview::certificate, preview::data,
+    preview::dicom, preview::fb2, preview::geo, preview::iso, preview::mail, preview::mobi,
+    preview::msg, preview::notebook, preview::parquet, preview::pcap, preview::psd, preview::sheet,
+    preview::subtitle, preview::torrent, preview::vcard, Database, DirectoryEntry, FilePreview,
+    Location, PreviewKind, PREVIEW_MAX_BYTES,
 };
 
 const KEYCHAIN_SERVICE: &str = "lite-explorer.s3";
@@ -644,19 +648,55 @@ pub async fn read_object_range(
     object_bytes(&client, bucket, key, range, None).await
 }
 
-/// Same text/binary rules as local previews: NUL in the sniffed head means binary,
-/// text is cut at `PREVIEW_MAX_BYTES` on a UTF-8 boundary.
-pub(crate) fn classify_preview_bytes(preview: &mut FilePreview, mut bytes: Vec<u8>) {
-    if bytes[..bytes.len().min(PREVIEW_SNIFF_BYTES)].contains(&0) {
-        preview.kind = PreviewKind::Binary;
-        return;
+/// Reads a whole remote object (bounded by `max_bytes`) for previews that parse in memory.
+pub(crate) async fn read_object(
+    pool: &SqlitePool,
+    clients: &RemoteClients,
+    path: &str,
+    max_bytes: usize,
+) -> Result<Vec<u8>, String> {
+    let remote = parse_remote_path(path).ok_or("Not a remote path")?;
+    let bucket = remote.bucket.ok_or("Buckets can't be opened as files")?;
+    let client = client_for(pool, clients, &remote.id).await?;
+    object_bytes(&client, &bucket, &remote.key, None, Some(max_bytes as i64)).await
+}
+
+/// Reads a remote workbook and parses it for the spreadsheet preview.
+pub(crate) async fn read_spreadsheet(
+    pool: &SqlitePool,
+    clients: &RemoteClients,
+    path: &str,
+) -> Result<sheet::SpreadsheetData, String> {
+    let remote = parse_remote_path(path).ok_or("Not a remote path")?;
+    let bucket = remote.bucket.ok_or("Buckets can't be opened as files")?;
+    let client = client_for(pool, clients, &remote.id).await?;
+    let head = client
+        .head_object()
+        .bucket(&bucket)
+        .key(&remote.key)
+        .send()
+        .await
+        .map_err(|error| object_error(&remote.key, error))?;
+    let size = head
+        .content_length()
+        .and_then(|size| u64::try_from(size).ok())
+        .unwrap_or(0);
+    if size > sheet::SHEET_MAX_BYTES as u64 {
+        return Err(format!(
+            "{} is larger than {} MB",
+            entry_name(&remote.key),
+            sheet::SHEET_MAX_BYTES / (1024 * 1024)
+        ));
     }
-    if bytes.len() > PREVIEW_MAX_BYTES {
-        bytes.truncate(utf8_boundary(&bytes, PREVIEW_MAX_BYTES));
-        preview.truncated = true;
-    }
-    preview.kind = PreviewKind::Text;
-    preview.content = Some(String::from_utf8_lossy(&bytes).into_owned());
+    let bytes = object_bytes(
+        &client,
+        &bucket,
+        &remote.key,
+        None,
+        Some(sheet::SHEET_MAX_BYTES as i64),
+    )
+    .await?;
+    sheet::parse_spreadsheet(bytes)
 }
 
 pub async fn file_preview(
@@ -713,6 +753,104 @@ pub async fn file_preview(
         return Ok(preview);
     }
 
+    if Path::new(&key)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(sheet::is_spreadsheet_extension)
+    {
+        // Spreadsheets are parsed on demand by `read_spreadsheet`.
+        preview.kind = PreviewKind::Spreadsheet;
+        return Ok(preview);
+    }
+
+    if let Some(extension) = Path::new(&key)
+        .extension()
+        .and_then(|extension| extension.to_str())
+    {
+        if mail::is_mail_extension(extension) {
+            // Messages are parsed on demand by `open_mail`.
+            preview.kind = PreviewKind::Mail;
+            return Ok(preview);
+        }
+        if mail::is_mbox_extension(extension) {
+            // Mailboxes are parsed on demand by `open_mbox`.
+            preview.kind = PreviewKind::Mbox;
+            return Ok(preview);
+        }
+        if vcard::is_vcard_extension(extension) {
+            preview.kind = PreviewKind::Contact;
+            return Ok(preview);
+        }
+        if calendar::is_calendar_extension(extension) {
+            preview.kind = PreviewKind::Calendar;
+            return Ok(preview);
+        }
+        if torrent::is_torrent_extension(extension) {
+            preview.kind = PreviewKind::Torrent;
+            return Ok(preview);
+        }
+        if data::is_data_extension(extension) {
+            preview.kind = PreviewKind::Data;
+            return Ok(preview);
+        }
+        if notebook::is_notebook_extension(extension) {
+            preview.kind = PreviewKind::Notebook;
+            return Ok(preview);
+        }
+        if subtitle::is_subtitle_extension(extension) {
+            preview.kind = PreviewKind::Subtitle;
+            return Ok(preview);
+        }
+        if certificate::is_certificate_extension(extension) {
+            preview.kind = PreviewKind::Certificate;
+            return Ok(preview);
+        }
+        if geo::is_geo_extension(extension) {
+            preview.kind = PreviewKind::Geo;
+            return Ok(preview);
+        }
+        if fb2::is_fb2_extension(extension) {
+            preview.kind = PreviewKind::Fb2;
+            return Ok(preview);
+        }
+        if pcap::is_pcap_extension(extension) {
+            preview.kind = PreviewKind::Pcap;
+            return Ok(preview);
+        }
+        if iso::is_iso_extension(extension) {
+            preview.kind = PreviewKind::Iso;
+            return Ok(preview);
+        }
+        if msg::is_msg_extension(extension) {
+            preview.kind = PreviewKind::Msg;
+            return Ok(preview);
+        }
+        if psd::is_psd_extension(extension) {
+            preview.kind = PreviewKind::Psd;
+            return Ok(preview);
+        }
+        if dicom::is_dicom_extension(extension) {
+            preview.kind = PreviewKind::Dicom;
+            return Ok(preview);
+        }
+        if mobi::is_mobi_extension(extension) {
+            preview.kind = PreviewKind::Mobi;
+            return Ok(preview);
+        }
+        if avro::is_avro_extension(extension) {
+            preview.kind = PreviewKind::Avro;
+            return Ok(preview);
+        }
+        if parquet::is_parquet_extension(extension) {
+            preview.kind = PreviewKind::Parquet;
+            return Ok(preview);
+        }
+        if arrow::is_arrow_extension(extension) {
+            preview.kind = PreviewKind::Arrow;
+            return Ok(preview);
+        }
+    }
+
     if preview.size == 0 {
         classify_preview_bytes(&mut preview, Vec::new());
         return Ok(preview);
@@ -727,7 +865,14 @@ pub async fn file_preview(
         None,
     )
     .await?;
+    // PDF magic also catches PDF-based Illustrator (`.ai`) objects.
+    if bytes.starts_with(b"%PDF-") {
+        preview.kind = PreviewKind::Pdf;
+        return Ok(preview);
+    }
     classify_preview_bytes(&mut preview, bytes);
+    let name = preview.name.clone();
+    apply_text_extension_kind(&mut preview, &name);
     Ok(preview)
 }
 

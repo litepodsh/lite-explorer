@@ -61,6 +61,11 @@ export function removeItem(state: QueueState, id: string): QueueState {
   return { ...state, items: state.items.filter((item) => item.id !== id) };
 }
 
+/** Drops the queued item for a source path, used when a job reports it finished. */
+export function removePath(state: QueueState, path: string): QueueState {
+  return { ...state, items: state.items.filter((item) => item.path !== path) };
+}
+
 export function clearFinished(state: QueueState): QueueState {
   return {
     ...state,
@@ -120,8 +125,4 @@ export function etaSeconds(state: QueueState, now: number): number | null {
   return Math.max(0, (total - totalBytes(state.items)) / (bytes / elapsed));
 }
 
-export function formatEta(seconds: number | null): string | null {
-  if (seconds === null || !Number.isFinite(seconds)) return null;
-  if (seconds < 60) return `${Math.ceil(seconds)}s left`;
-  return `${Math.ceil(seconds / 60)}m left`;
-}
+export { formatEta } from "../transfers/progress.js";

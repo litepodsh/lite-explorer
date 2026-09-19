@@ -32,6 +32,7 @@
   import { isNetworkPath } from "$lib/remote/network-locations.js";
   import { canFavorite } from "$lib/favorites/favorites.js";
   import PathStatusBar from "$lib/components/custom/status-bar/path-status-bar.svelte";
+  import CompressDialog from "$lib/components/custom/dialog/compress-dialog.svelte";
   import { ListPanel, type DirectoryEntry } from "$lib/components/custom/file-list/index.js";
   import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
   import { folderScan, OverviewPanel } from "$lib/components/custom/overview/index.js";
@@ -384,7 +385,7 @@
               Copy to…
             </ContextMenu.Item>
             <ContextMenu.Separator />
-            <ContextMenu.Item onSelect={() => void controller.compressContextTargets()}>
+            <ContextMenu.Item onSelect={() => void controller.openCompressDialog()}>
               <ArchiveIcon class="size-4" />
               {target ? `Compress “${target.name}”…` : `Compress ${count} Items…`}
             </ContextMenu.Item>
@@ -484,6 +485,11 @@
       (folderScan.scanning
         ? `Analyzing ${folderScan.rootName}… ${formatSize(folderScan.scannedBytes)}`
         : null)} />
+  <CompressDialog
+    bind:open={controller.compressDialogOpen}
+    targets={controller.compressTargets}
+    sevenZipPath={controller.sevenZipPath}
+    onCreate={(name, format) => void controller.createCompressed(name, format)} />
 </section>
 
 <style>

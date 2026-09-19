@@ -23,7 +23,14 @@ use super::{
 };
 use crate::remote::read_optional_secret;
 use crate::remote::transfer::{self, TransferEvent, TransferRegistry};
-use crate::{media_preview_kind, DirectoryEntry, FilePreview, PreviewKind, PREVIEW_MAX_BYTES};
+use crate::{
+    apply_text_extension_kind, classify_preview_bytes, media_preview_kind, preview::arrow,
+    preview::avro, preview::calendar, preview::certificate, preview::data, preview::dicom,
+    preview::fb2, preview::geo, preview::iso, preview::mail, preview::mobi, preview::msg,
+    preview::notebook, preview::parquet, preview::pcap, preview::psd, preview::sheet,
+    preview::subtitle, preview::torrent, preview::vcard, DirectoryEntry, FilePreview, PreviewKind,
+    PREVIEW_MAX_BYTES,
+};
 
 mod ftp;
 mod sftp;
@@ -677,10 +684,155 @@ pub async fn file_preview(
         preview.kind = kind;
         return Ok(preview);
     }
+    if Path::new(&item.name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(sheet::is_spreadsheet_extension)
+    {
+        // Spreadsheets are parsed on demand by `read_spreadsheet`.
+        preview.kind = PreviewKind::Spreadsheet;
+        return Ok(preview);
+    }
+    if let Some(extension) = Path::new(&item.name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+    {
+        if mail::is_mail_extension(extension) {
+            // Messages are parsed on demand by `open_mail`.
+            preview.kind = PreviewKind::Mail;
+            return Ok(preview);
+        }
+        if mail::is_mbox_extension(extension) {
+            // Mailboxes are parsed on demand by `open_mbox`.
+            preview.kind = PreviewKind::Mbox;
+            return Ok(preview);
+        }
+        if vcard::is_vcard_extension(extension) {
+            preview.kind = PreviewKind::Contact;
+            return Ok(preview);
+        }
+        if calendar::is_calendar_extension(extension) {
+            preview.kind = PreviewKind::Calendar;
+            return Ok(preview);
+        }
+        if torrent::is_torrent_extension(extension) {
+            preview.kind = PreviewKind::Torrent;
+            return Ok(preview);
+        }
+        if data::is_data_extension(extension) {
+            preview.kind = PreviewKind::Data;
+            return Ok(preview);
+        }
+        if notebook::is_notebook_extension(extension) {
+            preview.kind = PreviewKind::Notebook;
+            return Ok(preview);
+        }
+        if subtitle::is_subtitle_extension(extension) {
+            preview.kind = PreviewKind::Subtitle;
+            return Ok(preview);
+        }
+        if certificate::is_certificate_extension(extension) {
+            preview.kind = PreviewKind::Certificate;
+            return Ok(preview);
+        }
+        if geo::is_geo_extension(extension) {
+            preview.kind = PreviewKind::Geo;
+            return Ok(preview);
+        }
+        if fb2::is_fb2_extension(extension) {
+            preview.kind = PreviewKind::Fb2;
+            return Ok(preview);
+        }
+        if pcap::is_pcap_extension(extension) {
+            preview.kind = PreviewKind::Pcap;
+            return Ok(preview);
+        }
+        if iso::is_iso_extension(extension) {
+            preview.kind = PreviewKind::Iso;
+            return Ok(preview);
+        }
+        if msg::is_msg_extension(extension) {
+            preview.kind = PreviewKind::Msg;
+            return Ok(preview);
+        }
+        if psd::is_psd_extension(extension) {
+            preview.kind = PreviewKind::Psd;
+            return Ok(preview);
+        }
+        if dicom::is_dicom_extension(extension) {
+            preview.kind = PreviewKind::Dicom;
+            return Ok(preview);
+        }
+        if mobi::is_mobi_extension(extension) {
+            preview.kind = PreviewKind::Mobi;
+            return Ok(preview);
+        }
+        if avro::is_avro_extension(extension) {
+            preview.kind = PreviewKind::Avro;
+            return Ok(preview);
+        }
+        if parquet::is_parquet_extension(extension) {
+            preview.kind = PreviewKind::Parquet;
+            return Ok(preview);
+        }
+        if arrow::is_arrow_extension(extension) {
+            preview.kind = PreviewKind::Arrow;
+            return Ok(preview);
+        }
+    }
     // One byte past the limit tells a truncated file from one that fits exactly.
     let bytes = session.read_head(&at.remote, PREVIEW_MAX_BYTES + 1).await?;
-    crate::remote::classify_preview_bytes(&mut preview, bytes);
+    // PDF magic also catches PDF-based Illustrator (`.ai`) files.
+    if bytes.starts_with(b"%PDF-") {
+        preview.kind = PreviewKind::Pdf;
+        return Ok(preview);
+    }
+    classify_preview_bytes(&mut preview, bytes);
+    let name = preview.name.clone();
+    apply_text_extension_kind(&mut preview, &name);
     Ok(preview)
+}
+
+/// Reads a whole server file (bounded by `max_bytes`) for previews that parse in memory.
+pub(crate) async fn read_bytes(
+    pool: &SqlitePool,
+    sessions: &Sessions,
+    path: &str,
+    max_bytes: usize,
+) -> Result<Vec<u8>, String> {
+    let at = server_path(path)?;
+    let session = sessions.connect(pool, &at.id, None).await?;
+    let item = session.stat(&at.remote).await?;
+    if item.size > max_bytes as u64 {
+        return Err(format!(
+            "{} is larger than {} MB",
+            item.name,
+            max_bytes / (1024 * 1024)
+        ));
+    }
+    Ok(session.read_head(&at.remote, max_bytes + 1).await?)
+}
+
+/// Reads a server workbook and parses it for the spreadsheet preview.
+pub(crate) async fn read_spreadsheet(
+    pool: &SqlitePool,
+    sessions: &Sessions,
+    path: &str,
+) -> Result<sheet::SpreadsheetData, String> {
+    let at = server_path(path)?;
+    let session = sessions.connect(pool, &at.id, None).await?;
+    let item = session.stat(&at.remote).await?;
+    if item.size > sheet::SHEET_MAX_BYTES as u64 {
+        return Err(format!(
+            "{} is larger than {} MB",
+            item.name,
+            sheet::SHEET_MAX_BYTES / (1024 * 1024)
+        ));
+    }
+    let bytes = session
+        .read_head(&at.remote, sheet::SHEET_MAX_BYTES + 1)
+        .await?;
+    sheet::parse_spreadsheet(bytes)
 }
 
 /// Local path under `root` for a server path, without `..` escapes.

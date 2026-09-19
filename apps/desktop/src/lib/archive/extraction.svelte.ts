@@ -91,7 +91,7 @@ class Extraction {
 
   cancel(archive: string) {
     const progress = this.running.get(archive);
-    if (progress) void invoke("cancel_transfer", { id: progress.jobId });
+    if (progress) void invoke("cancel_transfer", { id: progress.jobId }).catch(() => {});
   }
 
   #ask(target: ExtractionTarget, destination: string): Promise<Resolution> {

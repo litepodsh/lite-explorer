@@ -26,6 +26,54 @@ export function deleteItem(path: string): Promise<void> {
   );
 }
 
+export async function copyItems(
+  paths: string[],
+  destination: string,
+  label: string,
+): Promise<DirectoryEntry[]> {
+  const id = activity.start("copy", label, destination);
+  try {
+    return await invoke<DirectoryEntry[]>("copy_items", { paths, destination, jobId: id });
+  } catch (error) {
+    activity.fail(id, "copy", label, destination, error);
+    throw error;
+  }
+}
+
+export async function moveItems(
+  paths: string[],
+  destination: string,
+  label: string,
+): Promise<DirectoryEntry[]> {
+  const id = activity.start("move", label, destination);
+  try {
+    return await invoke<DirectoryEntry[]>("move_items", { paths, destination, jobId: id });
+  } catch (error) {
+    activity.fail(id, "move", label, destination, error);
+    throw error;
+  }
+}
+
+export async function deleteItems(paths: string[], label: string): Promise<void> {
+  const id = activity.start("delete", label, "");
+  try {
+    await invoke<void>("delete_items", { paths, permanent: true, jobId: id });
+  } catch (error) {
+    activity.fail(id, "delete", label, "", error);
+    throw error;
+  }
+}
+
+export async function trashItems(paths: string[], label: string): Promise<void> {
+  const id = activity.start("delete", label, "");
+  try {
+    await invoke<void>("delete_items", { paths, permanent: false, jobId: id });
+  } catch (error) {
+    activity.fail(id, "delete", label, "", error);
+    throw error;
+  }
+}
+
 const isSeparator = (character: string) => character === "/" || character === "\\";
 
 /** Folder containing `path`, with a trailing separator. Remote folder paths end in `/`

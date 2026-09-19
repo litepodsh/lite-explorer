@@ -1,4 +1,32 @@
+pub(crate) mod arrow;
+pub(crate) mod avro;
+pub(crate) mod calendar;
+pub(crate) mod certificate;
+pub(crate) mod comic;
+pub(crate) mod data;
+pub(crate) mod database;
+pub(crate) mod dicom;
+pub(crate) mod epub;
+pub(crate) mod fb2;
+pub(crate) mod geo;
+pub(crate) mod iso;
+pub(crate) mod mail;
+pub(crate) mod mobi;
+pub(crate) mod msg;
+pub(crate) mod notebook;
+pub(crate) mod office;
+pub(crate) mod parquet;
+pub(crate) mod pcap;
 #[allow(clippy::module_inception)]
 mod preview;
+pub(crate) mod psd;
+pub(crate) mod rtf;
+pub(crate) mod sheet;
+pub(crate) mod sketch;
+pub(crate) mod source;
+pub(crate) mod subtitle;
+pub(crate) mod torrent;
+pub(crate) mod vcard;
+mod xml;
 
 pub use preview::*;

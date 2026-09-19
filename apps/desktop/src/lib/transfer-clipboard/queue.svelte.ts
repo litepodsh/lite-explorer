@@ -6,6 +6,7 @@ import {
   emptyQueue,
   etaSeconds,
   removeItem,
+  removePath,
   totalBytes,
   totalBytesKnown,
   type ClipboardBatchRequest,
@@ -40,6 +41,10 @@ export class TransferClipboard {
 
   remove(id: string) {
     this.#state = removeItem(this.#state, id);
+  }
+
+  removeByPath(path: string) {
+    this.#state = removePath(this.#state, path);
   }
 
   clearFinished() {

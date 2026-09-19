@@ -54,10 +54,11 @@
   } from "$lib/remote/network-locations.js";
   import { remapMountPath } from "$lib/remote/network-paths.js";
   import { networkStatus, type ConnectOutcome } from "$lib/remote/network-status.svelte.js";
-  import { baseName, copyItem, moveItem, parentPath } from "$lib/file-ops/files.js";
+  import { baseName, copyItems, moveItems, parentPath } from "$lib/file-ops/files.js";
   import { message } from "@tauri-apps/plugin-dialog";
   import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
   import ActivityDrawer from "$lib/components/custom/activity/activity-drawer.svelte";
+  import TransferToast from "$lib/transfers/transfer-toast.svelte";
   import { applyDownloadProgress, fileDownloads } from "$lib/transfers/download-progress.svelte.js";
   import { JobsStore } from "$lib/transfers/jobs.svelte.js";
   import { activity, isRunning, type TransferEventPayload } from "$lib/transfers/jobs.js";
@@ -405,10 +406,8 @@
     const destination = target.listingPath;
     if (!destination || target.remoteListing) return;
     try {
-      for (const path of paths) {
-        if (options.move) await moveItem(path, destination);
-        else await copyItem(path, destination);
-      }
+      if (options.move) await moveItems(paths, destination, `Move: ${paths.length} items`);
+      else await copyItems(paths, destination, `Copy: ${paths.length} items`);
     } catch (error) {
       await message(error instanceof Error ? error.message : String(error), {
         title: "Couldn’t transfer",
@@ -489,6 +488,7 @@
           }
         }
         jobs.upsert(payload);
+        if (payload.item) transferClipboard.removeByPath(payload.item);
         extraction.applyProgress(payload);
       }),
       getCurrentWebview().onDragDropEvent(({ payload }) => {
@@ -570,8 +570,8 @@
   });
 
   // Native menu check items follow the settings, including changes made in the Settings window.
-  $effect(() => void invoke("set_show_hidden_files", { show: settings.current.showHiddenFiles }));
-  $effect(() => void invoke("set_show_fps", { show: settings.current.showFps }));
+  $effect(() => void invoke("set_show_hidden_files", { show: settings.current.showHiddenFiles }).catch(() => {}));
+  $effect(() => void invoke("set_show_fps", { show: settings.current.showFps }).catch(() => {}));
   $effect(() => {
     const visible = settings.current.prototypeSwitcher;
     devToolsVisible.set(visible);
@@ -593,7 +593,7 @@
     const key = `${context.enabled}|${context.pointerInList}|${context.canBack}|${context.canForward}`;
     if (key === lastSwipeContext) return;
     lastSwipeContext = key;
-    void invoke("set_swipe_context", context);
+    void invoke("set_swipe_context", context).catch(() => {});
   });
 
   // Load each pane's active tab whenever its location or active tab changes. `locationKey` is a
@@ -614,7 +614,7 @@
       path: entry?.path ?? "",
       isDirectory: entry?.is_directory ?? false,
       enabled: Boolean(entry),
-    });
+    }).catch(() => {});
   });
 
   function resizeSidebar(width: number) {
@@ -875,13 +875,40 @@
   async function pasteTransferClipboard() {
     const request = transferClipboard.beginPaste(activeController.listingPath);
     if (!request) return;
+    const copy = request.entries.filter((entry) => entry.mode === "copy");
+    const move = request.entries.filter((entry) => entry.mode === "move");
     for (const entry of request.entries) {
-      try {
-        transferClipboard.applyProgress({ jobId: "clipboard", itemId: entry.id, state: "transferring" });
-        const pasted = entry.mode === "copy" ? await copyItem(entry.path, request.destination) : await moveItem(entry.path, request.destination);
-        markPasted([pasted.path]);
-        transferClipboard.remove(entry.id);
-      } catch (error) {
+      transferClipboard.applyProgress({
+        jobId: "clipboard",
+        itemId: entry.id,
+        state: "transferring",
+      });
+    }
+    try {
+      // One job (one progress bar) for the whole paste. The backend emits an
+      // event per finished top-level item that drains the list above.
+      const created: string[] = [];
+      if (copy.length) {
+        const entries = await copyItems(
+          copy.map((entry) => entry.path),
+          request.destination,
+          `Copy: ${copy.length} items`,
+        );
+        created.push(...entries.map((entry) => entry.path));
+      }
+      if (move.length) {
+        const entries = await moveItems(
+          move.map((entry) => entry.path),
+          request.destination,
+          `Move: ${move.length} items`,
+        );
+        created.push(...entries.map((entry) => entry.path));
+      }
+      for (const entry of request.entries) transferClipboard.removeByPath(entry.path);
+      markPasted(created);
+    } catch (error) {
+      // Rejects only happen before the job registers, so nothing was processed.
+      for (const entry of request.entries) {
         transferClipboard.applyProgress({
           jobId: "clipboard",
           itemId: entry.id,
@@ -1092,6 +1119,7 @@
       {/each}
     </div>
     <ActivityDrawer {jobs} open={activityOpen} onToggle={() => (activityOpen = !activityOpen)} />
+    <TransferToast {jobs} />
     {#if transferClipboard.items.length}
       <aside class:open={transferClipboardOpen} class="transfer-clipboard" aria-label="Transfer clipboard">
         <button class="transfer-clipboard-stack" onclick={() => (transferClipboardOpen = !transferClipboardOpen)} aria-expanded={transferClipboardOpen}>

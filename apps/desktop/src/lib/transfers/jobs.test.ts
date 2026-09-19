@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  activity,
   trackJob,
   formatJobDuration,
   clearCompleted,
@@ -172,4 +173,32 @@ test("activity timestamps cover every kind and freeze on every terminal state", 
   expect(formatJobDuration(short, 99000)).toBe("0.007s");
   expect(formatJobDuration({ ...short, finishedAt: 3_662_007 }, 0)).toBe("1h 1m 1.007s");
   expect(formatJobDuration({ ...short, finishedAt: 999 }, 0)).toBe("0.000s");
+});
+
+describe("activity.start / fail", () => {
+  test("start publishes an active cancellable job and returns its id", () => {
+    const published: TransferEventPayload[] = [];
+    const original = activity.publish;
+    activity.publish = (event) => published.push(event);
+    const id = activity.start("delete", "Delete: 3 items", "");
+    activity.publish = original;
+    expect(published.length).toBe(1);
+    expect(published[0].id).toBe(id);
+    expect(published[0].kind).toBe("delete");
+    expect(published[0].state).toBe("active");
+    expect(published[0].cancellable).toBe(true);
+    expect(published[0].filesTotal).toBe(0);
+    expect(published[0].filesDone).toBe(0);
+  });
+
+  test("fail marks the job failed with a string error", () => {
+    const published: TransferEventPayload[] = [];
+    const original = activity.publish;
+    activity.publish = (event) => published.push(event);
+    activity.fail("job-1", "copy", "Copy: a", "/tmp", new Error("nope"));
+    activity.publish = original;
+    expect(published[0].id).toBe("job-1");
+    expect(published[0].state).toBe("failed");
+    expect(published[0].error).toBe("nope");
+  });
 });

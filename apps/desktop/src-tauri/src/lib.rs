@@ -8,13 +8,11 @@ mod search;
 mod system;
 
 pub(crate) use app::db::Database;
-pub(crate) use explorer::entries::{
-    epoch_millis, single_entry, unique_name, utf8_boundary, DirectoryEntry,
-};
+pub(crate) use explorer::entries::{epoch_millis, single_entry, unique_name, DirectoryEntry};
 pub(crate) use explorer::paths::{now_secs, Location};
 pub(crate) use preview::{
-    image_mime, media_mime, media_preview_kind, FilePreview, PreviewKind, PREVIEW_MAX_BYTES,
-    PREVIEW_SNIFF_BYTES,
+    apply_text_extension_kind, classify_preview_bytes, image_mime, media_mime, media_preview_kind,
+    FilePreview, PreviewKind, PREVIEW_MAX_BYTES,
 };
 
 use app::db::open_database;
@@ -108,6 +106,7 @@ pub fn run() {
             remote::write::download_remote_items,
             remote::transfer::cancel_transfer,
             explorer::archive::create_archive,
+            explorer::archive::detect_7z,
             explorer::archive::extract_archive,
             explorer::archive::list_archive,
             explorer::archive::plan_extraction,
@@ -123,6 +122,7 @@ pub fn run() {
             explorer::favorites::reorder_favorites,
             explorer::entries::read_directory,
             explorer::entries::resolve_path,
+            explorer::entries::path_exists,
             explorer::entries::search_directory,
             explorer::file_ops::create_item,
             explorer::file_ops::rename_item,
@@ -144,6 +144,37 @@ pub fn run() {
             explorer::sizes::scan_directory_sizes,
             explorer::sizes::cancel_directory_size_scan,
             preview::read_file_preview,
+            preview::epub::open_epub,
+            preview::epub::read_epub_chapter,
+            preview::sheet::read_spreadsheet,
+            preview::rtf::open_rtf,
+            preview::office::open_word,
+            preview::office::open_presentation,
+            preview::mail::open_mail,
+            preview::mail::open_mbox,
+            preview::mail::read_mbox_message,
+            preview::vcard::open_vcards,
+            preview::calendar::open_calendar,
+            preview::torrent::open_torrent,
+            preview::data::open_data,
+            preview::comic::open_comic,
+            preview::notebook::open_notebook,
+            preview::database::open_database,
+            preview::database::read_sqlite_table,
+            preview::subtitle::open_subtitle,
+            preview::certificate::open_certificate,
+            preview::geo::open_geo,
+            preview::fb2::open_fb2,
+            preview::pcap::open_pcap,
+            preview::iso::open_iso,
+            preview::msg::open_msg,
+            preview::sketch::open_sketch,
+            preview::psd::open_psd,
+            preview::dicom::open_dicom,
+            preview::mobi::open_mobi,
+            preview::avro::open_avro,
+            preview::parquet::open_parquet,
+            preview::arrow::open_arrow,
             explorer::recents::record_recent,
             explorer::recents::recents,
             explorer::recents::clear_recents,
@@ -151,6 +182,9 @@ pub fn run() {
             explorer::file_ops::move_item,
             explorer::file_ops::trash_item,
             explorer::file_ops::delete_item,
+            explorer::file_transfer::copy_items,
+            explorer::file_transfer::move_items,
+            explorer::file_transfer::delete_items,
             system::volumes::disk_overview,
             system::folder_usage::folder_usage,
             system::folder_usage::scan_folder_usage,

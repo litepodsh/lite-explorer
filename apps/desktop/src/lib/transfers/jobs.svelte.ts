@@ -33,6 +33,6 @@ export class JobsStore {
   }
 
   cancel(id: string) {
-    void invoke("cancel_transfer", { id });
+    void invoke("cancel_transfer", { id }).catch(() => {});
   }
 }

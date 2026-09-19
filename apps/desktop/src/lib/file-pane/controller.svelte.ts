@@ -1,7 +1,12 @@
 import { activity } from "$lib/transfers/jobs.js";
 import { Channel, invoke } from "@tauri-apps/api/core";
-import { message, open, save } from "@tauri-apps/plugin-dialog";
-import { createArchive } from "$lib/file-ops/archive.js";
+import { message, open } from "@tauri-apps/plugin-dialog";
+import {
+  compressExtension,
+  createArchive,
+  detectSevenZip,
+  type CompressFormat,
+} from "$lib/file-ops/archive.js";
 import { extraction } from "$lib/archive/extraction.svelte.js";
 import { confirmation } from "$lib/components/custom/dialog/index.js";
 import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
@@ -17,10 +22,12 @@ import {
 import {
   baseName,
   copyItem,
-  deleteItem,
+  copyItems,
+  deleteItems,
   moveItem,
+  moveItems,
   parentPath,
-  trashItem,
+  trashItems,
 } from "$lib/file-ops/files.js";
 import { createItemActions, nextDefaultName, type CreateKind } from "$lib/file-ops/items.js";
 import { isNetworkPath, isServerPath } from "$lib/remote/network-locations.js";
@@ -196,6 +203,12 @@ export class FilePaneController {
   renamingPath = $state("");
   /** Entries the open context menu acts on: the selection when the menu opened on it. */
   contextTargets = $state<DirectoryEntry[]>([]);
+  /** Targets captured while the compress dialog is open. */
+  compressTargets = $state<DirectoryEntry[]>([]);
+  compressDialogOpen = $state(false);
+  /** Detected 7-Zip binary path, `null` when it is not installed. */
+  sevenZipPath = $state<string | null>(null);
+  #sevenZipLoaded = false;
   previewEntryPath = $state("");
   previewOpen = $state(settings.current.previewOpenByDefault);
   /** Yazi visual mode: keyboard moves select a range from its anchor. */
@@ -324,6 +337,13 @@ export class FilePaneController {
           this.searchSkipped = response.skipped;
           this.searchLimited = response.limited;
         }
+      } catch (error) {
+        if (request === this.#searchRequest) {
+          this.searchResults = null;
+          this.searchSkipped = 0;
+          this.searchLimited = false;
+        }
+        console.error("search_directory failed", error);
       } finally {
         if (request === this.#searchRequest) this.searchPending = false;
       }
@@ -441,7 +461,7 @@ export class FilePaneController {
         path: location.path,
         name: location.name,
         kind: location.kind,
-      });
+      }).catch(() => {});
     }
   }
 
@@ -603,7 +623,9 @@ export class FilePaneController {
     void openTarget(entry.path).catch((error) => {
       this.listingError = error instanceof Error ? error.message : String(error);
     });
-    void invoke("record_recent", { path: entry.path, name: entry.name, kind: "file" });
+    void invoke("record_recent", { path: entry.path, name: entry.name, kind: "file" }).catch(
+      () => {},
+    );
   }
 
   /** Opens a file with its default app. Remote objects are downloaded to the app cache first;
@@ -771,24 +793,33 @@ export class FilePaneController {
       confirmLabel: irreversible ? "Delete" : "Move to Trash",
       pendingLabel: irreversible ? "Deleting…" : "Moving…",
       globalHoldKeys: ["Delete", "Backspace"],
-      onconfirm: async () => {
+      // Start the deletion and let the sheet close immediately; progress lives
+      // in the toast instead of the "Deleting…" pending state.
+      onconfirm: () => {
         const paths = targets.map((target) => target.path);
-        try {
-          if (bucket) for (const path of paths) await deleteRemoteBucket(path);
-          else if (remote) await deleteRemoteItems(paths);
-          else if (irreversible) for (const path of paths) await deleteItem(path);
-          else for (const path of paths) await trashItem(path);
-        } catch (error) {
-          await this.refreshListing(folder);
-          if (remote || bucket)
-            await this.showError(`Couldn’t delete ${targetLabel(targets)}`, error);
-          else this.listingError = error instanceof Error ? error.message : String(error);
-          return;
-        }
-        this.removeEntries(paths);
-        if (nextFocus && this.selection.paths.length === 0) {
-          this.setSelection({ paths: [], anchor: nextFocus, focus: nextFocus });
-        }
+        void (async () => {
+          try {
+            if (bucket) {
+              for (const path of paths) await deleteRemoteBucket(path);
+            } else if (remote) {
+              await deleteRemoteItems(paths);
+            } else {
+              const label = `${irreversible ? "Delete" : "Move to Trash"}: ${subject}`;
+              if (irreversible) await deleteItems(paths, label);
+              else await trashItems(paths, label);
+            }
+          } catch (error) {
+            await this.refreshListing(folder);
+            if (remote || bucket)
+              await this.showError(`Couldn’t delete ${targetLabel(targets)}`, error);
+            else this.listingError = error instanceof Error ? error.message : String(error);
+            return;
+          }
+          this.removeEntries(paths);
+          if (nextFocus && this.selection.paths.length === 0) {
+            this.setSelection({ paths: [], anchor: nextFocus, focus: nextFocus });
+          }
+        })();
       },
     });
   }
@@ -918,7 +949,9 @@ export class FilePaneController {
     });
     this.selectEntry(entry);
     if (!isRemoteLike(entry.path)) {
-      void invoke("record_recent", { path: entry.path, name: entry.name, kind: "file" });
+      void invoke("record_recent", { path: entry.path, name: entry.name, kind: "file" }).catch(
+        () => {},
+      );
     }
   }
 
@@ -966,7 +999,8 @@ export class FilePaneController {
     const targets = this.contextTargets;
     for (const target of targets) {
       try {
-        await copyItem(target.path, parentPath(target.path));
+        if (isRemoteLike(target.path)) await copyItem(target.path, parentPath(target.path));
+        else await copyItems([target.path], parentPath(target.path), `Duplicate: ${target.name}`);
       } catch (error) {
         if (isRemoteLike(target.path))
           void this.showError(`Couldn’t duplicate ${target.name}`, error);
@@ -978,36 +1012,58 @@ export class FilePaneController {
   }
 
   async moveContextTargetsTo() {
-    await this.transferContextTargets("Move to…", moveItem);
+    await this.transferContextTargets("Move to…", "move");
   }
 
   async copyContextTargetsTo() {
-    await this.transferContextTargets("Copy to…", copyItem);
+    await this.transferContextTargets("Copy to…", "copy");
   }
 
-  private async transferContextTargets(
-    title: string,
-    transfer: (path: string, destination: string) => Promise<unknown>,
-  ) {
+  private async transferContextTargets(title: string, mode: "copy" | "move") {
     const targets = this.contextTargets;
     if (targets.length === 0) return;
     const destination = await open({ directory: true, title, defaultPath: this.listingPath });
     if (typeof destination !== "string") return;
+    const paths = targets.map((target) => target.path);
+    const label = `${mode === "move" ? "Move" : "Copy"}: ${paths.length} items`;
     try {
-      for (const target of targets) await transfer(target.path, destination);
+      if (targets.some((target) => isRemoteLike(target.path))) {
+        for (const path of paths) {
+          if (mode === "move") await moveItem(path, destination);
+          else await copyItem(path, destination);
+        }
+      } else if (mode === "move") {
+        await moveItems(paths, destination, label);
+      } else {
+        await copyItems(paths, destination, label);
+      }
     } catch (error) {
       this.listingError = error instanceof Error ? error.message : String(error);
     }
     if (this.isBrowsableFolder()) await this.refreshListing(this.listingPath);
   }
 
-  async compressContextTargets() {
+  async openCompressDialog() {
     const targets = this.contextTargets;
     if (targets.length === 0 || targets.some((target) => isRemoteLike(target.path))) return;
+    if (!this.#sevenZipLoaded) {
+      try {
+        this.sevenZipPath = await detectSevenZip();
+      } catch {
+        this.sevenZipPath = null;
+      }
+      this.#sevenZipLoaded = true;
+    }
+    this.compressTargets = targets;
+    this.compressDialogOpen = true;
+  }
+
+  async createCompressed(name: string, format: CompressFormat) {
+    const targets = this.compressTargets;
+    if (targets.length === 0) return;
     const parent = parentPath(targets[0].path) || targets[0].path;
-    const name = targets.length === 1 ? targets[0].name : "Archive";
-    const destination = await save({ title: "Compress", defaultPath: `${parent}${name}.zip` });
-    if (typeof destination !== "string") return;
+    const destination = `${parent}${name}${compressExtension(format)}`;
+    this.compressDialogOpen = false;
     try {
       await createArchive(
         targets.map((target) => target.path),
@@ -1015,6 +1071,7 @@ export class FilePaneController {
       );
     } catch (error) {
       await this.showError(`Couldn’t compress ${targetLabel(targets)}`, error);
+      return;
     }
     await this.refreshListing(this.listingPath);
   }

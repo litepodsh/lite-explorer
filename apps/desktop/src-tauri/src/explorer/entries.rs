@@ -186,6 +186,12 @@ pub fn resolve_path(path: String) -> String {
     expand_tilde(&path).to_string_lossy().into_owned()
 }
 
+/// Whether a local path already exists, for pre-flight checks like naming an archive.
+#[tauri::command]
+pub fn path_exists(path: String) -> bool {
+    Path::new(&path).exists()
+}
+
 #[tauri::command]
 pub async fn search_directory(
     path: String,

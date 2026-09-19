@@ -112,7 +112,12 @@ fn walk(root: &Path, include_directories: bool) -> Result<Vec<PathBuf>, String> 
     let mut queue = vec![root.to_path_buf()];
     let mut found = Vec::new();
     while let Some(dir) = queue.pop() {
-        for child in fs::read_dir(dir).map_err(|e| e.to_string())?.flatten() {
+        // Protected or unreadable folders (for example TCC-guarded paths without
+        // Full Disk Access) should be skipped, not abort the whole search.
+        let Ok(read) = fs::read_dir(&dir) else {
+            continue;
+        };
+        for child in read.flatten() {
             let path = child.path();
             if child.file_type().map(|t| t.is_symlink()).unwrap_or(true) {
                 continue;

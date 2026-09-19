@@ -2,6 +2,7 @@ pub mod archive;
 pub mod entries;
 pub mod favorites;
 pub mod file_ops;
+pub mod file_transfer;
 pub mod opener;
 pub mod paths;
 pub mod recents;

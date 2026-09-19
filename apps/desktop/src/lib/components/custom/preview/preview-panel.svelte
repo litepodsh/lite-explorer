@@ -20,6 +20,38 @@
   import BinaryView from "./binary-view.svelte";
   import PdfView from "./pdf-view.svelte";
   import MediaView from "./media-view.svelte";
+  import FontView from "./font-view.svelte";
+  import EpubView from "./epub-view.svelte";
+  import SpreadsheetView from "./spreadsheet-view.svelte";
+  import RtfView from "./rtf-view.svelte";
+  import WordView from "./word-view.svelte";
+  import PresentationView from "./presentation-view.svelte";
+  import MailView from "./mail-view.svelte";
+  import MboxView from "./mbox-view.svelte";
+  import ContactView from "./contact-view.svelte";
+  import CalendarView from "./calendar-view.svelte";
+  import TorrentView from "./torrent-view.svelte";
+  import DataView from "./data-view.svelte";
+  import DiffView from "./diff-view.svelte";
+  import LogView from "./log-view.svelte";
+  import ComicView from "./comic-view.svelte";
+  import NotebookView from "./notebook-view.svelte";
+  import DatabaseView from "./database-view.svelte";
+  import SubtitleView from "./subtitle-view.svelte";
+  import CertificateView from "./certificate-view.svelte";
+  import ModelView from "./model-view.svelte";
+  import GeoView from "./geo-view.svelte";
+  import Fb2View from "./fb2-view.svelte";
+  import PcapView from "./pcap-view.svelte";
+  import IsoView from "./iso-view.svelte";
+  import MsgView from "./msg-view.svelte";
+  import SketchView from "./sketch-view.svelte";
+  import PsdView from "./psd-view.svelte";
+  import DicomView from "./dicom-view.svelte";
+  import MobiView from "./mobi-view.svelte";
+  import AvroView from "./avro-view.svelte";
+  import ParquetView from "./parquet-view.svelte";
+  import ArrowView from "./arrow-view.svelte";
   import { fetchMediaUrl, openViewer } from "./media.js";
   import ArchiveView from "$lib/archive/archive-view.svelte";
   import { fontSizeForShortcut, lineHeightFor, parseFontSize } from "./font-size.js";
@@ -211,6 +243,78 @@
       {:else}
         {@render mediaSpinner()}
       {/if}
+    {:else if preview.kind === "font"}
+      {#if mediaUrl}
+        <FontView src={mediaUrl} name={preview.name} />
+      {:else}
+        {@render mediaSpinner()}
+      {/if}
+    {:else if preview.kind === "epub"}
+      <EpubView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "spreadsheet"}
+      <SpreadsheetView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "rtf"}
+      <RtfView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "word"}
+      <WordView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "presentation"}
+      <PresentationView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "mail"}
+      <MailView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "mbox"}
+      <MboxView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "contact"}
+      <ContactView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "calendar"}
+      <CalendarView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "torrent"}
+      <TorrentView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "data"}
+      <DataView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "diff"}
+      <DiffView content={preview.content ?? ""} />
+    {:else if preview.kind === "log"}
+      <LogView content={preview.content ?? ""} />
+    {:else if preview.kind === "comic"}
+      <ComicView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "notebook"}
+      <NotebookView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "database"}
+      <DatabaseView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "subtitle"}
+      <SubtitleView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "certificate"}
+      <CertificateView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "model"}
+      {#if mediaUrl}
+        <ModelView src={mediaUrl} name={preview.name} />
+      {:else}
+        {@render mediaSpinner()}
+      {/if}
+    {:else if preview.kind === "geo"}
+      <GeoView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "fb2"}
+      <Fb2View path={previewPath} name={preview.name} />
+    {:else if preview.kind === "pcap"}
+      <PcapView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "iso"}
+      <IsoView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "msg"}
+      <MsgView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "sketch"}
+      <SketchView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "psd"}
+      <PsdView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "dicom"}
+      <DicomView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "mobi"}
+      <MobiView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "avro"}
+      <AvroView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "parquet"}
+      <ParquetView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "arrow"}
+      <ArrowView path={previewPath} name={preview.name} />
     {:else if !preview.content}
       <div class="grid flex-1 place-items-center text-[13px] text-[#9c9895]">Empty file</div>
     {:else}

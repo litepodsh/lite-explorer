@@ -8,7 +8,9 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::app::db::Database;
+use crate::explorer::archive::Codec;
 use crate::explorer::entries::{coordinated_read, epoch_millis, utf8_boundary};
+use crate::search::text;
 use crate::{explorer::archive, network, remote};
 
 pub const PREVIEW_SNIFF_BYTES: usize = 8 * 1024;
@@ -25,6 +27,38 @@ pub(crate) enum PreviewKind {
     Pdf,
     Video,
     Audio,
+    Font,
+    Epub,
+    Spreadsheet,
+    Rtf,
+    Word,
+    Presentation,
+    Mail,
+    Mbox,
+    Contact,
+    Calendar,
+    Torrent,
+    Data,
+    Diff,
+    Log,
+    Comic,
+    Notebook,
+    Database,
+    Subtitle,
+    Certificate,
+    Model,
+    Geo,
+    Fb2,
+    Pcap,
+    Iso,
+    Msg,
+    Sketch,
+    Psd,
+    Dicom,
+    Mobi,
+    Avro,
+    Parquet,
+    Arrow,
 }
 
 #[derive(Serialize, Debug)]
@@ -77,6 +111,40 @@ pub fn audio_mime(extension: &str) -> Option<&'static str> {
     }
 }
 
+/// Font MIME types the webview will accept as a `@font-face` source. Wrong MIME
+/// makes the browser silently drop the font, so these must be exact.
+pub fn font_mime(extension: &str) -> Option<&'static str> {
+    match extension.to_ascii_lowercase().as_str() {
+        "otf" => Some("font/otf"),
+        "ttf" => Some("font/ttf"),
+        "woff" => Some("font/woff"),
+        "woff2" => Some("font/woff2"),
+        _ => None,
+    }
+}
+
+/// MIME types for 3D models streamed to the `three.js` viewer.
+pub fn model_mime(extension: &str) -> Option<&'static str> {
+    match extension.to_ascii_lowercase().as_str() {
+        "stl" => Some("model/stl"),
+        "obj" => Some("model/obj"),
+        "gltf" => Some("model/gltf+json"),
+        "glb" => Some("model/gltf-binary"),
+        "dae" => Some("model/vnd.collada+xml"),
+        _ => None,
+    }
+}
+
+/// Whether `extension` names an EPUB package, which previews through its own reader.
+pub(crate) fn is_epub_extension(extension: &str) -> bool {
+    extension.eq_ignore_ascii_case("epub")
+}
+
+/// Whether `extension` names a rich text document.
+pub(crate) fn is_rtf_extension(extension: &str) -> bool {
+    extension.eq_ignore_ascii_case("rtf")
+}
+
 /// The content type the media protocol serves for a file, by extension.
 pub(crate) fn media_mime(path: &Path) -> &'static str {
     let extension = path
@@ -89,7 +157,11 @@ pub(crate) fn media_mime(path: &Path) -> &'static str {
         mime
     } else if let Some(mime) = audio_mime(extension) {
         mime
-    } else if extension.eq_ignore_ascii_case("pdf") {
+    } else if let Some(mime) = font_mime(extension) {
+        mime
+    } else if let Some(mime) = model_mime(extension) {
+        mime
+    } else if extension.eq_ignore_ascii_case("pdf") || extension.eq_ignore_ascii_case("ai") {
         "application/pdf"
     } else {
         "application/octet-stream"
@@ -97,7 +169,7 @@ pub(crate) fn media_mime(path: &Path) -> &'static str {
 }
 
 /// Preview kind for extensions that stream through the media protocol instead of
-/// being loaded into memory. Images, PDFs, video and audio all qualify.
+/// being loaded into memory. Images, PDFs, video, audio, fonts and 3D models all qualify.
 pub(crate) fn media_preview_kind(extension: &str) -> Option<PreviewKind> {
     if extension.eq_ignore_ascii_case("pdf") {
         Some(PreviewKind::Pdf)
@@ -107,9 +179,138 @@ pub(crate) fn media_preview_kind(extension: &str) -> Option<PreviewKind> {
         Some(PreviewKind::Video)
     } else if audio_mime(extension).is_some() {
         Some(PreviewKind::Audio)
+    } else if font_mime(extension).is_some() {
+        Some(PreviewKind::Font)
+    } else if model_mime(extension).is_some() {
+        Some(PreviewKind::Model)
     } else {
         None
     }
+}
+
+/// Kind for a file implied by its extension alone, before any bytes are read.
+/// Covers streamed media, fonts, the EPUB reader and spreadsheets.
+pub(crate) fn preview_kind_for_extension(extension: &str) -> Option<PreviewKind> {
+    if is_epub_extension(extension) {
+        Some(PreviewKind::Epub)
+    } else if is_rtf_extension(extension) {
+        Some(PreviewKind::Rtf)
+    } else if crate::preview::office::is_word_extension(extension) {
+        Some(PreviewKind::Word)
+    } else if crate::preview::office::is_presentation_extension(extension) {
+        Some(PreviewKind::Presentation)
+    } else if crate::preview::mail::is_mail_extension(extension) {
+        Some(PreviewKind::Mail)
+    } else if crate::preview::mail::is_mbox_extension(extension) {
+        Some(PreviewKind::Mbox)
+    } else if crate::preview::vcard::is_vcard_extension(extension) {
+        Some(PreviewKind::Contact)
+    } else if crate::preview::calendar::is_calendar_extension(extension) {
+        Some(PreviewKind::Calendar)
+    } else if crate::preview::torrent::is_torrent_extension(extension) {
+        Some(PreviewKind::Torrent)
+    } else if crate::preview::data::is_data_extension(extension) {
+        Some(PreviewKind::Data)
+    } else if crate::preview::comic::is_comic_extension(extension) {
+        Some(PreviewKind::Comic)
+    } else if crate::preview::notebook::is_notebook_extension(extension) {
+        Some(PreviewKind::Notebook)
+    } else if crate::preview::database::is_database_extension(extension) {
+        Some(PreviewKind::Database)
+    } else if crate::preview::subtitle::is_subtitle_extension(extension) {
+        Some(PreviewKind::Subtitle)
+    } else if crate::preview::certificate::is_certificate_extension(extension) {
+        Some(PreviewKind::Certificate)
+    } else if crate::preview::geo::is_geo_extension(extension) {
+        Some(PreviewKind::Geo)
+    } else if crate::preview::fb2::is_fb2_extension(extension) {
+        Some(PreviewKind::Fb2)
+    } else if crate::preview::pcap::is_pcap_extension(extension) {
+        Some(PreviewKind::Pcap)
+    } else if crate::preview::iso::is_iso_extension(extension) {
+        Some(PreviewKind::Iso)
+    } else if crate::preview::msg::is_msg_extension(extension) {
+        Some(PreviewKind::Msg)
+    } else if crate::preview::sketch::is_sketch_extension(extension) {
+        Some(PreviewKind::Sketch)
+    } else if crate::preview::psd::is_psd_extension(extension) {
+        Some(PreviewKind::Psd)
+    } else if crate::preview::dicom::is_dicom_extension(extension) {
+        Some(PreviewKind::Dicom)
+    } else if crate::preview::mobi::is_mobi_extension(extension) {
+        Some(PreviewKind::Mobi)
+    } else if crate::preview::avro::is_avro_extension(extension) {
+        Some(PreviewKind::Avro)
+    } else if crate::preview::parquet::is_parquet_extension(extension) {
+        Some(PreviewKind::Parquet)
+    } else if crate::preview::arrow::is_arrow_extension(extension) {
+        Some(PreviewKind::Arrow)
+    } else if crate::preview::sheet::is_spreadsheet_extension(extension) {
+        Some(PreviewKind::Spreadsheet)
+    } else {
+        media_preview_kind(extension)
+    }
+}
+
+/// Truncation point that keeps a UTF-16 stream on a code-unit boundary. UTF-8
+/// text uses [`utf8_boundary`].
+fn preview_boundary(bytes: &[u8], max: usize) -> usize {
+    if matches!(bytes.first(), Some(0xFF | 0xFE))
+        && matches!(bytes.get(..2), Some([0xFF, 0xFE]) | Some([0xFE, 0xFF]))
+    {
+        return max & !1;
+    }
+    utf8_boundary(bytes, max)
+}
+
+/// Shared text/binary classification for every preview path (local, remote,
+/// server). Reuses the content-search decoder, so UTF-16 (with or without BOM)
+/// and Windows-1252 files preview as text instead of being misread as binary.
+pub(crate) fn classify_preview_bytes(preview: &mut FilePreview, mut bytes: Vec<u8>) {
+    if bytes.len() > PREVIEW_MAX_BYTES {
+        bytes.truncate(preview_boundary(&bytes, PREVIEW_MAX_BYTES));
+        preview.truncated = true;
+    }
+    match text::decode(&bytes) {
+        Some(content) => {
+            preview.kind = PreviewKind::Text;
+            preview.content = Some(content.into_owned());
+        }
+        None => preview.kind = PreviewKind::Binary,
+    }
+}
+
+/// Refines a text preview into a richer reader based on the file extension
+/// (colored diff, ANSI log). Files without a dedicated kind stay `Text`.
+pub(crate) fn apply_text_extension_kind(preview: &mut FilePreview, name: &str) {
+    if preview.kind != PreviewKind::Text {
+        return;
+    }
+    let extension = Path::new(name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match extension.as_str() {
+        "diff" | "patch" => preview.kind = PreviewKind::Diff,
+        "log" => preview.kind = PreviewKind::Log,
+        _ => {}
+    }
+}
+
+/// Decompresses a single-file archive (`app.log.gz`) into the preview, bounded to
+/// [`PREVIEW_MAX_BYTES`].
+fn decompress_preview(path: &Path, codec: Codec, preview: &mut FilePreview) -> Result<(), String> {
+    let file = fs::File::open(path).map_err(|error| error.to_string())?;
+    let reader =
+        archive::decoder(codec, file).map_err(|_| "Unsupported compression".to_string())?;
+    let mut bytes = Vec::new();
+    reader
+        .take(PREVIEW_MAX_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| error.to_string())?;
+    classify_preview_bytes(preview, bytes);
+    Ok(())
 }
 
 pub fn file_preview(path: &Path) -> Result<FilePreview, String> {
@@ -136,10 +337,21 @@ pub fn file_preview(path: &Path) -> Result<FilePreview, String> {
         return Ok(preview);
     }
 
+    // Single compressed files (`app.log.gz`) preview their decompressed payload.
+    if let Some((codec, _)) = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(archive::compressed)
+    {
+        decompress_preview(path, codec, &mut preview)?;
+        return Ok(preview);
+    }
+
     if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
         // Media is streamed on demand through the `media://` protocol; the preview
-        // only reports the kind so the frontend can ask for a URL.
-        if let Some(kind) = media_preview_kind(extension) {
+        // only reports the kind so the frontend can ask for a URL. EPUB gets its
+        // own reader that parses the package on demand.
+        if let Some(kind) = preview_kind_for_extension(extension) {
             preview.kind = kind;
             return Ok(preview);
         }
@@ -157,7 +369,8 @@ pub fn file_preview(path: &Path) -> Result<FilePreview, String> {
         preview.kind = PreviewKind::Pdf;
         return Ok(preview);
     }
-    if bytes.contains(&0) {
+    // Classify the sniffed head first so large binaries never get fully read.
+    if text::decode(&bytes).is_none() {
         preview.kind = PreviewKind::Binary;
         return Ok(preview);
     }
@@ -165,12 +378,9 @@ pub fn file_preview(path: &Path) -> Result<FilePreview, String> {
     reader
         .read_to_end(&mut bytes)
         .map_err(|error| error.to_string())?;
-    if bytes.len() > PREVIEW_MAX_BYTES {
-        bytes.truncate(utf8_boundary(&bytes, PREVIEW_MAX_BYTES));
-        preview.truncated = true;
-    }
-    preview.kind = PreviewKind::Text;
-    preview.content = Some(String::from_utf8_lossy(&bytes).into_owned());
+    classify_preview_bytes(&mut preview, bytes);
+    let name = preview.name.clone();
+    apply_text_extension_kind(&mut preview, &name);
     Ok(preview)
 }
 
@@ -319,18 +529,128 @@ mod tests {
         assert_eq!(media_mime(Path::new("a.mp4")), "video/mp4");
         assert_eq!(media_mime(Path::new("a.mp3")), "audio/mpeg");
         assert_eq!(media_mime(Path::new("a.pdf")), "application/pdf");
+        assert_eq!(media_mime(Path::new("a.stl")), "model/stl");
+        assert_eq!(media_mime(Path::new("a.glb")), "model/gltf-binary");
         assert_eq!(media_mime(Path::new("a.bin")), "application/octet-stream");
     }
 
     #[test]
     fn file_preview_decodes_non_utf8_text_lossily() {
+        // Windows-1252 fallback: the legacy byte decodes as its real character.
         let path = preview_fixture("latin1.txt", b"caf\xe9");
 
         let preview = file_preview(&path).unwrap();
 
         assert_eq!(preview.kind, PreviewKind::Text);
-        assert_eq!(preview.content.as_deref(), Some("caf\u{FFFD}"));
+        assert_eq!(preview.content.as_deref(), Some("café"));
         fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    fn utf16le(text: &str, bom: bool) -> Vec<u8> {
+        let mut bytes = if bom { vec![0xFF, 0xFE] } else { Vec::new() };
+        bytes.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
+        bytes
+    }
+
+    #[test]
+    fn file_preview_decodes_utf16_text_instead_of_calling_it_binary() {
+        let le = preview_fixture("lectura.txt", &utf16le("Medidor MED-77120", true));
+        let preview = file_preview(&le).unwrap();
+        assert_eq!(preview.kind, PreviewKind::Text);
+        assert_eq!(preview.content.as_deref(), Some("Medidor MED-77120"));
+        fs::remove_dir_all(le.parent().unwrap()).unwrap();
+
+        let be_bytes: Vec<u8> = "Ñusta Ayala"
+            .encode_utf16()
+            .flat_map(u16::to_be_bytes)
+            .collect();
+        let be = preview_fixture("clientes.tsv", &be_bytes);
+        let preview = file_preview(&be).unwrap();
+        assert_eq!(preview.kind, PreviewKind::Text);
+        assert_eq!(preview.content.as_deref(), Some("Ñusta Ayala"));
+        fs::remove_dir_all(be.parent().unwrap()).unwrap();
+
+        // No BOM: detected from the NUL pattern of mostly-ASCII text.
+        let bare = preview_fixture("registro.txt", &utf16le("acceso denegado", false));
+        let preview = file_preview(&bare).unwrap();
+        assert_eq!(preview.kind, PreviewKind::Text);
+        assert_eq!(preview.content.as_deref(), Some("acceso denegado"));
+        fs::remove_dir_all(bare.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_preview_marks_fonts_for_streaming() {
+        let path = preview_fixture("gotham.otf", b"OTTO\x00\x01\x02\x03");
+
+        let preview = file_preview(&path).unwrap();
+
+        assert_eq!(preview.kind, PreviewKind::Font);
+        assert_eq!(preview.content, None);
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_preview_marks_epub_for_the_reader() {
+        let path = preview_fixture("book.epub", b"PK\x03\x04zipped epub");
+
+        let preview = file_preview(&path).unwrap();
+
+        assert_eq!(preview.kind, PreviewKind::Epub);
+        assert_eq!(preview.content, None);
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_preview_decompresses_single_compressed_files() {
+        use flate2::{write::GzEncoder, Compression};
+        use std::io::Write;
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(b"id,name\n1,Zarpa").unwrap();
+        let path = preview_fixture("export.csv.gz", &encoder.finish().unwrap());
+
+        let preview = file_preview(&path).unwrap();
+
+        assert_eq!(preview.kind, PreviewKind::Text);
+        assert_eq!(preview.content.as_deref(), Some("id,name\n1,Zarpa"));
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_preview_marks_spreadsheet_without_reading_bytes() {
+        let path = preview_fixture("report.xlsx", b"PK\x03\x04zipped sheet");
+
+        let preview = file_preview(&path).unwrap();
+
+        assert_eq!(preview.kind, PreviewKind::Spreadsheet);
+        assert_eq!(preview.content, None);
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_preview_marks_rtf_for_its_reader() {
+        let path = preview_fixture("nota.rtf", br"{\rtf1\ansi Hola}");
+
+        let preview = file_preview(&path).unwrap();
+
+        assert_eq!(preview.kind, PreviewKind::Rtf);
+        assert_eq!(preview.content, None);
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_preview_marks_mail_and_mbox() {
+        for (name, expected) in [
+            ("message.eml", PreviewKind::Mail),
+            ("apple.emlx", PreviewKind::Mail),
+            ("inbox.mbox", PreviewKind::Mbox),
+        ] {
+            let path = preview_fixture(name, b"From: a@b\r\nSubject: hola\r\n\r\nbody");
+            let preview = file_preview(&path).unwrap();
+            assert_eq!(preview.kind, expected, "{name}");
+            assert_eq!(preview.content, None);
+            fs::remove_dir_all(path.parent().unwrap()).unwrap();
+        }
     }
 
     #[test]

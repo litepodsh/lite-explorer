@@ -40,7 +40,7 @@ pub(super) fn mbox_match(reader: impl BufRead, needle: &str) -> Option<String> {
 }
 
 /// An `.emlx` file is the message byte count on the first line, the message, then a plist.
-fn emlx_message(bytes: &[u8]) -> &[u8] {
+pub(crate) fn emlx_message(bytes: &[u8]) -> &[u8] {
     let Some(newline) = bytes.iter().position(|&b| b == b'\n') else {
         return bytes;
     };

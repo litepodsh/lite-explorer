@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use encoding_rs::{Encoding, UTF_16BE, UTF_16LE, WINDOWS_1252};
 
 /// Decodes file bytes as text, or `None` for binary content.
-pub(super) fn decode(bytes: &[u8]) -> Option<Cow<'_, str>> {
+pub(crate) fn decode(bytes: &[u8]) -> Option<Cow<'_, str>> {
     if let Some((encoding, bom)) = Encoding::for_bom(bytes) {
         let (text, _) = encoding.decode_without_bom_handling(&bytes[bom..]);
         return Some(text);

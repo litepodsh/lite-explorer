@@ -9,7 +9,7 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{Read, Seek, SeekFrom},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Mutex,
     time::Duration,
 };
@@ -39,6 +39,8 @@ enum MediaSource {
         key: String,
         size: u64,
     },
+    /// A file inside a zip package (EPUB, Office); `inner` comes from the request path.
+    Zip(PathBuf),
 }
 
 /// Maps random tokens to their source. Tokens are handed to the webview and are the
@@ -121,6 +123,13 @@ fn register_local(registry: &MediaRegistry, path: PathBuf) -> Result<MediaUrl, S
     })
 }
 
+/// Registers a zip package (EPUB, Office) as a `media://` root. Inner entries are
+/// addressed by appending `/<inner path>` to the returned base URL.
+pub fn register_zip_root(registry: &MediaRegistry, path: PathBuf) -> String {
+    let token = registry.register(MediaSource::Zip(path));
+    media_url_for(&token)
+}
+
 /// Registers the `media` scheme on the app builder. Wired up in `run`.
 pub fn register<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
     builder.register_asynchronous_uri_scheme_protocol("media", |ctx, request, responder| {
@@ -129,21 +138,49 @@ pub fn register<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
             responder.respond(preflight());
             return;
         }
-        let token = request.uri().path().trim_start_matches('/').to_string();
+        let path = request.uri().path().trim_start_matches('/').to_string();
+        let (token, inner) = match path.split_once('/') {
+            Some((token, inner)) => (token.to_string(), decode_percent(inner)),
+            None => (path, String::new()),
+        };
         let range = request
             .headers()
             .get(header::RANGE)
             .and_then(|value| value.to_str().ok())
             .map(str::to_string);
         tauri::async_runtime::spawn(async move {
-            responder.respond(handle(&app, &token, range).await);
+            responder.respond(handle(&app, &token, inner, range).await);
         });
     })
+}
+
+/// Percent-decodes a URL path segment run, leaving other bytes untouched.
+fn decode_percent(value: &str) -> String {
+    let bytes = value.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%'
+            && i + 2 < bytes.len()
+            && bytes[i + 1].is_ascii_hexdigit()
+            && bytes[i + 2].is_ascii_hexdigit()
+        {
+            if let Ok(byte) = u8::from_str_radix(&value[i + 1..i + 3], 16) {
+                out.push(byte);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 async fn handle<R: Runtime>(
     app: &AppHandle<R>,
     token: &str,
+    inner: String,
     range: Option<String>,
 ) -> Response<Vec<u8>> {
     let Some(source) = app.state::<MediaRegistry>().get(token) else {
@@ -157,6 +194,56 @@ async fn handle<R: Runtime>(
             key,
             size,
         } => read_s3(app, &id, &bucket, &key, size, range).await,
+        MediaSource::Zip(path) => read_zip_member(&path, &inner, range).await,
+    }
+}
+
+/// Serves one file from inside a zip package. Entries are small (images, CSS,
+/// fonts), so the whole body is returned with a plain `GET`.
+async fn read_zip_member(path: &Path, inner: &str, _range: Option<String>) -> Response<Vec<u8>> {
+    let owned = path.to_path_buf();
+    let name = inner.to_string();
+    let bytes = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
+        let file = File::open(&owned).map_err(|error| error.to_string())?;
+        let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
+            .map_err(|error| error.to_string())?;
+        let mut entry = archive.by_name(&name).map_err(|error| error.to_string())?;
+        let mut bytes = Vec::with_capacity(entry.size() as usize);
+        entry
+            .read_to_end(&mut bytes)
+            .map_err(|error| error.to_string())?;
+        Ok(bytes)
+    })
+    .await;
+    match bytes {
+        Ok(Ok(bytes)) => {
+            let size = bytes.len() as u64;
+            let resolved = ResolvedRange {
+                start: 0,
+                end: size.saturating_sub(1),
+                partial: false,
+            };
+            build_response(zip_mime(inner), size, &resolved, bytes)
+        }
+        Ok(Err(error)) => error_response(StatusCode::NOT_FOUND, &error),
+        Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &error.to_string()),
+    }
+}
+
+/// MIME type for a zip inner entry, by extension. Falls back to the shared media
+/// mapping, with text styles added for package assets.
+fn zip_mime(inner: &str) -> &'static str {
+    match inner
+        .rsplit_once('.')
+        .map(|(_, extension)| extension.to_ascii_lowercase())
+    {
+        Some(extension) if extension == "css" => "text/css",
+        Some(extension) if extension == "xhtml" || extension == "html" || extension == "htm" => {
+            "application/xhtml+xml"
+        }
+        Some(extension) if extension == "svg" => "image/svg+xml",
+        Some(extension) if extension == "js" => "text/javascript",
+        _ => crate::media_mime(std::path::Path::new(inner)),
     }
 }
 

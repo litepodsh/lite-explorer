@@ -42,6 +42,10 @@ pub struct TransferEvent {
     pub finished_at: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_progress: Option<FileProgress>,
+    /// Set once when a whole queued item (top-level source) finishes, so the
+    /// clipboard can drop it from its list without waiting for the whole job.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub item: Option<String>,
 }
 
 impl TransferEvent {
@@ -81,11 +85,12 @@ impl TransferEvent {
             started_at: timestamp_ms(),
             finished_at: None,
             file_progress: None,
+            item: None,
         }
     }
 }
 
-fn timestamp_ms() -> u64 {
+pub fn timestamp_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()

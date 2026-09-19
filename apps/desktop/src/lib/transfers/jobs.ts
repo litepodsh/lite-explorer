@@ -46,6 +46,8 @@ export type TransferEventPayload = {
   error?: string | null;
   startedAt?: number;
   finishedAt?: number | null;
+  /** Set once when a whole queued item finished, so lists can drop it early. */
+  item?: string | null;
 };
 
 export type JobFilter = "all" | "active" | "done" | "failed";
@@ -137,6 +139,39 @@ export async function trackJob<T>(
 /** The mounted Activity panel receives file-operation updates through this callback. */
 export const activity = {
   publish: (_event: TransferEventPayload) => {},
+  start(kind: JobKind, label: string, destination: string): string {
+    const id = crypto.randomUUID();
+    this.publish({
+      id,
+      kind,
+      label,
+      destination,
+      filesTotal: 0,
+      filesDone: 0,
+      bytesTotal: 0,
+      bytesDone: 0,
+      state: "active",
+      cancellable: true,
+      startedAt: Date.now(),
+    });
+    return id;
+  },
+  fail(id: string, kind: JobKind, label: string, destination: string, error: unknown): void {
+    this.publish({
+      id,
+      kind,
+      label,
+      destination,
+      filesTotal: 0,
+      filesDone: 0,
+      bytesTotal: 0,
+      bytesDone: 0,
+      state: "failed",
+      error: error instanceof Error ? error.message : String(error),
+      startedAt: Date.now(),
+      finishedAt: Date.now(),
+    });
+  },
   track<T>(kind: JobKind, label: string, destination: string, operation: () => Promise<T>) {
     return trackJob((event) => this.publish(event), kind, label, destination, operation);
   },

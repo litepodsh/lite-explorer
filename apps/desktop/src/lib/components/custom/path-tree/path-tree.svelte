@@ -131,5 +131,8 @@
     --trees-selected-bg-override: #3b3836;
     --trees-accent-override: #60a5fa;
     --trees-border-radius-override: 6px;
+    --trees-input-bg-override: #2d2a28;
+    --trees-search-bg-override: #2d2a28;
+    --trees-search-fg-override: #e8e5e2;
   }
 </style>

@@ -132,6 +132,89 @@ const KIND_LABEL_BY_EXTENSION: Record<string, string> = {
   flac: "FLAC Audio",
   ogg: "Ogg Audio",
   opus: "Opus Audio",
+  otf: "OpenType Font",
+  ttf: "TrueType Font",
+  woff: "WOFF Font",
+  woff2: "WOFF2 Font",
+  epub: "EPUB Book",
+  xlsx: "Excel Workbook",
+  xlsm: "Excel Workbook",
+  xltx: "Excel Template",
+  xltm: "Excel Template",
+  xls: "Excel 97-2003 Workbook",
+  xlsb: "Excel Binary Workbook",
+  ods: "OpenDocument Spreadsheet",
+  ots: "OpenDocument Spreadsheet",
+  fods: "OpenDocument Spreadsheet (flat)",
+  rtf: "Rich Text Document",
+  docx: "Word Document",
+  docm: "Word Document",
+  dotx: "Word Template",
+  dotm: "Word Template",
+  odt: "OpenDocument Text",
+  ott: "OpenDocument Text Template",
+  fodt: "OpenDocument Text (flat)",
+  pptx: "PowerPoint Presentation",
+  pptm: "PowerPoint Presentation",
+  potx: "PowerPoint Template",
+  potm: "PowerPoint Template",
+  ppsx: "PowerPoint Show",
+  ppsm: "PowerPoint Show",
+  odp: "OpenDocument Presentation",
+  otp: "OpenDocument Presentation Template",
+  fodp: "OpenDocument Presentation (flat)",
+  eml: "Email Message",
+  emlx: "Apple Mail Message",
+  mbox: "Mailbox",
+  mbx: "Mailbox",
+  vcf: "vCard Contact",
+  vcard: "vCard Contact",
+  ics: "iCalendar",
+  ical: "iCalendar",
+  ifb: "iCalendar",
+  torrent: "BitTorrent Metainfo",
+  ndjson: "JSON Lines",
+  jsonl: "JSON Lines",
+  diff: "Unified Diff",
+  patch: "Patch",
+  cbz: "Comic Book Archive",
+  ipynb: "Jupyter Notebook",
+  sqlite: "SQLite Database",
+  sqlite3: "SQLite Database",
+  db: "SQLite Database",
+  srt: "SubRip Subtitles",
+  vtt: "WebVTT Subtitles",
+  webvtt: "WebVTT Subtitles",
+  pem: "PEM File",
+  crt: "X.509 Certificate",
+  cer: "X.509 Certificate",
+  der: "DER Certificate",
+  cert: "X.509 Certificate",
+  stl: "STL 3D Model",
+  obj: "Wavefront OBJ",
+  gltf: "glTF Model",
+  glb: "glTF Binary",
+  dae: "Collada Model",
+  geojson: "GeoJSON",
+  kml: "Keyhole Markup Language",
+  gpx: "GPS Exchange Format",
+  fb2: "FictionBook",
+  pcap: "Packet Capture",
+  iso: "Disc Image",
+  msg: "Outlook Message",
+  sketch: "Sketch Document",
+  psd: "Photoshop Document",
+  psb: "Photoshop Document",
+  dcm: "DICOM Image",
+  dicom: "DICOM Image",
+  mobi: "Kindle Book",
+  azw3: "Kindle Book",
+  azw: "Kindle Book",
+  avro: "Apache Avro",
+  parquet: "Apache Parquet",
+  arrow: "Apache Arrow",
+  feather: "Arrow Feather",
+  ipc: "Arrow IPC",
 };
 
 function extensionOf(name: string): string {
@@ -166,6 +249,24 @@ export function isCsvName(name: string): boolean {
   return CSV_EXTENSIONS.includes(extensionOf(name));
 }
 
+const SPREADSHEET_EXTENSIONS = [
+  "xlsx",
+  "xlsm",
+  "xltx",
+  "xltm",
+  "xls",
+  "xla",
+  "xlam",
+  "xlsb",
+  "ods",
+  "ots",
+  "fods",
+];
+
+export function isSpreadsheetName(name: string): boolean {
+  return SPREADSHEET_EXTENSIONS.includes(extensionOf(name));
+}
+
 const VIDEO_EXTENSIONS = ["mp4", "m4v", "mov", "webm", "ogv", "mkv", "avi"];
 const AUDIO_EXTENSIONS = ["mp3", "m4a", "aac", "wav", "flac", "ogg", "oga", "opus"];
 
@@ -179,7 +280,14 @@ export function isAudioName(name: string): boolean {
 
 /** Whether a file previews through the streaming `media://` protocol. */
 export function isMediaKind(kind: PreviewKind): boolean {
-  return kind === "image" || kind === "pdf" || kind === "video" || kind === "audio";
+  return (
+    kind === "image" ||
+    kind === "pdf" ||
+    kind === "video" ||
+    kind === "audio" ||
+    kind === "font" ||
+    kind === "model"
+  );
 }
 
 export function kindLabel(name: string, kind: PreviewKind): string {

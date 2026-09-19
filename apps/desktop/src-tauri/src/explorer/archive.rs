@@ -6,13 +6,18 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    env,
     fs::{self, File},
     io::{self, BufReader, Read, Write},
     path::{Path, PathBuf},
+    process::Command,
     time::{Duration, Instant, UNIX_EPOCH},
 };
 
-use flate2::{read::GzDecoder, write::GzEncoder, Compression};
+use bzip2::read::MultiBzDecoder;
+use flate2::{read::MultiGzDecoder, write::GzEncoder, Compression};
+use liblzma::read::XzDecoder;
+use ruzstd::decoding::StreamingDecoder;
 use serde::{Deserialize, Serialize};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
@@ -21,6 +26,97 @@ enum Format {
     Zip,
     Tar,
     TarGz,
+    SevenZip,
+}
+
+/// Compression applied to a tar stream, or wrapping a single file.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub(crate) enum Codec {
+    Gzip,
+    Bzip2,
+    Xz,
+    Zstd,
+}
+
+/// Archive kind by lowercased file name: a plain zip or a tar stream under an
+/// optional compression. Extensions are richer than [`Format`], which only covers
+/// creation; listing and extraction read every common variant.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub(crate) enum ArchiveKind {
+    Zip,
+    Tar(Option<Codec>),
+}
+
+/// Packages that are plain zip files under another extension.
+const ZIP_EXTENSIONS: &[&str] = &[
+    "zip", "jar", "war", "ear", "aar", "apk", "aab", "ipa", "xpi", "vsix", "nupkg", "whl", "egg",
+];
+
+/// Archive kind by lowercased file name.
+pub(crate) fn archive_kind(lower_name: &str) -> Option<ArchiveKind> {
+    const TARS: &[(&[&str], Option<Codec>)] = &[
+        (&[".tar"], None),
+        (&[".tar.gz", ".tgz"], Some(Codec::Gzip)),
+        (&[".tar.bz2", ".tbz2", ".tbz"], Some(Codec::Bzip2)),
+        (&[".tar.xz", ".txz"], Some(Codec::Xz)),
+        (&[".tar.zst", ".tar.zstd", ".tzst"], Some(Codec::Zstd)),
+    ];
+    if let Some((_, codec)) = TARS
+        .iter()
+        .find(|(suffixes, _)| suffixes.iter().any(|suffix| lower_name.ends_with(suffix)))
+    {
+        return Some(ArchiveKind::Tar(*codec));
+    }
+    let (_, extension) = lower_name.rsplit_once('.')?;
+    ZIP_EXTENSIONS
+        .contains(&extension)
+        .then_some(ArchiveKind::Zip)
+}
+
+/// Codec and inner file name of a single compressed file, e.g. `app.log.gz` -> (Gzip, `app.log`).
+/// Call after [`archive_kind`], so compressed tars are already handled.
+pub(crate) fn compressed(name: &str) -> Option<(Codec, &str)> {
+    let (stem, extension) = name.rsplit_once('.')?;
+    let codec = match extension.to_ascii_lowercase().as_str() {
+        "gz" => Codec::Gzip,
+        "bz2" => Codec::Bzip2,
+        "xz" => Codec::Xz,
+        "zst" | "zstd" => Codec::Zstd,
+        _ => return None,
+    };
+    (!stem.is_empty()).then_some((codec, stem))
+}
+
+/// Reader that decompresses `inner` according to `codec`.
+pub(crate) fn decoder<'a>(codec: Codec, reader: impl Read + 'a) -> Result<Box<dyn Read + 'a>, ()> {
+    Ok(match codec {
+        Codec::Gzip => Box::new(MultiGzDecoder::new(reader)),
+        Codec::Bzip2 => Box::new(MultiBzDecoder::new(reader)),
+        Codec::Xz => Box::new(XzDecoder::new_multi_decoder(reader)),
+        Codec::Zstd => Box::new(StreamingDecoder::new(reader).map_err(|_| ())?),
+    })
+}
+
+/// Archive kind of a path, using its file name. `None` for single compressed files.
+pub(crate) fn archive_kind_for(path: &Path) -> Option<ArchiveKind> {
+    archive_kind(&path.file_name()?.to_str()?.to_lowercase())
+}
+
+/// Visits every entry of the archive at `path`.
+pub(crate) fn for_each_archive_entry(
+    path: &Path,
+    kind: ArchiveKind,
+    visit: &mut dyn FnMut(&EntryInfo, &mut dyn Read) -> Result<Flow, String>,
+) -> Result<(), String> {
+    let file = BufReader::new(File::open(path).map_err(to_string)?);
+    match kind {
+        ArchiveKind::Zip => for_each_zip_entry(file, visit),
+        ArchiveKind::Tar(None) => for_each_tar_entry(file, visit),
+        ArchiveKind::Tar(Some(codec)) => for_each_tar_entry(
+            decoder(codec, file).map_err(|_| to_string(UNSUPPORTED))?,
+            visit,
+        ),
+    }
 }
 
 fn format_for(path: &Path) -> Option<Format> {
@@ -31,12 +127,14 @@ fn format_for(path: &Path) -> Option<Format> {
         Some(Format::TarGz)
     } else if name.ends_with(".tar") {
         Some(Format::Tar)
+    } else if name.ends_with(".7z") {
+        Some(Format::SevenZip)
     } else {
         None
     }
 }
 
-const UNSUPPORTED: &str = "Unsupported format. Use .zip, .tar, .tar.gz or .tgz";
+const UNSUPPORTED: &str = "Unsupported format. Use .zip, .7z, .tar, .tar.gz or .tgz";
 
 /// Entries listed for a preview. Extraction always reads the whole archive.
 pub const LIST_LIMIT: usize = 100_000;
@@ -45,8 +143,10 @@ fn to_string(error: impl std::fmt::Display) -> String {
     error.to_string()
 }
 
+/// Whether the file is listed by the archive preview. Covers every tar
+/// compression and the zip family, plus `.7z` (listing only).
 pub fn is_archive_path(path: &Path) -> bool {
-    format_for(path).is_some()
+    format_for(path).is_some() || archive_kind_for(path).is_some()
 }
 
 pub fn create(paths: &[PathBuf], destination: &Path) -> Result<(), String> {
@@ -62,13 +162,16 @@ pub fn create(paths: &[PathBuf], destination: &Path) -> Result<(), String> {
         Format::Zip => create_zip(paths, destination),
         Format::Tar => create_tar(paths, destination, false),
         Format::TarGz => create_tar(paths, destination, true),
+        Format::SevenZip => create_7z(paths, destination),
     }
 }
 
 fn create_zip(paths: &[PathBuf], destination: &Path) -> Result<(), String> {
     let file = File::create(destination).map_err(|error| error.to_string())?;
     let mut zip = ZipWriter::new(file);
-    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options = SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .compression_level(Some(1));
     for path in paths {
         let root = path
             .file_name()
@@ -109,7 +212,7 @@ fn add_zip_entry(
 fn create_tar(paths: &[PathBuf], destination: &Path, gzip: bool) -> Result<(), String> {
     let file = File::create(destination).map_err(|error| error.to_string())?;
     let writer: Box<dyn Write> = if gzip {
-        Box::new(GzEncoder::new(file, Compression::default()))
+        Box::new(GzEncoder::new(file, Compression::fast()))
     } else {
         Box::new(file)
     };
@@ -131,6 +234,110 @@ fn create_tar(paths: &[PathBuf], destination: &Path, gzip: bool) -> Result<(), S
         }
     }
     builder.finish().map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+/// Path to a 7-Zip binary, if one is installed. 7z creation shells out to it.
+pub fn seven_zip_path() -> Option<PathBuf> {
+    if let Some(path) = env::var_os("LITE_EXPLORER_7Z") {
+        let path = PathBuf::from(path);
+        if path.is_file() {
+            return Some(path);
+        }
+    }
+    for name in ["7z", "7za", "7zz"] {
+        if let Some(path) = find_on_path(name) {
+            return Some(path);
+        }
+    }
+    common_7z_paths().into_iter().find(|path| path.is_file())
+}
+
+fn find_on_path(name: &str) -> Option<PathBuf> {
+    let path = env::var_os("PATH")?;
+    for dir in env::split_paths(&path) {
+        let candidate = dir.join(name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let exe = dir.join(format!("{name}.exe"));
+            if exe.is_file() {
+                return Some(exe);
+            }
+        }
+    }
+    None
+}
+
+fn common_7z_paths() -> Vec<PathBuf> {
+    #[cfg(target_os = "macos")]
+    return [
+        "/opt/homebrew/bin/7z",
+        "/opt/homebrew/bin/7zz",
+        "/usr/local/bin/7z",
+        "/usr/local/bin/7zz",
+    ]
+    .map(PathBuf::from)
+    .to_vec();
+    #[cfg(target_os = "windows")]
+    return [
+        r"C:\Program Files\7-Zip\7z.exe",
+        r"C:\Program Files (x86)\7-Zip\7z.exe",
+    ]
+    .map(PathBuf::from)
+    .to_vec();
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    [
+        "/usr/bin/7z",
+        "/usr/bin/7za",
+        "/usr/bin/7zz",
+        "/usr/local/bin/7z",
+    ]
+    .map(PathBuf::from)
+    .to_vec()
+}
+
+fn create_7z(paths: &[PathBuf], destination: &Path) -> Result<(), String> {
+    let binary = seven_zip_path().ok_or("7-Zip is not installed")?;
+    let cwd = paths[0]
+        .parent()
+        .ok_or("Invalid path to compress")?
+        .to_path_buf();
+    if paths
+        .iter()
+        .any(|path| path.parent() != Some(cwd.as_path()))
+    {
+        return Err("Compress items from the same folder".into());
+    }
+    let mut command = Command::new(binary);
+    command
+        .current_dir(&cwd)
+        .arg("a")
+        .arg("-y")
+        .arg("-bso0")
+        .arg("-bsp0")
+        .arg(destination);
+    for path in paths {
+        let name = path
+            .file_name()
+            .ok_or("Invalid path to compress")?
+            .to_string_lossy()
+            .into_owned();
+        command.arg(name);
+    }
+    let output = command
+        .output()
+        .map_err(|error| format!("Couldn’t run 7-Zip: {error}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(if stderr.is_empty() {
+            format!("7-Zip exited with {}", output.status)
+        } else {
+            stderr
+        });
+    }
     Ok(())
 }
 
@@ -199,12 +406,13 @@ pub(crate) fn for_each_entry(
     archive: &Path,
     visit: &mut dyn FnMut(&EntryInfo, &mut dyn Read) -> Result<Flow, String>,
 ) -> Result<(), String> {
-    let format = format_for(archive).ok_or(UNSUPPORTED)?;
-    let file = BufReader::new(File::open(archive).map_err(to_string)?);
-    match format {
-        Format::Zip => for_each_zip_entry(file, visit),
-        Format::Tar => for_each_tar_entry(file, visit),
-        Format::TarGz => for_each_tar_entry(GzDecoder::new(file), visit),
+    if let Some(kind) = archive_kind_for(archive) {
+        return for_each_archive_entry(archive, kind, visit);
+    }
+    // 7z creation uses the external binary; extraction is not supported.
+    match format_for(archive) {
+        Some(Format::SevenZip) => Err("Extracting .7z is not supported".into()),
+        _ => Err(UNSUPPORTED.into()),
     }
 }
 
@@ -333,11 +541,24 @@ fn archive_stem(archive: &Path) -> String {
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default();
     let lower = name.to_lowercase();
-    let stem = [".tar.gz", ".tgz", ".tar", ".zip"]
-        .iter()
-        .find(|extension| lower.ends_with(*extension))
-        .map(|extension| &name[..name.len() - extension.len()])
-        .unwrap_or(&name);
+    let stem = [
+        ".tar.zstd",
+        ".tar.zst",
+        ".tar.bz2",
+        ".tar.gz",
+        ".tar.xz",
+        ".tbz2",
+        ".tzst",
+        ".tgz",
+        ".txz",
+        ".tbz",
+        ".tar",
+        ".zip",
+    ]
+    .iter()
+    .find(|extension| lower.ends_with(*extension))
+    .map(|extension| &name[..name.len() - extension.len()])
+    .unwrap_or(&name);
     if stem.is_empty() {
         "Archive".to_string()
     } else {
@@ -715,6 +936,12 @@ pub async fn create_archive(paths: Vec<String>, destination: String) -> Result<(
     .map_err(|error| error.to_string())?
 }
 
+/// Path of the external 7-Zip binary, or `None` when it is not installed.
+#[tauri::command]
+pub fn detect_7z() -> Option<String> {
+    seven_zip_path().map(|path| path.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 pub async fn list_archive(path: String) -> Result<ArchiveListing, String> {
     tauri::async_runtime::spawn_blocking(move || read_listing(Path::new(&path), Some(LIST_LIMIT)))
@@ -914,7 +1141,34 @@ mod tests {
         assert_eq!(format_for(Path::new("a.TAR.GZ")), Some(Format::TarGz));
         assert_eq!(format_for(Path::new("a.tgz")), Some(Format::TarGz));
         assert_eq!(format_for(Path::new("a.tar")), Some(Format::Tar));
+        assert_eq!(format_for(Path::new("a.7z")), Some(Format::SevenZip));
         assert_eq!(format_for(Path::new("a.txt")), None);
+    }
+
+    #[test]
+    fn listing_detects_every_archive_and_compressed_variant() {
+        assert_eq!(
+            archive_kind("backup.tar.xz"),
+            Some(ArchiveKind::Tar(Some(Codec::Xz)))
+        );
+        assert_eq!(
+            archive_kind("backup.tar.zst"),
+            Some(ArchiveKind::Tar(Some(Codec::Zstd)))
+        );
+        assert_eq!(
+            archive_kind("backup.tbz2"),
+            Some(ArchiveKind::Tar(Some(Codec::Bzip2)))
+        );
+        assert_eq!(archive_kind("bundle.whl"), Some(ArchiveKind::Zip));
+        assert_eq!(archive_kind("lib.jar"), Some(ArchiveKind::Zip));
+
+        assert!(is_archive_path(Path::new("a.tar.zst")));
+        assert!(is_archive_path(Path::new("a.whl")));
+        assert!(is_archive_path(Path::new("a.7z")));
+        // Single compressed files preview their payload, not an archive listing.
+        assert!(!is_archive_path(Path::new("app.log.gz")));
+        assert_eq!(compressed("app.log.gz"), Some((Codec::Gzip, "app.log")));
+        assert_eq!(compressed("dump.sql.xz"), Some((Codec::Xz, "dump.sql")));
     }
 
     #[test]

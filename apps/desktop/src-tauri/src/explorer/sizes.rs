@@ -1,11 +1,12 @@
 use std::{
     collections::HashMap,
     fs,
-    path::Path,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex, OnceLock,
+        mpsc, Arc, Mutex, OnceLock,
     },
+    thread,
     time::{Duration, Instant},
 };
 
@@ -23,6 +24,17 @@ pub struct DirectorySizeEntry {
 pub const DIRECTORY_SIZE_SCAN_INTERVAL: Duration = Duration::from_millis(120);
 const DIRECTORY_SIZE_BATCH: usize = 64;
 const DIRECTORY_SIZE_MAX_SCAN_REGISTRY: usize = 8;
+// Threads held back from the scan so the UI and OS keep breathing room.
+const DIRECTORY_SIZE_WORKER_RESERVE: usize = 2;
+
+// One worker per available core minus the reserve, never more than the work at hand.
+fn size_scan_worker_count(children: usize) -> usize {
+    let available = std::thread::available_parallelism()
+        .map_or(4, |cores| cores.get())
+        .saturating_sub(DIRECTORY_SIZE_WORKER_RESERVE)
+        .max(1);
+    available.min(children)
+}
 
 pub struct DirectorySizeScans(Mutex<HashMap<String, Arc<AtomicBool>>>);
 
@@ -158,62 +170,91 @@ pub fn scan_directory_sizes(
             }
             let device = device_id(&metadata);
             let read = fs::read_dir(root).map_err(|e| e.to_string())?;
-            let mut batch = Vec::new();
-            let mut last = Instant::now();
+            // Drain the folder up front so a listing error still aborts the scan,
+            // then measure the children across a small worker pool.
+            let mut children: Vec<(PathBuf, String)> = Vec::new();
             for child in read {
-                if cancelled.load(Ordering::Relaxed) {
-                    break;
-                }
                 let child = child.map_err(|e| e.to_string())?;
                 let child_path = child.path();
                 let name = child_path.to_string_lossy().into_owned();
-                let (size, complete) =
-                    measure_entry(&child_path, device, &cancelled, &mut |size| {
-                        if last.elapsed() >= DIRECTORY_SIZE_SCAN_INTERVAL {
-                            batch.push(MeasuredSize {
-                                path: name.clone(),
-                                size,
-                                complete: false,
-                            });
-                            if on_progress
-                                .send(DirectorySizeProgress {
+                children.push((child_path, name));
+            }
+            let workers = size_scan_worker_count(children.len());
+            if workers > 0 {
+                let (jobs_tx, jobs_rx) = mpsc::channel::<(PathBuf, String)>();
+                let jobs_rx = Arc::new(Mutex::new(jobs_rx));
+                thread::scope(|scope| {
+                    for _ in 0..workers {
+                        let jobs_rx = Arc::clone(&jobs_rx);
+                        let on_progress = on_progress.clone();
+                        let cancelled = Arc::clone(&cancelled);
+                        scope.spawn(move || {
+                            let mut batch: Vec<MeasuredSize> = Vec::new();
+                            let mut last = Instant::now();
+                            while let Ok((child_path, name)) = jobs_rx.lock().unwrap().recv() {
+                                if cancelled.load(Ordering::Relaxed) {
+                                    break;
+                                }
+                                let (size, complete) =
+                                    measure_entry(&child_path, device, &cancelled, &mut |size| {
+                                        if last.elapsed() >= DIRECTORY_SIZE_SCAN_INTERVAL {
+                                            batch.push(MeasuredSize {
+                                                path: name.clone(),
+                                                size,
+                                                complete: false,
+                                            });
+                                            if on_progress
+                                                .send(DirectorySizeProgress {
+                                                    sizes: std::mem::take(&mut batch),
+                                                    done: false,
+                                                    error: None,
+                                                })
+                                                .is_err()
+                                            {
+                                                cancelled.store(true, Ordering::Relaxed);
+                                            }
+                                            last = Instant::now();
+                                        }
+                                    });
+                                batch.push(MeasuredSize {
+                                    path: name,
+                                    size,
+                                    complete,
+                                });
+                                if batch.len() >= DIRECTORY_SIZE_BATCH
+                                    || last.elapsed() >= DIRECTORY_SIZE_SCAN_INTERVAL
+                                {
+                                    if on_progress
+                                        .send(DirectorySizeProgress {
+                                            sizes: std::mem::take(&mut batch),
+                                            done: false,
+                                            error: None,
+                                        })
+                                        .is_err()
+                                    {
+                                        cancelled.store(true, Ordering::Relaxed);
+                                        break;
+                                    }
+                                    last = Instant::now();
+                                }
+                            }
+                            if !batch.is_empty() {
+                                let _ = on_progress.send(DirectorySizeProgress {
                                     sizes: std::mem::take(&mut batch),
                                     done: false,
                                     error: None,
-                                })
-                                .is_err()
-                            {
-                                cancelled.store(true, Ordering::Relaxed);
+                                });
                             }
-                            last = Instant::now();
-                        }
-                    });
-                batch.push(MeasuredSize {
-                    path: name,
-                    size,
-                    complete,
-                });
-                if batch.len() >= DIRECTORY_SIZE_BATCH
-                    || last.elapsed() >= DIRECTORY_SIZE_SCAN_INTERVAL
-                {
-                    if on_progress
-                        .send(DirectorySizeProgress {
-                            sizes: std::mem::take(&mut batch),
-                            done: false,
-                            error: None,
-                        })
-                        .is_err()
-                    {
-                        break;
+                        });
                     }
-                    last = Instant::now();
-                }
+                    for child in children {
+                        if cancelled.load(Ordering::Relaxed) || jobs_tx.send(child).is_err() {
+                            break;
+                        }
+                    }
+                    drop(jobs_tx);
+                });
             }
-            let _ = on_progress.send(DirectorySizeProgress {
-                sizes: batch,
-                done: false,
-                error: None,
-            });
             Ok(())
         })();
         scan_registry().unregister(&request_id);
@@ -267,6 +308,14 @@ pub fn compute_directory_sizes(path: String, app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn worker_count_reserves_threads_and_caps_at_work() {
+        assert_eq!(size_scan_worker_count(0), 0);
+        assert_eq!(size_scan_worker_count(1), 1);
+        assert!(size_scan_worker_count(usize::MAX) >= 1);
+        assert!(size_scan_worker_count(2) <= 2);
+    }
 
     #[test]
     fn measures_nested_sizes_and_handles_cancellation_and_missing_paths() {

@@ -28,17 +28,9 @@
     ],
     "security": {
       "csp": {
-        "default-src": [
-          "'self'"
-        ],
-        "script-src": [
-          "'self'"
-        ],
-        "connect-src": [
-          "'self'",
-          "ipc:",
-          "http://ipc.localhost"
-        ],
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "connect-src": ["'self'", "ipc:", "http://ipc.localhost"],
         "img-src": [
           "'self'",
           "asset:",
@@ -56,40 +48,17 @@
           "http://media.localhost",
           "blob:"
         ],
-        "style-src": [
-          "'self'",
-          "'unsafe-inline'"
-        ],
-        "font-src": [
-          "'self'",
-          "data:"
-        ],
-        "worker-src": [
-          "'self'",
-          "blob:"
-        ],
-        "frame-src": [
-          "'self'"
-        ],
-        "object-src": [
-          "'none'"
-        ],
-        "base-uri": [
-          "'none'"
-        ],
-        "form-action": [
-          "'none'"
-        ]
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "font-src": ["'self'", "data:"],
+        "worker-src": ["'self'", "blob:"],
+        "frame-src": ["'self'"],
+        "object-src": ["'none'"],
+        "base-uri": ["'none'"],
+        "form-action": ["'none'"]
       },
       "devCsp": {
-        "default-src": [
-          "'self'"
-        ],
-        "script-src": [
-          "'self'",
-          "'unsafe-eval'",
-          "'unsafe-inline'"
-        ],
+        "default-src": ["'self'"],
+        "script-src": ["'self'", "'unsafe-eval'", "'unsafe-inline'"],
         "connect-src": [
           "'self'",
           "ipc:",
@@ -114,30 +83,13 @@
           "http://media.localhost",
           "blob:"
         ],
-        "style-src": [
-          "'self'",
-          "'unsafe-inline'"
-        ],
-        "font-src": [
-          "'self'",
-          "data:"
-        ],
-        "worker-src": [
-          "'self'",
-          "blob:"
-        ],
-        "frame-src": [
-          "'self'"
-        ],
-        "object-src": [
-          "'none'"
-        ],
-        "base-uri": [
-          "'none'"
-        ],
-        "form-action": [
-          "'none'"
-        ]
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "font-src": ["'self'", "data:"],
+        "worker-src": ["'self'", "blob:"],
+        "frame-src": ["'self'"],
+        "object-src": ["'none'"],
+        "base-uri": ["'none'"],
+        "form-action": ["'none'"]
       }
     }
   },
