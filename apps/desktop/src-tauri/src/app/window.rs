@@ -95,6 +95,50 @@ pub fn clamp_window_state(
     )
 }
 
+/// Opaque black, used for every window so no white frame shows while a page loads.
+pub fn black() -> tauri::utils::config::Color {
+    tauri::utils::config::Color(0, 0, 0, 255)
+}
+
+/// Forces the window and its webview to an opaque black background.
+///
+/// On Windows and Linux this covers both layers. On macOS `set_background_color` only
+/// reaches the window layer (see its platform notes), so the webview's under-page color
+/// is set separately in `set_webview_background`.
+pub fn paint_black(window: &tauri::WebviewWindow) {
+    let _ = window.set_background_color(Some(black()));
+    #[cfg(target_os = "macos")]
+    set_webview_background(window);
+}
+
+/// Paints the WKWebView's under-page color black. It is white by default and shows through
+/// while the page is loading (about:blank) and when overscrolling, which causes a white
+/// flash on startup that the window `backgroundColor` does not cover.
+#[cfg(target_os = "macos")]
+pub fn set_webview_background(window: &tauri::WebviewWindow) {
+    use objc2::{
+        msg_send,
+        runtime::{AnyClass, AnyObject, Bool},
+        sel,
+    };
+
+    let _ = window.with_webview(|webview| unsafe {
+        let Some(color_class) = AnyClass::get(c"NSColor") else {
+            return;
+        };
+        let black: *mut AnyObject = msg_send![color_class, blackColor];
+        if black.is_null() {
+            return;
+        }
+        let wk_webview = webview.inner() as *mut AnyObject;
+        let responds: Bool =
+            msg_send![wk_webview, respondsToSelector: sel!(setUnderPageBackgroundColor:)];
+        if responds.as_bool() {
+            let _: () = msg_send![wk_webview, setUnderPageBackgroundColor: black];
+        }
+    });
+}
+
 #[cfg(target_os = "macos")]
 pub fn unlock_webview_frame_rate(window: &tauri::WebviewWindow) {
     use objc2::{

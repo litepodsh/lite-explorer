@@ -20,6 +20,8 @@
         "minHeight": 500,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
+        "backgroundColor": "#000000",
+        "theme": "Dark",
         "trafficLightPosition": {
           "x": 20,
           "y": 27
@@ -30,7 +32,14 @@
       "csp": {
         "default-src": ["'self'"],
         "script-src": ["'self'"],
-        "connect-src": ["'self'", "ipc:", "http://ipc.localhost"],
+        "connect-src": [
+          "'self'",
+          "ipc:",
+          "http://ipc.localhost",
+          "media:",
+          "http://media.localhost",
+          "data:"
+        ],
         "img-src": [
           "'self'",
           "asset:",
@@ -49,7 +58,7 @@
           "blob:"
         ],
         "style-src": ["'self'", "'unsafe-inline'"],
-        "font-src": ["'self'", "data:"],
+        "font-src": ["'self'", "media:", "http://media.localhost", "data:", "blob:"],
         "worker-src": ["'self'", "blob:"],
         "frame-src": ["'self'"],
         "object-src": ["'none'"],
@@ -63,6 +72,9 @@
           "'self'",
           "ipc:",
           "http://ipc.localhost",
+          "media:",
+          "http://media.localhost",
+          "data:",
           "http://localhost:1420",
           "ws://localhost:1421"
         ],
@@ -84,7 +96,7 @@
           "blob:"
         ],
         "style-src": ["'self'", "'unsafe-inline'"],
-        "font-src": ["'self'", "data:"],
+        "font-src": ["'self'", "media:", "http://media.localhost", "data:", "blob:"],
         "worker-src": ["'self'", "blob:"],
         "frame-src": ["'self'"],
         "object-src": ["'none'"],

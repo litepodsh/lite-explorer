@@ -37,6 +37,7 @@ pub async fn open_viewer(app: AppHandle, path: String) -> Result<(), String> {
         .min_inner_size(480.0, 360.0)
         .resizable(true)
         .focused(true)
+        .background_color(crate::app::window::black())
         .center();
     #[cfg(target_os = "macos")]
     let builder = builder
@@ -46,6 +47,7 @@ pub async fn open_viewer(app: AppHandle, path: String) -> Result<(), String> {
     #[cfg(not(target_os = "macos"))]
     let builder = builder.decorations(false);
     let window = builder.build().map_err(|error| error.to_string())?;
+    crate::app::window::paint_black(&window);
     // The window takes focus so keyboard shortcuts (Esc, Cmd/Ctrl+W) work right away.
     window.set_focus().map_err(|error| error.to_string())?;
     Ok(())

@@ -26,6 +26,7 @@ pub fn open_settings_window(app: &AppHandle) -> tauri::Result<()> {
             .inner_size(720.0, 520.0)
             .min_inner_size(640.0, 460.0)
             .resizable(true)
+            .background_color(crate::app::window::black())
             .center();
     #[cfg(target_os = "macos")]
     let builder = builder
@@ -35,7 +36,8 @@ pub fn open_settings_window(app: &AppHandle) -> tauri::Result<()> {
         .traffic_light_position(tauri::LogicalPosition::new(20.0, 27.0));
     #[cfg(not(target_os = "macos"))]
     let builder = builder.decorations(false);
-    builder.build()?;
+    let window = builder.build()?;
+    crate::app::window::paint_black(&window);
     Ok(())
 }
 

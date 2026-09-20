@@ -18,8 +18,8 @@ pub(crate) use preview::{
 use app::db::open_database;
 use app::swipe_nav;
 #[cfg(target_os = "macos")]
-use app::window::unlock_webview_frame_rate;
-use app::window::{restore_window_state, save_window_state};
+use app::window::{set_webview_background, unlock_webview_frame_rate};
+use app::window::{paint_black, restore_window_state, save_window_state};
 use system::folder_usage::FolderScans;
 use tauri::{Manager, WindowEvent};
 
@@ -40,6 +40,7 @@ pub fn run() {
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 restore_window_state(&window);
+                paint_black(&window);
                 let window = window.clone();
                 window.clone().on_window_event(move |event| {
                     if matches!(event, WindowEvent::CloseRequested { .. }) {
@@ -68,6 +69,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             for window in app.webview_windows().values() {
                 unlock_webview_frame_rate(window);
+                set_webview_background(window);
             }
             swipe_nav::init(app.handle());
             Ok(())
