@@ -729,6 +729,7 @@ fn same_device(source: &Path, destination: &Path) -> bool {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "delete_items", fields(sentry_op = "file.delete"))]
 pub async fn delete_items(
     app: AppHandle,
     transfers: State<'_, TransferRegistry>,
@@ -813,6 +814,7 @@ pub async fn delete_items(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "copy_items", fields(sentry_op = "file.copy"))]
 pub async fn copy_items(
     app: AppHandle,
     transfers: State<'_, TransferRegistry>,
@@ -911,6 +913,7 @@ pub async fn copy_items(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "move_items", fields(sentry_op = "file.move"))]
 pub async fn move_items(
     app: AppHandle,
     transfers: State<'_, TransferRegistry>,

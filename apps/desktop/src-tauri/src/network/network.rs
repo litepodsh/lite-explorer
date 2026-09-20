@@ -725,6 +725,7 @@ pub async fn network_location(
 /// An SMB location without a share signs in to list the server's shares, like Finder, and
 /// returns its own path. Shares are mounted one by one with `mount_network_share`.
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "connect_network_location", fields(sentry_op = "network.connect"))]
 pub async fn connect_network_location(
     database: State<'_, Database>,
     mounts: State<'_, Mounts>,
@@ -904,6 +905,7 @@ fn share_entry(name: &str, path: String) -> crate::DirectoryEntry {
 /// Mounts one share of an SMB location without a share (`smb://<id>/<share>`) and returns its
 /// local folder. Reuses an existing mount of that share.
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "mount_network_share", fields(sentry_op = "network.mount"))]
 pub async fn mount_network_share(
     database: State<'_, Database>,
     mounts: State<'_, Mounts>,

@@ -927,6 +927,7 @@ pub fn extract_targets(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "create_archive", fields(sentry_op = "archive.create"))]
 pub async fn create_archive(paths: Vec<String>, destination: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let paths: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
@@ -943,6 +944,7 @@ pub fn detect_7z() -> Option<String> {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "list_archive", fields(sentry_op = "archive.list"))]
 pub async fn list_archive(path: String) -> Result<ArchiveListing, String> {
     tauri::async_runtime::spawn_blocking(move || read_listing(Path::new(&path), Some(LIST_LIMIT)))
         .await
@@ -950,6 +952,7 @@ pub async fn list_archive(path: String) -> Result<ArchiveListing, String> {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "plan_extraction", fields(sentry_op = "archive.plan"))]
 pub async fn plan_extraction(
     archive: String,
     destination: String,
@@ -969,6 +972,7 @@ pub async fn plan_extraction(
 /// Extracts under a job id chosen by the frontend and resolves when the job ends.
 /// Progress goes out as `transfer-progress` events; `cancel_transfer` stops it.
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "extract_archive", fields(sentry_op = "archive.extract"))]
 pub async fn extract_archive(
     app: tauri::AppHandle,
     registry: tauri::State<'_, crate::remote::transfer::TransferRegistry>,

@@ -385,6 +385,7 @@ pub fn file_preview(path: &Path) -> Result<FilePreview, String> {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "read_file_preview", fields(sentry_op = "file.preview"))]
 pub async fn read_file_preview(
     database: State<'_, Database>,
     clients: State<'_, remote::RemoteClients>,

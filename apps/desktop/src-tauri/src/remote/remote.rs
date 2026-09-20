@@ -889,6 +889,7 @@ fn cache_file(root: &Path, id: &str, bucket: &str, key: &str) -> Option<PathBuf>
 /// Downloads an object into the app cache and returns the local file path, so the
 /// frontend can open it with the default app. Edits to the copy are not uploaded.
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "download_remote_file", fields(sentry_op = "remote.download"))]
 pub async fn download_remote_file(
     app: AppHandle,
     database: State<'_, Database>,

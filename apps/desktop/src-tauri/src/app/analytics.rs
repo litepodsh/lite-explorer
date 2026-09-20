@@ -25,6 +25,11 @@ use uuid::Uuid;
 const IDENTIFIER: &str = "xyz.sebasgc.liteexplorer";
 const PREFS_FILE: &str = "analytics.json";
 
+/// Share of performance transactions sent to Sentry. Sampling happens when a root
+/// `tracing` span starts, so 10% keeps the volume (and quota) low while still giving a
+/// usable picture of slow commands.
+const TRACES_SAMPLE_RATE: f32 = 0.1;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default)]
 pub struct AnalyticsPrefs {
@@ -199,6 +204,12 @@ pub fn init_sentry(gate: Arc<AtomicBool>, install_id: &str) -> sentry::ClientIni
     // They bypass `before_send`, so they start only when reporting is on and are
     // stopped by hand in `save_analytics` when the user opts out.
     options.auto_session_tracking = gate.load(Ordering::Relaxed) && !cfg!(debug_assertions);
+    // Performance: sample a share of transactions. Root `tracing` spans (registered via
+    // the subscriber in `run`) become transactions; without a sample rate they are
+    // dropped. Debug builds stay at the SDK default (off).
+    if !cfg!(debug_assertions) {
+        options = options.traces_sample_rate(TRACES_SAMPLE_RATE);
+    }
     // Both the Rust SDK and the browser events forwarded by the Tauri plugin run
     // through these hooks, so flipping the gate stops reports immediately.
     options.before_send = Some(Arc::new(move |event| {
@@ -225,10 +236,24 @@ pub fn init_sentry(gate: Arc<AtomicBool>, install_id: &str) -> sentry::ClientIni
     guard
 }
 
+/// Registers the global `tracing` subscriber with the Sentry layer. Instrumented
+/// functions are root spans, which become Sentry performance transactions; the fmt
+/// layer keeps local console output. Must run after `init_sentry` so the current hub
+/// exists. Calling it twice (another subscriber already installed) is ignored.
+pub fn init_tracing() {
+    use tracing_subscriber::prelude::*;
+
+    let subscriber = tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(sentry::integrations::tracing::layer());
+    if subscriber.try_init().is_err() {
+        eprintln!("[analytics] tracing subscriber already installed");
+    }
+}
+
 /// One event per fresh install, so "new installs" can be split from returning users.
 /// Dropped by the gate like any other event when reporting is off.
-pub fn capture_first_run(welcome_seen: bool) {
-    if welcome_seen {
+pub fn capture_first_run(welcome_seen: bool) {    if welcome_seen {
         return;
     }
     sentry::with_scope(

@@ -156,6 +156,7 @@ pub fn directory_entries(path: &Path) -> Result<Vec<DirectoryEntry>, String> {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "read_directory", fields(sentry_op = "file.list"))]
 pub async fn read_directory(
     database: State<'_, Database>,
     clients: State<'_, remote::RemoteClients>,
@@ -193,6 +194,7 @@ pub fn path_exists(path: String) -> bool {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "search_directory", fields(sentry_op = "file.search"))]
 pub async fn search_directory(
     path: String,
     query: String,

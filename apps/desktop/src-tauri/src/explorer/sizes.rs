@@ -149,6 +149,7 @@ pub fn cancel_directory_size_scan(request_id: String) {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "scan_directory_sizes", fields(sentry_op = "ui.scan"))]
 pub fn scan_directory_sizes(
     path: String,
     request_id: String,

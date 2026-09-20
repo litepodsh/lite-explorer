@@ -425,6 +425,7 @@ pub async fn copy_item(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "delete_remote_items", fields(sentry_op = "remote.delete"))]
 pub async fn delete_remote_items(
     database: State<'_, Database>,
     clients: State<'_, RemoteClients>,
@@ -572,6 +573,7 @@ fn walk_local(dir: &Path, prefix: &str, items: &mut Vec<UploadItem>) -> std::io:
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "upload_remote_files", fields(sentry_op = "remote.upload"))]
 pub async fn upload_remote_files(
     app: AppHandle,
     database: State<'_, Database>,
@@ -740,6 +742,7 @@ pub(super) async fn download_to(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all, name = "download_remote_items", fields(sentry_op = "remote.download"))]
 pub async fn download_remote_items(
     app: AppHandle,
     database: State<'_, Database>,
