@@ -16,6 +16,7 @@ use crate::app::db::Database;
 use crate::explorer::entries::{
     coordinated_read, coordinated_write, single_entry, unique_name, DirectoryEntry,
 };
+use crate::explorer::local_path::{child_path, validate_directory, validate_existing, ExpectedKind};
 use crate::explorer::recents::{insert_recent, recent_kind};
 use crate::remote::transfer::{self, timestamp_ms, TransferEvent, TransferRegistry};
 use crate::system::volumes::device_id;
@@ -392,6 +393,10 @@ fn plan_copy_tree(
                 complete.store(false, Ordering::Relaxed);
                 return;
             };
+            if metadata.file_type().is_symlink() {
+                complete.store(false, Ordering::Relaxed);
+                return;
+            }
             if !metadata.is_dir() {
                 tasks.lock().unwrap().push(FileTask {
                     source: from,
@@ -418,6 +423,9 @@ fn plan_copy_tree(
                         let path = child.path();
                         let target = to.join(child.file_name());
                         match fs::symlink_metadata(&path) {
+                            Ok(metadata) if metadata.file_type().is_symlink() => {
+                                complete.store(false, Ordering::Relaxed)
+                            }
                             Ok(metadata) if metadata.is_dir() => {
                                 next.lock().unwrap().push((path, target))
                             }
@@ -700,20 +708,18 @@ pub fn plan_targets(
     paths: &[String],
     destination: &Path,
 ) -> Result<Vec<(PathBuf, PathBuf)>, String> {
-    if !destination.is_dir() {
-        return Err(format!("{} is not a directory", destination.display()));
-    }
+    let destination = validate_directory(destination)?;
     let mut used = Vec::new();
     let mut planned = Vec::new();
     for path in paths {
-        let source = PathBuf::from(path);
+        let source = validate_existing(Path::new(path), ExpectedKind::Any)?;
         let base = source
             .file_name()
             .ok_or("invalid source path")?
             .to_string_lossy()
             .into_owned();
-        let name = reserve_unique_name(destination, &base, &mut used);
-        planned.push((source, destination.join(name)));
+        let name = reserve_unique_name(&destination, &base, &mut used);
+        planned.push((source, child_path(&destination, &name)?));
     }
     Ok(planned)
 }
@@ -743,7 +749,11 @@ pub async fn delete_items(
     let token = transfers.register(&job_id);
     let remove_id = job_id.clone();
     let outcome = tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
-        let roots: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
+        let roots: Result<Vec<PathBuf>, String> = paths
+            .iter()
+            .map(|path| validate_existing(Path::new(path), ExpectedKind::Any))
+            .collect();
+        let roots = roots?;
         let is_cancelled = || token.is_cancelled();
         let label = format!("Delete {} items", roots.len());
         if permanent {

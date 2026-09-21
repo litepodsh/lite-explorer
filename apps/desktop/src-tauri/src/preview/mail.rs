@@ -14,6 +14,7 @@ use sqlx::SqlitePool;
 use tauri::State;
 
 use crate::app::db::Database;
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
 use crate::search::mail::emlx_message;
 use crate::{network, remote};
 
@@ -128,7 +129,8 @@ async fn read_mail_bytes(
 }
 
 fn read_local_bytes(path: &str) -> Result<Vec<u8>, String> {
-    let metadata = fs::metadata(path).map_err(|error| error.to_string())?;
+    let path = validate_existing(std::path::Path::new(path), ExpectedKind::File)?;
+    let metadata = fs::metadata(&path).map_err(|_| "Invalid local path")?;
     if metadata.len() > MAIL_MAX_BYTES as u64 {
         return Err(format!(
             "Mail file is larger than {} MB",

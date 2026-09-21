@@ -9,6 +9,7 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::app::db::Database;
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
 use crate::preview::xml::{self, Element};
 use crate::search::text;
 use crate::{network, remote};
@@ -245,7 +246,7 @@ pub async fn read_spreadsheet(
     if remote::is_remote_path(&path) {
         return remote::read_spreadsheet(&database.0, &clients, &path).await;
     }
-    read_spreadsheet_file(Path::new(&path))
+    read_spreadsheet_file(&validate_existing(Path::new(&path), ExpectedKind::File)?)
 }
 
 #[cfg(test)]

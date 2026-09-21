@@ -38,13 +38,13 @@ describe("canFavorite", () => {
     expect(canFavorite({ is_directory: true, path: "/Users/me/Downloads" })).toBe(true);
   });
 
-  test("files, buckets, shares and remote folders are rejected", () => {
+  test("files are rejected but connected folders, buckets and shares are allowed", () => {
     expect(canFavorite({ is_directory: false, path: "/Users/me/notes.txt" })).toBe(false);
     expect(canFavorite({ is_directory: true, path: "s3://id/bucket/", kind: "bucket" })).toBe(
-      false,
+      true,
     );
-    expect(canFavorite({ is_directory: true, path: "s3://id/bucket/folder/" })).toBe(false);
-    expect(canFavorite({ is_directory: true, path: "smb://id/share", kind: "share" })).toBe(false);
-    expect(canFavorite({ is_directory: true, path: "sftp://id/home" })).toBe(false);
+    expect(canFavorite({ is_directory: true, path: "s3://id/bucket/folder/" })).toBe(true);
+    expect(canFavorite({ is_directory: true, path: "smb://id/share", kind: "share" })).toBe(true);
+    expect(canFavorite({ is_directory: true, path: "sftp://id/home" })).toBe(true);
   });
 });

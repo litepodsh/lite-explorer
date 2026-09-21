@@ -9,6 +9,7 @@ use sqlx::{
 use tauri::State;
 
 use crate::app::db::Database;
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
 
 /// Rows shown per table before the grid is reported as truncated.
 const MAX_ROWS: usize = 500;
@@ -132,7 +133,8 @@ pub async fn open_database(
     path: String,
 ) -> Result<DatabasePreview, String> {
     let _ = &database;
-    list_tables(&path).await
+    let path = validate_existing(std::path::Path::new(&path), ExpectedKind::File)?;
+    list_tables(&path.to_string_lossy()).await
 }
 
 async fn list_tables(path: &str) -> Result<DatabasePreview, String> {
@@ -160,7 +162,8 @@ async fn list_tables(path: &str) -> Result<DatabasePreview, String> {
 
 #[tauri::command]
 pub async fn read_sqlite_table(path: String, table: String) -> Result<TableData, String> {
-    read_table(&path, &table).await
+    let path = validate_existing(std::path::Path::new(&path), ExpectedKind::File)?;
+    read_table(&path.to_string_lossy(), &table).await
 }
 
 async fn read_table(path: &str, table: &str) -> Result<TableData, String> {

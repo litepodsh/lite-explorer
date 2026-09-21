@@ -10,6 +10,7 @@ use tauri::State;
 use crate::app::db::Database;
 use crate::explorer::archive::Codec;
 use crate::explorer::entries::{coordinated_read, epoch_millis, utf8_boundary};
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
 use crate::search::text;
 use crate::{explorer::archive, network, remote};
 
@@ -314,7 +315,8 @@ fn decompress_preview(path: &Path, codec: Codec, preview: &mut FilePreview) -> R
 }
 
 pub fn file_preview(path: &Path) -> Result<FilePreview, String> {
-    let metadata = fs::metadata(path).map_err(|error| error.to_string())?;
+    let path = validate_existing(path, ExpectedKind::Any)?;
+    let metadata = fs::metadata(&path).map_err(|error| error.to_string())?;
     let mut preview = FilePreview {
         name: path
             .file_name()
@@ -332,7 +334,7 @@ pub fn file_preview(path: &Path) -> Result<FilePreview, String> {
         return Ok(preview);
     }
 
-    if archive::is_archive_path(path) {
+    if archive::is_archive_path(&path) {
         preview.kind = PreviewKind::Archive;
         return Ok(preview);
     }
@@ -343,7 +345,7 @@ pub fn file_preview(path: &Path) -> Result<FilePreview, String> {
         .and_then(|name| name.to_str())
         .and_then(archive::compressed)
     {
-        decompress_preview(path, codec, &mut preview)?;
+        decompress_preview(&path, codec, &mut preview)?;
         return Ok(preview);
     }
 
@@ -412,7 +414,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn preview_fixture(name: &str, bytes: &[u8]) -> PathBuf {
-        let directory = std::env::temp_dir().join(format!(
+        let directory = std::env::temp_dir().canonicalize().unwrap().join(format!(
             "liteexplorer-preview-{}-{}",
             name,
             SystemTime::now()

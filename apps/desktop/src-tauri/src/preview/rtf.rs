@@ -7,6 +7,8 @@ use std::fs;
 use encoding_rs::Encoding;
 use serde::Serialize;
 
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
+
 const DEFAULT_SIZE: i32 = 24;
 const DEFAULT_UC: usize = 1;
 
@@ -56,7 +58,8 @@ pub struct RtfDocument {
 
 #[tauri::command]
 pub async fn open_rtf(path: String) -> Result<RtfDocument, String> {
-    tauri::async_runtime::spawn_blocking(move || read_rtf(&path))
+    let path = validate_existing(std::path::Path::new(&path), ExpectedKind::File)?;
+    tauri::async_runtime::spawn_blocking(move || read_rtf(&path.to_string_lossy()))
         .await
         .map_err(|error| error.to_string())?
 }

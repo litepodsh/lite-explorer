@@ -50,8 +50,6 @@ export function detectTerminals(): Promise<TerminalInfo[]> {
 export async function chooseApplication(): Promise<string | null> {
   const selected = await open({
     title: "Choose Application",
-    defaultPath: "/Applications",
-    filters: [{ name: "Applications", extensions: ["app"] }],
   });
   return typeof selected === "string" ? selected : null;
 }

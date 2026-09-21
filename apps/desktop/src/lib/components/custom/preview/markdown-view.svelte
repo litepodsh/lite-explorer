@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { openUrl } from "@tauri-apps/plugin-opener";
+  import { confirmExternalLink } from "./external-link.js";
   import { languageForFence } from "./languages.js";
   import { renderMarkdown } from "./markdown.js";
   import { ensureLanguage, loadMonaco, type MonacoApi } from "./monaco.js";
@@ -55,7 +55,7 @@
     if (!anchor) return;
     event.preventDefault();
     const href = anchor.getAttribute("href") ?? "";
-    if (/^https?:\/\//i.test(href)) void openUrl(href);
+    confirmExternalLink(href);
   }
 </script>
 

@@ -6,6 +6,7 @@ use sqlx::SqlitePool;
 
 use crate::search::text;
 use crate::{network, remote};
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
 
 /// Default cap for in-memory preview reads; keeps huge files out of the parser.
 pub(crate) const SOURCE_MAX_BYTES: usize = 32 * 1024 * 1024;
@@ -27,14 +28,15 @@ pub(crate) async fn read_bytes(
 }
 
 pub(crate) fn read_local_bytes(path: &str, max_bytes: usize) -> Result<Vec<u8>, String> {
-    let metadata = std::fs::metadata(path).map_err(|error| error.to_string())?;
+    let path = validate_existing(std::path::Path::new(path), ExpectedKind::File)?;
+    let metadata = std::fs::metadata(&path).map_err(|_| "Invalid local path")?;
     if metadata.len() > max_bytes as u64 {
         return Err(format!(
             "{} is larger than {} MB",
-            std::path::Path::new(path)
+            path
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_else(|| path.to_string()),
+                .unwrap_or_else(|| path.to_string_lossy().into_owned()),
             max_bytes / (1024 * 1024)
         ));
     }

@@ -10,6 +10,6 @@
 <iframe
   bind:this={frame}
   title="HTML preview"
-  sandbox="allow-scripts allow-popups"
+  sandbox=""
   srcdoc={document}
   class="h-full w-full border-0 bg-white"></iframe>

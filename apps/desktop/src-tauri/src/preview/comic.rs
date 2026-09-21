@@ -2,13 +2,14 @@
 //! through the `media://` protocol by reusing the zip root used for EPUB/Office.
 //! Read-only; `.cbr` (RAR) isn't supported.
 
-use std::{cmp::Ordering, fs::File, io::BufReader, path::PathBuf};
+use std::{cmp::Ordering, fs::File, io::BufReader};
 
 use serde::Serialize;
 use tauri::State;
 use zip::ZipArchive;
 
 use crate::media::{register_zip_root, MediaRegistry};
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
 
 #[derive(Serialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -28,8 +29,9 @@ pub async fn open_comic(
     registry: State<'_, MediaRegistry>,
     path: String,
 ) -> Result<ComicPreview, String> {
-    let base = register_zip_root(&registry, PathBuf::from(&path));
-    tauri::async_runtime::spawn_blocking(move || parse_comic(&path, base))
+    let path = validate_existing(std::path::Path::new(&path), ExpectedKind::File)?;
+    let base = register_zip_root(&registry, path.clone());
+    tauri::async_runtime::spawn_blocking(move || parse_comic(&path.to_string_lossy(), base))
         .await
         .map_err(|error| error.to_string())?
 }

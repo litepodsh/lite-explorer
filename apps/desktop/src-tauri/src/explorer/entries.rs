@@ -9,6 +9,7 @@ use tauri::State;
 
 use crate::app::db::Database;
 use crate::explorer::paths::expand_tilde;
+use crate::explorer::local_path::validate_directory;
 use crate::{network, remote, search};
 
 #[derive(Serialize)]
@@ -174,7 +175,7 @@ pub async fn read_directory(
         return remote::list_directory(&database.0, &clients, &path).await;
     }
     tauri::async_runtime::spawn_blocking(move || {
-        let path = expand_tilde(&path);
+        let path = validate_directory(&expand_tilde(&path))?;
         coordinated_read(&path, || directory_entries(&path))
     })
     .await
@@ -207,7 +208,8 @@ pub async fn search_directory(
         return Err("Search is available for local folders and mounted volumes only.".into());
     }
     tauri::async_runtime::spawn_blocking(move || {
-        search::search_directory(&PathBuf::from(path), &query, mode)
+        let path = validate_directory(&PathBuf::from(path))?;
+        search::search_directory(&path, &query, mode)
     })
     .await
     .map_err(|error| error.to_string())?

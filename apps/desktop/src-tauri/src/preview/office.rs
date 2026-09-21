@@ -3,13 +3,17 @@
 //! served from the package through the `media://` protocol. Read-only: no editing,
 //! and every text node is escaped by construction.
 
-use std::{collections::HashMap, fs::File, io::BufReader, io::Read, path::PathBuf};
+use std::{collections::HashMap, fs::File, io::BufReader, io::Read};
 
 use serde::Serialize;
 use tauri::State;
 use zip::ZipArchive;
 
 use crate::media::{register_zip_root, MediaRegistry};
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
+
+#[cfg(test)]
+use std::path::PathBuf;
 use crate::preview::xml::{self, Element};
 
 /// Largest XML part read from one package; bounds zip bombs.
@@ -67,8 +71,9 @@ pub async fn open_word(
     registry: State<'_, MediaRegistry>,
     path: String,
 ) -> Result<WordDocument, String> {
-    let base = register_zip_root(&registry, PathBuf::from(&path));
-    tauri::async_runtime::spawn_blocking(move || parse_word(&path, base))
+    let path = validate_existing(std::path::Path::new(&path), ExpectedKind::File)?;
+    let base = register_zip_root(&registry, path.clone());
+    tauri::async_runtime::spawn_blocking(move || parse_word(&path.to_string_lossy(), base))
         .await
         .map_err(|error| error.to_string())?
 }
@@ -78,8 +83,9 @@ pub async fn open_presentation(
     registry: State<'_, MediaRegistry>,
     path: String,
 ) -> Result<Presentation, String> {
-    let base = register_zip_root(&registry, PathBuf::from(&path));
-    tauri::async_runtime::spawn_blocking(move || parse_presentation(&path, base))
+    let path = validate_existing(std::path::Path::new(&path), ExpectedKind::File)?;
+    let base = register_zip_root(&registry, path.clone());
+    tauri::async_runtime::spawn_blocking(move || parse_presentation(&path.to_string_lossy(), base))
         .await
         .map_err(|error| error.to_string())?
 }

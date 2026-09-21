@@ -11,6 +11,7 @@ use crate::app::db::Database;
 use crate::explorer::entries::{
     coordinated_read, coordinated_write, single_entry, unique_name, DirectoryEntry,
 };
+use crate::explorer::local_path::{child_path, validate_directory, validate_existing, ExpectedKind};
 use crate::explorer::recents::{insert_recent, recent_kind};
 use crate::{network, remote};
 
@@ -42,16 +43,9 @@ pub fn create_local_item(
     kind: String,
     name: String,
 ) -> Result<DirectoryEntry, String> {
-    let parent_path = Path::new(&parent);
-    if !parent_path.is_dir() {
-        return Err(format!("{} is not a directory", parent_path.display()));
-    }
-    let trimmed = name.trim();
-    if trimmed.is_empty() {
-        return Err("name must not be empty".into());
-    }
-    let final_name = unique_name(parent_path, trimmed);
-    let target = parent_path.join(&final_name);
+    let parent_path = validate_directory(Path::new(&parent))?;
+    let final_name = unique_name(&parent_path, crate::explorer::local_path::validate_child_name(&name)?);
+    let target = child_path(&parent_path, &final_name)?;
     if kind == "folder" {
         fs::create_dir(&target).map_err(|error| error.to_string())?;
     } else {
@@ -83,14 +77,10 @@ pub async fn rename_item(
 }
 
 pub fn rename_local_item(path: String, new_name: String) -> Result<DirectoryEntry, String> {
-    let source = Path::new(&path);
-    let trimmed = new_name.trim();
-    if trimmed.is_empty() {
-        return Err("name must not be empty".into());
-    }
+    let source = validate_existing(Path::new(&path), ExpectedKind::Any)?;
     let parent = source.parent().ok_or("invalid path")?;
-    let target = parent.join(trimmed);
-    fs::rename(source, &target).map_err(|error| error.to_string())?;
+    let target = child_path(parent, &new_name)?;
+    fs::rename(&source, &target).map_err(|error| error.to_string())?;
     single_entry(&target)
 }
 
@@ -116,23 +106,20 @@ pub async fn copy_item_inner(
     path: &str,
     destination: &str,
 ) -> Result<DirectoryEntry, String> {
-    let source = Path::new(path);
-    let dest_dir = Path::new(destination);
-    if !dest_dir.is_dir() {
-        return Err(format!("{} is not a directory", dest_dir.display()));
-    }
+    let source = validate_existing(Path::new(path), ExpectedKind::Any)?;
+    let dest_dir = validate_directory(Path::new(destination))?;
     let base = source
         .file_name()
         .ok_or("invalid source path")?
         .to_string_lossy()
         .into_owned();
-    let target = dest_dir.join(unique_name(dest_dir, &base));
-    let entry = coordinated_read(source, || {
+    let target = child_path(&dest_dir, &unique_name(&dest_dir, &base))?;
+    let entry = coordinated_read(&source, || {
         coordinated_write(&target, || {
             if source.is_dir() {
-                copy_dir_recursive(source, &target)?;
+                copy_dir_recursive(&source, &target)?;
             } else {
-                fs::copy(source, &target).map_err(|error| error.to_string())?;
+                fs::copy(&source, &target).map_err(|error| error.to_string())?;
             }
             single_entry(&target)
         })
@@ -176,27 +163,24 @@ pub async fn move_item_inner(
     path: &str,
     destination: &str,
 ) -> Result<DirectoryEntry, String> {
-    let source = Path::new(path);
-    let dest_dir = Path::new(destination);
-    if !dest_dir.is_dir() {
-        return Err(format!("{} is not a directory", dest_dir.display()));
-    }
+    let source = validate_existing(Path::new(path), ExpectedKind::Any)?;
+    let dest_dir = validate_directory(Path::new(destination))?;
     let base = source
         .file_name()
         .ok_or("invalid source path")?
         .to_string_lossy()
         .into_owned();
-    let target = dest_dir.join(unique_name(dest_dir, &base));
-    let entry = coordinated_write(source, || {
+    let target = child_path(&dest_dir, &unique_name(&dest_dir, &base))?;
+    let entry = coordinated_write(&source, || {
         coordinated_write(&target, || {
-            if fs::rename(source, &target).is_err() {
+            if fs::rename(&source, &target).is_err() {
                 if source.is_dir() {
-                    copy_dir_recursive(source, &target)?;
+                    copy_dir_recursive(&source, &target)?;
                 } else {
-                    fs::copy(source, &target).map_err(|error| error.to_string())?;
+                    fs::copy(&source, &target).map_err(|error| error.to_string())?;
                 }
-                fs::remove_dir_all(source)
-                    .or_else(|_| fs::remove_file(source))
+                fs::remove_dir_all(&source)
+                    .or_else(|_| fs::remove_file(&source))
                     .map_err(|error| error.to_string())?;
             }
             single_entry(&target)
@@ -214,18 +198,12 @@ pub async fn move_item_inner(
 
 #[tauri::command]
 pub async fn trash_item(path: String) -> Result<(), String> {
-    eprintln!("[lite_delete] trash {path}");
-    let label = path.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let path = PathBuf::from(path);
+        let path = validate_existing(Path::new(&path), ExpectedKind::Any)?;
         coordinated_write(&path, || trash_local_item(&path))
     })
     .await
     .map_err(|error| error.to_string())?;
-    match &result {
-        Ok(()) => eprintln!("[lite_delete] trashed ok {label}"),
-        Err(error) => eprintln!("[lite_delete] failed trash {label}: {error}"),
-    }
     result
 }
 
@@ -244,18 +222,12 @@ pub fn trash_local_item(path: &Path) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn delete_item(path: String) -> Result<(), String> {
-    eprintln!("[lite_delete] delete {path}");
-    let label = path.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let path = PathBuf::from(path);
+        let path = validate_existing(Path::new(&path), ExpectedKind::Any)?;
         coordinated_write(&path, || delete_item_path(&path))
     })
     .await
     .map_err(|error| error.to_string())?;
-    match &result {
-        Ok(()) => eprintln!("[lite_delete] deleted ok {label}"),
-        Err(error) => eprintln!("[lite_delete] failed delete {label}: {error}"),
-    }
     result
 }
 
@@ -269,10 +241,24 @@ pub fn delete_item_path(path: &Path) -> Result<(), String> {
 }
 
 pub fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
+    if fs::symlink_metadata(from)
+        .map_err(|_| "Invalid local path")?
+        .file_type()
+        .is_symlink()
+    {
+        return Err("Invalid local path".into());
+    }
     fs::create_dir_all(to).map_err(|error| error.to_string())?;
     for child in fs::read_dir(from).map_err(|error| error.to_string())? {
         let child = child.map_err(|error| error.to_string())?;
         let child_path = child.path();
+        if fs::symlink_metadata(&child_path)
+            .map_err(|_| "Invalid local path")?
+            .file_type()
+            .is_symlink()
+        {
+            return Err("Invalid local path".into());
+        }
         let dest = to.join(child.file_name());
         if child_path.is_dir() {
             copy_dir_recursive(&child_path, &dest)?;

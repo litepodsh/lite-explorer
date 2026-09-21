@@ -2,6 +2,7 @@
   import DOMPurify from "dompurify";
   import Paperclip from "@lucide/svelte/icons/paperclip";
   import { formatSize } from "./format.js";
+  import { confirmExternalLink } from "./external-link.js";
   import type { MailPreview } from "./mail.js";
 
   type Props = { preview: MailPreview };
@@ -32,7 +33,10 @@
 
   $effect(() => {
     if (!host) return;
-    if (!shadow) shadow = host.attachShadow({ mode: "open" });
+    if (!shadow) {
+      shadow = host.attachShadow({ mode: "open" });
+      shadow.addEventListener("click", handleClick);
+    }
     const clean = preview.html
       ? DOMPurify.sanitize(preview.html, {
           // Allow the inline `data:` images the backend embeds; scripts stay stripped.
@@ -42,6 +46,13 @@
       : "";
     shadow.innerHTML = `<style>${BASE_CSS}</style><div class="mail-html">${clean}</div>`;
   });
+
+  function handleClick(event: Event) {
+    const anchor = (event.target as HTMLElement | null)?.closest?.("a");
+    if (!anchor) return;
+    event.preventDefault();
+    confirmExternalLink(anchor.getAttribute("href") ?? "");
+  }
 </script>
 
 <div class="flex h-full min-h-0 flex-col overflow-auto bg-[#faf9f7] text-[#1b1a18]">

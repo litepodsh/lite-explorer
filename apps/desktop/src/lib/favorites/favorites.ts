@@ -1,17 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
-import { isNetworkPath } from "$lib/remote/network-locations.js";
-import { isRemotePath } from "$lib/remote/remote-locations.js";
 import type { Location } from "$lib/tabs/tabs.js";
 
-/** Local folders can be favorites; files, buckets, shares and remote paths can't. */
+/** Every folder, including a connected share or remote folder, can be a favorite. */
 export function canFavorite(entry: {
   is_directory: boolean;
   path: string;
   kind?: string;
 }): boolean {
-  return (
-    entry.is_directory && !entry.kind && !isRemotePath(entry.path) && !isNetworkPath(entry.path)
-  );
+  return entry.is_directory;
 }
 
 /** Insertion index for a drag over row `rowIndex`: before it in its upper half, after it in its lower half. */

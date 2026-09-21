@@ -9,6 +9,52 @@ in `assets/`, so a release can show screenshots.
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-09-21
+
+### Fixed
+
+- Windows network shares: mounting and browsing SMB shares works again, including the mounts that
+  connected but showed an empty folder.
+- The `vi` editor is no longer treated as an unknown application when validating external editors.
+
+### Security
+
+- Documented the Phase 0 route-safety model for untrusted previews.
+
+## [0.1.13] - 2026-09-21
+
+### Fixed
+
+- SMB network shares on Windows: fixed the mount command so shared folders open with the right
+  credentials instead of failing or hanging.
+
+## [0.1.12] - 2026-09-20
+
+### Added
+
+- Crash and error tracing to catch the failures that were not reaching crash reporting.
+
+### Fixed
+
+- Window flashing on launch: the window is now shown only after the first paint, so opening the
+  app no longer shows a white flash.
+
+## [0.1.11] - 2026-09-19
+
+### Added
+
+- Zip compression: compress files and folders from the context menu, with a progress dialog.
+- Progress bars and toasts for long operations, and a transfer queue for background jobs.
+- Preview for many more file types, including Office documents (Word, PowerPoint, spreadsheets),
+  EPUB, MOBI, FB2, RTF, PSD, Sketch, DICOM, Parquet, Arrow, Avro, databases, PCAP captures,
+  certificates, diffs, logs, subtitles, torrents, vCards, calendars and 3D models.
+- Preview for multiple selected files, so you can flip through a selection without opening each one.
+
+### Fixed
+
+- Launch crash on macOS 27.
+- Network server browsing and the media viewer under the new transfer progress pipeline.
+
 ## [0.1.10] - 2026-09-18
 
 ### Removed

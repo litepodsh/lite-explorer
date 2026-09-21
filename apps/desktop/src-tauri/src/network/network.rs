@@ -18,7 +18,7 @@ use crate::remote::{delete_secret, read_optional_secret, store_secret};
 use crate::{now_secs, Database, Location};
 
 pub(crate) const KEYCHAIN_SERVICE: &str = "lite-explorer.network";
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -391,7 +391,7 @@ async fn check_reachable(settings: &Settings) -> Result<ConnectionCheck, Connect
         )),
         Err(_) => Err(ConnectError::new(
             ErrorKind::Timeout,
-            format!("No answer from {host} on port {port} after 5 seconds."),
+            format!("No answer from {host} on port {port} after 30 seconds."),
         )),
     }
 }

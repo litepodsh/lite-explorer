@@ -124,8 +124,28 @@ pub struct StoredFavorite {
     position: i64,
 }
 
+fn favorite_kind(path: &str) -> String {
+    network::parse_network_path(path)
+        .map(|network| network::to_db(network.protocol))
+        .unwrap_or_else(|| {
+            if remote::is_remote_path(path) {
+                "s3"
+            } else {
+                "folder"
+            }
+            .into()
+        })
+}
+
+fn favorite_name(path: &str) -> Option<String> {
+    path.trim_end_matches(['/', '\\'])
+        .rsplit(['/', '\\'])
+        .find(|part| !part.is_empty())
+        .map(str::to_string)
+}
+
 /// Favorites shown in the sidebar: not hidden, still an OS favorite unless added in
-/// the app, and still an existing folder. Ordered by position.
+/// the app, and still an existing local folder or a connected location. Ordered by position.
 pub fn visible_favorites(
     stored: &[StoredFavorite],
     system: &[Location],
@@ -140,7 +160,9 @@ pub fn visible_favorites(
         .filter(|favorite| {
             !favorite.hidden
                 && (favorite.source == "user" || system.contains(favorite.path.as_str()))
-                && exists(&favorite.path)
+                && (remote::is_remote_path(&favorite.path)
+                    || network::is_network_path(&favorite.path)
+                    || exists(&favorite.path))
         })
         .collect();
     visible.sort_by_key(|favorite| favorite.position);
@@ -149,7 +171,7 @@ pub fn visible_favorites(
         .map(|favorite| Location {
             name: favorite.name.clone(),
             path: favorite.path.clone(),
-            kind: "folder".into(),
+            kind: favorite_kind(&favorite.path),
         })
         .collect()
 }
@@ -220,23 +242,25 @@ pub async fn favorites(database: State<'_, Database>) -> Result<Vec<Location>, S
     sync_favorites(&database.0, &system).await
 }
 
-/// Adds a local folder to the favorites at `index` (the end by default). Adding a
-/// hidden or existing favorite shows it again and moves it to `index`.
+/// Adds a local or connected folder to the favorites at `index` (the end by default).
+/// Adding a hidden or existing favorite shows it again and moves it to `index`.
 #[tauri::command]
 pub async fn add_favorite(
     path: String,
     index: Option<usize>,
     database: State<'_, Database>,
 ) -> Result<Vec<Location>, String> {
-    const NOT_LOCAL: &str = "Only local folders can be favorites.";
-    if remote::is_remote_path(&path) || network::servers::is_server_path(&path) {
-        return Err(NOT_LOCAL.into());
-    }
-    let folder = PathBuf::from(&path);
-    if !folder.is_dir() {
-        return Err(NOT_LOCAL.into());
-    }
-    let name = location(folder).ok_or(NOT_LOCAL)?.name;
+    const NOT_FOLDER: &str = "Only folders can be favorites.";
+    let connected = remote::is_remote_path(&path) || network::is_network_path(&path);
+    let name = if connected {
+        favorite_name(&path).ok_or(NOT_FOLDER)?
+    } else {
+        let folder = PathBuf::from(&path);
+        if !folder.is_dir() {
+            return Err(NOT_FOLDER.into());
+        }
+        location(folder).ok_or(NOT_FOLDER)?.name
+    };
     let system = load_system_favorites().await?;
     let mut order: Vec<String> = sync_favorites(&database.0, &system)
         .await?
@@ -298,7 +322,7 @@ mod tests {
 
     fn stored(path: &str, source: &str, hidden: bool, position: i64) -> StoredFavorite {
         StoredFavorite {
-            name: path.trim_start_matches('/').into(),
+            name: favorite_name(path).unwrap_or_else(|| path.into()),
             path: path.into(),
             source: source.into(),
             hidden,
@@ -334,6 +358,22 @@ mod tests {
             .map(|location| location.path.as_str())
             .collect();
         assert_eq!(paths, ["/mine", "/docs"]);
+    }
+
+    #[test]
+    fn connected_favorites_stay_visible_and_keep_their_kind() {
+        let stored = [
+            stored("smb://server/share", "user", false, 0),
+            stored("s3://account/bucket/reports/", "user", false, 1),
+        ];
+        let visible = visible_favorites(&stored, &[], |_| false);
+        assert_eq!(
+            visible
+                .iter()
+                .map(|location| (location.name.as_str(), location.kind.as_str()))
+                .collect::<Vec<_>>(),
+            [("share", "smb"), ("reports", "s3")]
+        );
     }
 
     #[test]

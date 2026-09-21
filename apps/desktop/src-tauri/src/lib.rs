@@ -132,6 +132,7 @@ pub fn run() {
             explorer::opener::open_with_apps,
             explorer::opener::open_with,
             explorer::opener::open_path,
+            explorer::opener::open_external_url,
             explorer::opener::open_terminal,
             explorer::opener::detect_terminals,
             explorer::opener::reveal_path,

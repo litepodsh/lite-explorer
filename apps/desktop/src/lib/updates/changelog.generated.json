@@ -1,6 +1,84 @@
 {
   "releases": [
     {
+      "version": "0.1.14",
+      "date": "2026-09-21",
+      "groups": [
+        {
+          "kind": "fixed",
+          "label": "Fixed",
+          "items": [
+            "Windows network shares: mounting and browsing SMB shares works again, including the mounts that",
+            "The `vi` editor is no longer treated as an unknown application when validating external editors."
+          ]
+        },
+        {
+          "kind": "security",
+          "label": "Security",
+          "items": [
+            "Documented the Phase 0 route-safety model for untrusted previews."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.13",
+      "date": "2026-09-21",
+      "groups": [
+        {
+          "kind": "fixed",
+          "label": "Fixed",
+          "items": [
+            "SMB network shares on Windows: fixed the mount command so shared folders open with the right"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.12",
+      "date": "2026-09-20",
+      "groups": [
+        {
+          "kind": "added",
+          "label": "Added",
+          "items": [
+            "Crash and error tracing to catch the failures that were not reaching crash reporting."
+          ]
+        },
+        {
+          "kind": "fixed",
+          "label": "Fixed",
+          "items": [
+            "Window flashing on launch: the window is now shown only after the first paint, so opening the"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.11",
+      "date": "2026-09-19",
+      "groups": [
+        {
+          "kind": "added",
+          "label": "Added",
+          "items": [
+            "Zip compression: compress files and folders from the context menu, with a progress dialog.",
+            "Progress bars and toasts for long operations, and a transfer queue for background jobs.",
+            "Preview for many more file types, including Office documents (Word, PowerPoint, spreadsheets),",
+            "Preview for multiple selected files, so you can flip through a selection without opening each one."
+          ]
+        },
+        {
+          "kind": "fixed",
+          "label": "Fixed",
+          "items": [
+            "Launch crash on macOS 27.",
+            "Network server browsing and the media viewer under the new transfer progress pipeline."
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.1.10",
       "date": "2026-09-18",
       "groups": [

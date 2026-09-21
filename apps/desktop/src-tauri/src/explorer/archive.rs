@@ -21,6 +21,8 @@ use ruzstd::decoding::StreamingDecoder;
 use serde::{Deserialize, Serialize};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
+use crate::explorer::local_path::{child_path, validate_directory, validate_existing, ExpectedKind};
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Format {
     Zip,
@@ -930,8 +932,14 @@ pub fn extract_targets(
 #[tracing::instrument(skip_all, name = "create_archive", fields(sentry_op = "archive.create"))]
 pub async fn create_archive(paths: Vec<String>, destination: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let paths: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
-        create(&paths, &PathBuf::from(destination))
+        let paths: Result<Vec<PathBuf>, String> = paths
+            .iter()
+            .map(|path| validate_existing(Path::new(path), ExpectedKind::Any))
+            .collect();
+        let destination = PathBuf::from(destination);
+        let parent = destination.parent().ok_or("Invalid local path")?;
+        let name = destination.file_name().and_then(|name| name.to_str()).ok_or("Invalid item name")?;
+        create(&paths?, &child_path(parent, name)?)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -946,7 +954,10 @@ pub fn detect_7z() -> Option<String> {
 #[tauri::command]
 #[tracing::instrument(skip_all, name = "list_archive", fields(sentry_op = "archive.list"))]
 pub async fn list_archive(path: String) -> Result<ArchiveListing, String> {
-    tauri::async_runtime::spawn_blocking(move || read_listing(Path::new(&path), Some(LIST_LIMIT)))
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = validate_existing(Path::new(&path), ExpectedKind::File)?;
+        read_listing(&path, Some(LIST_LIMIT))
+    })
         .await
         .map_err(to_string)?
 }
@@ -959,9 +970,11 @@ pub async fn plan_extraction(
     entries: Option<Vec<String>>,
 ) -> Result<Vec<ExtractionTarget>, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let archive = validate_existing(Path::new(&archive), ExpectedKind::File)?;
+        let destination = validate_directory(Path::new(&destination))?;
         plan(
-            Path::new(&archive),
-            Path::new(&destination),
+            &archive,
+            &destination,
             entries.as_deref(),
         )
     })
@@ -985,7 +998,8 @@ pub async fn extract_archive(
     let token = registry.register(&job_id);
     let id = job_id.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let archive_path = PathBuf::from(&archive);
+        let archive_path = validate_existing(Path::new(&archive), ExpectedKind::File)?;
+        let destination_path = validate_directory(Path::new(&destination))?;
         let mut event =
             crate::remote::transfer::TransferEvent::new(id, "extract", destination.clone(), 0, 0);
         event.label = archive_path
@@ -996,7 +1010,7 @@ pub async fn extract_archive(
         let cancel = || token.is_cancelled();
         let outcome = extract_targets(
             &archive_path,
-            Path::new(&destination),
+            &destination_path,
             entries.as_deref(),
             &resolutions,
             &cancel,

@@ -14,14 +14,6 @@
     "core:window:allow-set-fullscreen",
     "core:window:allow-is-fullscreen",
     "core:window:allow-set-focus",
-    "dialog:allow-message",
-    {
-      "identifier": "opener:allow-open-path",
-      "allow": [
-        {
-          "path": "**"
-        }
-      ]
-    }
+    "dialog:allow-message"
   ]
 }

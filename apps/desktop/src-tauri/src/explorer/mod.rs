@@ -3,6 +3,7 @@ pub mod entries;
 pub mod favorites;
 pub mod file_ops;
 pub mod file_transfer;
+pub mod local_path;
 pub mod opener;
 pub mod paths;
 pub mod recents;

@@ -6,6 +6,7 @@ use std::{
 use serde::Serialize;
 
 use crate::app::icons;
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
 
 #[derive(Serialize)]
 pub struct AppInfo {
@@ -128,10 +129,22 @@ pub fn open_with_apps(path: String) -> Result<Vec<AppInfo>, String> {
             Ok(result)
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        Ok(windows_default_app(&path).into_iter().collect())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let content_type = linux_content_type(&path);
+        Ok(gio::AppInfo::all_for_type(&content_type)
+            .into_iter()
+            .filter_map(linux_app_info)
+            .collect())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         let _ = path;
-        Ok(vec![])
+        Ok(Vec::new())
     }
 }
 
@@ -169,7 +182,15 @@ pub fn default_app(path: String) -> Option<AppInfo> {
             icon,
         })
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        windows_default_app(&path)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        gio::AppInfo::default_for_type(&linux_content_type(&path), false).and_then(linux_app_info)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         let _ = path;
         None
@@ -195,15 +216,119 @@ pub fn open_with(path: String, app_path: String) -> Result<(), String> {
             Err(format!("failed to open with {app_path} (exit {status})"))
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        Command::new(&app_path)
+            .arg(&path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        use gio::prelude::AppInfoExt;
+
+        let file = gio::File::for_path(&path);
+        if app_path.ends_with(".desktop") {
+            let app = gio::DesktopAppInfo::from_filename(&app_path)
+                .ok_or_else(|| format!("could not load application {app_path}"))?;
+            return app
+                .launch(&[file], None::<&gio::AppLaunchContext>)
+                .map_err(|error| error.to_string());
+        }
+        let content_type = linux_content_type(&path);
+        let app = gio::AppInfo::all_for_type(&content_type)
+            .into_iter()
+            .find(|app| app.id().as_deref() == Some(app_path.as_str()))
+            .ok_or_else(|| format!("application {app_path} does not support {content_type}"))?;
+        app.launch(&[file], None::<&gio::AppLaunchContext>)
+            .map_err(|error| error.to_string())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         let _ = (path, app_path);
-        Err("Open With is only supported on macOS".into())
+        Err("Open With is not supported on this platform".into())
     }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_default_app(path: &str) -> Option<AppInfo> {
+    use std::{ffi::OsStr, iter, os::windows::ffi::OsStrExt};
+    use windows_sys::Win32::UI::Shell::{
+        AssocQueryStringW, ASSOCF_NONE, ASSOCSTR_EXECUTABLE, ASSOCSTR_FRIENDLYAPPNAME,
+    };
+
+    let extension = Path::new(path).extension()?.to_str()?;
+    let association: Vec<u16> = OsStr::new(&format!(".{extension}"))
+        .encode_wide()
+        .chain(iter::once(0))
+        .collect();
+    let query = |kind| unsafe {
+        let mut length = 0;
+        AssocQueryStringW(
+            ASSOCF_NONE,
+            kind,
+            association.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null_mut(),
+            &mut length,
+        );
+        if length == 0 {
+            return None;
+        }
+        let mut value = vec![0; length as usize];
+        (AssocQueryStringW(
+            ASSOCF_NONE,
+            kind,
+            association.as_ptr(),
+            std::ptr::null(),
+            value.as_mut_ptr(),
+            &mut length,
+        ) == 0)
+            .then(|| String::from_utf16_lossy(&value[..length.saturating_sub(1) as usize]))
+    };
+    let executable = query(ASSOCSTR_EXECUTABLE)?;
+    let name = query(ASSOCSTR_FRIENDLYAPPNAME).unwrap_or_else(|| {
+        Path::new(&executable)
+            .file_stem()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| executable.clone())
+    });
+    Some(AppInfo {
+        name,
+        path: executable.clone(),
+        bundle_id: String::new(),
+        icon: app_icon_data_url(&executable),
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn linux_content_type(path: &str) -> String {
+    gio::content_type_guess(Some(Path::new(path)), &[])
+        .0
+        .to_string()
+}
+
+#[cfg(target_os = "linux")]
+fn linux_app_info(app: gio::AppInfo) -> Option<AppInfo> {
+    use gio::prelude::AppInfoExt;
+
+    let id = app.id()?.to_string();
+    Some(AppInfo {
+        name: app.name().to_string(),
+        path: id.clone(),
+        bundle_id: id,
+        icon: None,
+    })
 }
 
 #[tauri::command]
 pub fn open_path(path: String) -> Result<(), String> {
+    let path = validate_existing(Path::new(&path), ExpectedKind::Any)?;
+    open_target(path.to_string_lossy().into_owned())
+}
+
+fn open_target(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let mut command = Command::new("open");
     #[cfg(target_os = "windows")]
@@ -221,6 +346,15 @@ pub fn open_path(path: String) -> Result<(), String> {
     } else {
         Err(format!("failed to open {path} (exit {status})"))
     }
+}
+
+#[tauri::command]
+pub fn open_external_url(url: String) -> Result<(), String> {
+    let url = tauri::Url::parse(&url).map_err(|_| "Invalid external URL")?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err("Invalid external URL".into());
+    }
+    open_target(url.into())
 }
 
 /// A terminal the app can launch, reported to the settings UI.

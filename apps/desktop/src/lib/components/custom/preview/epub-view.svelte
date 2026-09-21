@@ -3,6 +3,7 @@
   import ChevronLeft from "@lucide/svelte/icons/chevron-left";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import ListIcon from "@lucide/svelte/icons/list";
+  import { confirmExternalLink } from "./external-link.js";
   import {
     epubAssetUrl,
     openEpub,
@@ -145,9 +146,13 @@
   }
 
   function handleClick(event: Event) {
-    const anchor = (event.target as HTMLElement | null)?.closest?.("a[data-chapter]");
+    const anchor = (event.target as HTMLElement | null)?.closest?.("a");
     if (!anchor) return;
     event.preventDefault();
+    if (!anchor.dataset.chapter) {
+      confirmExternalLink(anchor.getAttribute("href") ?? "");
+      return;
+    }
     const href = anchor.getAttribute("data-chapter");
     const target = book?.chapters.findIndex((chapter) => chapter.href === href) ?? -1;
     if (target >= 0) void loadChapter(target);

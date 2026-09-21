@@ -6,7 +6,6 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{BufReader, Read},
-    path::PathBuf,
 };
 
 use serde::Serialize;
@@ -14,6 +13,10 @@ use tauri::State;
 use zip::ZipArchive;
 
 use crate::media::{register_zip_root, MediaRegistry};
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
+
+#[cfg(test)]
+use std::path::PathBuf;
 
 /// Largest XML/image part read from one chapter; bounds zip bombs.
 const MAX_PART_BYTES: u64 = 32 * 1024 * 1024;
@@ -64,15 +67,17 @@ pub async fn open_epub(
     registry: State<'_, MediaRegistry>,
     path: String,
 ) -> Result<EpubDocument, String> {
-    let base = register_zip_root(&registry, PathBuf::from(&path));
-    tauri::async_runtime::spawn_blocking(move || parse_epub(&path, base))
+    let path = validate_existing(std::path::Path::new(&path), ExpectedKind::File)?;
+    let base = register_zip_root(&registry, path.clone());
+    tauri::async_runtime::spawn_blocking(move || parse_epub(&path.to_string_lossy(), base))
         .await
         .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
 pub async fn read_epub_chapter(path: String, href: String) -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || read_chapter(&path, &href))
+    let path = validate_existing(std::path::Path::new(&path), ExpectedKind::File)?;
+    tauri::async_runtime::spawn_blocking(move || read_chapter(&path.to_string_lossy(), &href))
         .await
         .map_err(|error| error.to_string())?
 }
