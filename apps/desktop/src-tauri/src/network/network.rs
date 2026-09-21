@@ -130,8 +130,8 @@ impl Settings {
 #[derive(Default)]
 pub struct Mounts {
     folders: Mutex<HashMap<String, PathBuf>>,
-    /// SMB locations without a share that are connected, with the password typed for them.
-    servers: Mutex<HashMap<String, Option<String>>>,
+    /// SMB locations without a share that are connected, with the account used for them.
+    servers: Mutex<HashMap<String, mount::Credentials>>,
 }
 
 impl Mounts {
@@ -148,20 +148,19 @@ impl Mounts {
         self.folders.lock().unwrap().remove(id)
     }
 
-    fn connect_server(&self, id: &str, typed: Option<String>) {
-        let mut servers = self.servers.lock().unwrap();
-        let entry = servers.entry(id.to_string()).or_default();
-        if typed.is_some() {
-            *entry = typed;
-        }
+    fn connect_server(&self, id: &str, credentials: mount::Credentials) {
+        self.servers
+            .lock()
+            .unwrap()
+            .insert(id.to_string(), credentials);
     }
 
     fn is_server_connected(&self, id: &str) -> bool {
         self.servers.lock().unwrap().contains_key(id)
     }
 
-    fn server_password(&self, id: &str) -> Option<String> {
-        self.servers.lock().unwrap().get(id).cloned().flatten()
+    fn server_credentials(&self, id: &str) -> Option<mount::Credentials> {
+        self.servers.lock().unwrap().get(id).cloned()
     }
 }
 
@@ -533,6 +532,18 @@ fn credentials(settings: &Settings, password: Option<String>) -> mount::Credenti
     }
 }
 
+fn credentials_for(
+    settings: &Settings,
+    username: Option<String>,
+    password: Option<String>,
+) -> mount::Credentials {
+    let mut credentials = credentials(settings, password);
+    if let Some(username) = username.and_then(|username| non_empty(&username)) {
+        credentials.username = Some(username);
+    }
+    credentials
+}
+
 /// SMB without a share on macOS: the location lists the server's shares instead of mounting one.
 fn picks_share_later(settings: &Settings) -> bool {
     settings.protocol == Protocol::Smb && settings.path.is_empty() && mount::picks_shares()
@@ -647,7 +658,7 @@ pub async fn add_network_location(
     if let Some(local) = local {
         mounts.insert(&id, local);
     } else if picks_share_later(&settings) {
-        mounts.connect_server(&id, Some(input.password.clone()).filter(|p| !p.is_empty()));
+        mounts.connect_server(&id, credentials(&settings, Some(input.password.clone())));
     }
     if let Some(session) = session {
         sessions
@@ -725,12 +736,17 @@ pub async fn network_location(
 /// An SMB location without a share signs in to list the server's shares, like Finder, and
 /// returns its own path. Shares are mounted one by one with `mount_network_share`.
 #[tauri::command]
-#[tracing::instrument(skip_all, name = "connect_network_location", fields(sentry_op = "network.connect"))]
+#[tracing::instrument(
+    skip_all,
+    name = "connect_network_location",
+    fields(sentry_op = "network.connect")
+)]
 pub async fn connect_network_location(
     database: State<'_, Database>,
     mounts: State<'_, Mounts>,
     sessions: State<'_, servers::Sessions>,
     path: String,
+    username: Option<String>,
     password: Option<String>,
     remember: Option<bool>,
 ) -> Result<Connection, ConnectError> {
@@ -750,21 +766,21 @@ pub async fn connect_network_location(
 
     if mount::is_server_root(&target) {
         let typed = password.filter(|password| !password.is_empty());
+        let requested_username = username.and_then(|username| non_empty(&username));
         let lookup = target.clone();
         let mounted = !blocking(move || mount::mounted_shares(&lookup))
             .await?
             .is_empty();
-        let resolved = match typed.clone().or_else(|| mounts.server_password(&id)) {
-            Some(password) => Ok(Some(password)),
-            None => saved_password(&settings, &id, None).await,
+        let supplied = credentials_for(&settings, requested_username, typed.clone());
+        let credentials = if supplied.username.is_some() || supplied.password.is_some() {
+            supplied
+        } else if let Some(saved) = mounts.server_credentials(&id) {
+            saved
+        } else {
+            credentials(&settings, saved_password(&settings, &id, None).await?)
         };
-        let listed = match resolved {
-            Ok(password) => {
-                let credentials = credentials(&settings, password);
-                blocking(move || mount::list_shares(&target, &credentials)).await?
-            }
-            Err(error) => Err(error),
-        };
+        let listed_credentials = credentials.clone();
+        let listed = blocking(move || mount::list_shares(&target, &listed_credentials)).await?;
         match listed {
             Ok(_) => remember_typed(&database.0, &id, typed.clone(), remember).await?,
             // Shares already mounted, for example from Finder, stay usable when listing fails,
@@ -772,7 +788,7 @@ pub async fn connect_network_location(
             Err(error) if mounted && !(error.kind == ErrorKind::Auth && typed.is_some()) => {}
             Err(error) => return Err(error),
         }
-        mounts.connect_server(&id, typed);
+        mounts.connect_server(&id, credentials);
         return Ok(Connection {
             location: path.clone(),
             path,
@@ -793,11 +809,13 @@ pub async fn connect_network_location(
     }
 
     let typed = password.filter(|password| !password.is_empty());
-    let credentials = credentials(
+    let credentials = credentials_for(
         &settings,
+        username.and_then(|username| non_empty(&username)),
         saved_password(&settings, &id, typed.clone()).await?,
     );
-    let local = blocking(move || mount::mount(&target, &credentials)).await??;
+    let mounted_credentials = credentials.clone();
+    let local = blocking(move || mount::mount(&target, &mounted_credentials)).await??;
     mounts.insert(&id, local.clone());
     remember_typed(&database.0, &id, typed, remember).await?;
     Ok(connected(local))
@@ -855,11 +873,13 @@ pub async fn list_shares(
     if !mount::is_server_root(&target) {
         return Err(unsupported());
     }
-    let password = match mounts.server_password(&id) {
-        Some(password) => Some(password),
-        None => saved_password(&settings, &id, None).await.ok().flatten(),
+    let credentials = match mounts.server_credentials(&id) {
+        Some(credentials) => credentials,
+        None => credentials(
+            &settings,
+            saved_password(&settings, &id, None).await.ok().flatten(),
+        ),
     };
-    let credentials = credentials(&settings, password);
     let (mounted, listed) = blocking(move || {
         (
             mount::mounted_shares(&target),
@@ -905,11 +925,16 @@ fn share_entry(name: &str, path: String) -> crate::DirectoryEntry {
 /// Mounts one share of an SMB location without a share (`smb://<id>/<share>`) and returns its
 /// local folder. Reuses an existing mount of that share.
 #[tauri::command]
-#[tracing::instrument(skip_all, name = "mount_network_share", fields(sentry_op = "network.mount"))]
+#[tracing::instrument(
+    skip_all,
+    name = "mount_network_share",
+    fields(sentry_op = "network.mount")
+)]
 pub async fn mount_network_share(
     database: State<'_, Database>,
     mounts: State<'_, Mounts>,
     path: String,
+    username: Option<String>,
     password: Option<String>,
     remember: Option<bool>,
 ) -> Result<Connection, ConnectError> {
@@ -938,16 +963,23 @@ pub async fn mount_network_share(
         return Ok(connected(local));
     }
     let typed = password.filter(|password| !password.is_empty());
-    let password = match typed
-        .clone()
-        .or_else(|| mounts.server_password(&network.id))
+    let credentials = if username
+        .as_ref()
+        .is_some_and(|username| !username.trim().is_empty())
+        || typed.is_some()
     {
-        Some(password) => Some(password),
-        None => saved_password(&settings, &network.id, None).await?,
+        credentials_for(&settings, username, typed.clone())
+    } else if let Some(credentials) = mounts.server_credentials(&network.id) {
+        credentials
+    } else {
+        credentials(
+            &settings,
+            saved_password(&settings, &network.id, None).await?,
+        )
     };
-    let credentials = credentials(&settings, password);
-    let local = blocking(move || mount::mount(&target, &credentials)).await??;
-    mounts.connect_server(&network.id, typed.clone());
+    let mounted_credentials = credentials.clone();
+    let local = blocking(move || mount::mount(&target, &mounted_credentials)).await??;
+    mounts.connect_server(&network.id, credentials);
     remember_typed(&database.0, &network.id, typed, remember).await?;
     Ok(connected(local))
 }
@@ -1201,6 +1233,18 @@ mod tests {
         smb.auth = Auth::Password;
         smb.username = String::new();
         assert_eq!(invalid(&smb), "Enter your username.");
+    }
+
+    #[test]
+    fn prompted_credentials_override_the_saved_account() {
+        let mut smb = input(Protocol::Smb);
+        smb.auth = Auth::Password;
+        smb.username = "saved".into();
+        let settings = resolve(&smb).unwrap();
+        let credentials =
+            credentials_for(&settings, Some("DOMAIN\\other".into()), Some("pw".into()));
+        assert_eq!(credentials.username.as_deref(), Some("DOMAIN\\other"));
+        assert_eq!(credentials.password.as_deref(), Some("pw"));
     }
 
     #[test]

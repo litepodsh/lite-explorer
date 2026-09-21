@@ -15,7 +15,7 @@
     open?: boolean;
     location: Location | null;
     /** Connects with the password. Resolves to an error message, or null when connected. */
-    onSubmit: (password: string, remember: boolean) => Promise<string | null>;
+    onSubmit: (username: string, password: string, remember: boolean) => Promise<string | null>;
   } = $props();
 
   let field = $state<HTMLInputElement | null>(null);
@@ -48,7 +48,7 @@
     if (!password || busy) return;
     busy = true;
     error = "";
-    const failure = await onSubmit(password, remember);
+    const failure = await onSubmit(username, password, remember);
     busy = false;
     if (failure) {
       error = failure;
@@ -67,7 +67,13 @@
       {#if address}<p class="loc-url">{address}</p>{/if}
       <div>
         <label class="loc-label" for="network-password-user">Username</label>
-        <input id="network-password-user" class="loc-input" value={username} readonly />
+        <input
+          id="network-password-user"
+          class="loc-input"
+          placeholder="DOMAIN\\username"
+          autocomplete="username"
+          bind:value={username}
+          disabled={busy} />
       </div>
       <div>
         <label class="loc-label" for="network-password">Password</label>

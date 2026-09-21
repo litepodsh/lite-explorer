@@ -341,10 +341,11 @@ export function removeNetworkLocation(location: Location): Promise<void> {
 /** Mounts a saved location (or reuses its mount). Without a password the saved one is used. */
 export function connectNetworkLocation(
   path: string,
-  options: { password?: string; remember?: boolean } = {},
+  options: { username?: string; password?: string; remember?: boolean } = {},
 ): Promise<NetworkConnection> {
   return call<NetworkConnection>("connect_network_location", {
     path,
+    username: options.username ?? null,
     password: options.password ?? null,
     remember: options.remember ?? null,
   });
@@ -353,10 +354,11 @@ export function connectNetworkLocation(
 /** Mounts one share (`smb://<id>/<share>`) of an SMB location without a share. */
 export function mountNetworkShare(
   path: string,
-  options: { password?: string; remember?: boolean } = {},
+  options: { username?: string; password?: string; remember?: boolean } = {},
 ): Promise<NetworkConnection> {
   return call<NetworkConnection>("mount_network_share", {
     path,
+    username: options.username ?? null,
     password: options.password ?? null,
     remember: options.remember ?? null,
   });

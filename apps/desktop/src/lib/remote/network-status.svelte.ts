@@ -156,7 +156,7 @@ class NetworkStatus {
   async mountShare(
     location: Location,
     sharePath: string,
-    options: { password?: string; remember?: boolean } = {},
+    options: { username?: string; password?: string; remember?: boolean } = {},
   ): Promise<ConnectOutcome> {
     try {
       const connection = await mountNetworkShare(sharePath, options);
@@ -174,7 +174,7 @@ class NetworkStatus {
 
   async connect(
     location: Location,
-    options: { password?: string; remember?: boolean } = {},
+    options: { username?: string; password?: string; remember?: boolean } = {},
   ): Promise<ConnectOutcome> {
     this.statuses[location.path] = { state: "connecting" };
     try {

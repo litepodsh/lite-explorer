@@ -69,7 +69,7 @@
     {#if shows("path")}
       <p class="loc-field-error">NFS needs the export path, like /srv/exports/media.</p>
     {:else if protocol === "smb"}
-      <p class="loc-help">On macOS, leave empty to pick a share when connecting.</p>
+      <p class="loc-help">Leave empty to browse shares when connecting.</p>
     {/if}
   </div>
 
@@ -109,7 +109,7 @@
       <span class="loc-label" id="net-auth-label">Connect as</span>
       <div class="loc-segment" role="radiogroup" aria-labelledby="net-auth-label">
         <button type="button" role="radio" aria-checked={input.auth === "guest"} onclick={() => (input.auth = "guest")}
-          >Guest</button>
+          >{protocol === "smb" ? "System account" : "Guest"}</button>
         <button
           type="button"
           role="radio"

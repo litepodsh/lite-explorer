@@ -201,7 +201,7 @@
     activeController.openLocation({ name: location.name, path: mountPath, kind: "folder" }, options);
   }
 
-  type Credentials = { password?: string; remember?: boolean };
+  type Credentials = { username?: string; password?: string; remember?: boolean };
 
   /** A connection attempt that can ask for a password or for trust, then try again. */
   type ConnectRequest = {
@@ -306,10 +306,10 @@
     });
   }
 
-  async function submitPassword(password: string, remember: boolean): Promise<string | null> {
+  async function submitPassword(username: string, password: string, remember: boolean): Promise<string | null> {
     const request = passwordRequest;
     if (!request) return null;
-    const outcome = await request.attempt({ password, remember });
+    const outcome = await request.attempt({ username, password, remember });
     if (outcome.kind === "connected") {
       request.onConnected(outcome.mountPath);
       return null;

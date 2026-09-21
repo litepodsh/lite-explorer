@@ -10,9 +10,11 @@ use std::{
     ptr,
 };
 
+use windows_sys::Win32::NetworkManagement::NetManagement::NetApiBufferFree;
 use windows_sys::Win32::NetworkManagement::WNet::{
     WNetAddConnection2W, WNetCancelConnection2W, NETRESOURCEW, RESOURCETYPE_DISK,
 };
+use windows_sys::Win32::Storage::FileSystem::{NetShareEnum, SHARE_INFO_1, STYPE_DISKTREE};
 
 use super::super::{ConnectError, ErrorKind, Protocol};
 use super::{targets, Credentials, Target};
@@ -73,6 +75,84 @@ pub fn mount(target: &Target, credentials: &Credentials) -> Result<PathBuf, Conn
         return Err(targets::wnet_error(status));
     }
     Ok(PathBuf::from(local))
+}
+
+/// Disk shares visible to the current Windows session (or the credentials WNet was given).
+pub fn list_shares(
+    target: &Target,
+    _credentials: &Credentials,
+) -> Result<Vec<String>, ConnectError> {
+    if _credentials.username.is_some() {
+        connect_ipc(target, _credentials)?;
+    }
+    let server = wide(&format!("\\\\{}", target.host));
+    let mut buffer = ptr::null_mut();
+    let mut read = 0;
+    let mut total = 0;
+    let status = unsafe {
+        NetShareEnum(
+            server.as_ptr(),
+            1,
+            &mut buffer,
+            u32::MAX,
+            &mut read,
+            &mut total,
+            ptr::null_mut(),
+        )
+    };
+    if status != 0 {
+        return Err(targets::wnet_error(status));
+    }
+    let shares = unsafe {
+        std::slice::from_raw_parts(buffer.cast::<SHARE_INFO_1>(), read as usize)
+            .iter()
+            .filter(|share| share.shi1_type == STYPE_DISKTREE && !share.shi1_netname.is_null())
+            .filter_map(|share| {
+                let len = (0..)
+                    .take_while(|&i| *share.shi1_netname.add(i) != 0)
+                    .count();
+                let name =
+                    String::from_utf16_lossy(std::slice::from_raw_parts(share.shi1_netname, len));
+                (!name.ends_with('$')).then_some(name)
+            })
+            .collect();
+        NetApiBufferFree(buffer);
+        shares
+    };
+    Ok(shares)
+}
+
+/// NetShareEnum uses the existing SMB session. Establish one to IPC$ first when the user
+/// supplied a different account.
+fn connect_ipc(target: &Target, credentials: &Credentials) -> Result<(), ConnectError> {
+    let mut remote = wide(&format!("\\\\{}\\IPC$", target.host));
+    let resource = NETRESOURCEW {
+        dwScope: 0,
+        dwType: RESOURCETYPE_DISK,
+        dwDisplayType: 0,
+        dwUsage: 0,
+        lpLocalName: ptr::null_mut(),
+        lpRemoteName: remote.as_mut_ptr(),
+        lpComment: ptr::null_mut(),
+        lpProvider: ptr::null_mut(),
+    };
+    let user = credentials.username.as_deref().map(wide);
+    let password = credentials.password.as_deref().map(wide);
+    let status = unsafe {
+        WNetAddConnection2W(
+            &resource,
+            password
+                .as_ref()
+                .map_or(ptr::null(), |value| value.as_ptr()),
+            user.as_ref().map_or(ptr::null(), |value| value.as_ptr()),
+            0,
+        )
+    };
+    if status == 0 {
+        Ok(())
+    } else {
+        Err(targets::wnet_error(status))
+    }
 }
 
 fn mount_nfs(target: &Target) -> Result<PathBuf, ConnectError> {

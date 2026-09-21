@@ -2,6 +2,7 @@
 //! `/run/user/<uid>/gvfs` when gvfs-fuse is installed.
 
 use std::{
+    fs,
     io::Write,
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -56,6 +57,26 @@ pub fn mount(target: &Target, credentials: &Credentials) -> Result<PathBuf, Conn
             "The share connected, but has no local folder. Install gvfs-fuse and try again.",
         )
     })
+}
+
+/// GVfs exposes `smb://server/` as a directory whose entries are the available shares.
+pub fn list_shares(
+    target: &Target,
+    credentials: &Credentials,
+) -> Result<Vec<String>, ConnectError> {
+    let root = mount(target, credentials)?;
+    let shares = fs::read_dir(root)
+        .map_err(ConnectError::other)?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            entry
+                .file_type()
+                .ok()
+                .filter(|kind| kind.is_dir())
+                .map(|_| entry.file_name().to_string_lossy().into_owned())
+        })
+        .collect();
+    Ok(shares)
 }
 
 pub fn find_mounted(target: &Target) -> Option<PathBuf> {

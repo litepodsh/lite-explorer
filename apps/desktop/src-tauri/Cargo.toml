@@ -1,6 +1,6 @@
 [package]
 name = "liteexplorer"
-version = "0.1.12"
+version = "0.1.13"
 description = "A cross-platform file explorer for local files, network shares, and cloud storage"
 authors = ["Litepod Studio"]
 license = "MIT"
@@ -133,6 +133,7 @@ objc2-foundation = { version = "0.3", features = [
 windows-sys = { version = "0.60", features = [
   "Win32_Foundation",
   "Win32_NetworkManagement_WNet",
+  "Win32_NetworkManagement_NetManagement",
   "Win32_Storage_FileSystem",
   "Win32_System_Registry",
   "Win32_System_SystemInformation",

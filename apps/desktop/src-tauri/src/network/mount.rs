@@ -45,12 +45,16 @@ pub fn is_mountable(protocol: Protocol) -> bool {
     matches!(protocol, Protocol::Smb | Protocol::Nfs | Protocol::Webdav)
 }
 
-/// Whether the system shows its own share picker when an SMB location has no share.
+/// Whether this system can browse an SMB server without naming a share first.
 pub fn picks_shares() -> bool {
-    cfg!(target_os = "macos")
+    cfg!(any(
+        target_os = "macos",
+        target_os = "windows",
+        target_os = "linux"
+    ))
 }
 
-/// SMB needs a share name unless the system can ask for one.
+/// SMB needs a share name only on systems that cannot browse a server root.
 pub fn require_share(target: &Target) -> Result<(), ConnectError> {
     if target.protocol == Protocol::Smb
         && targets::split_share(&target.path).0.is_empty()
@@ -66,8 +70,7 @@ pub fn targets_split_share(path: &str) -> (&str, &str) {
     targets::split_share(path)
 }
 
-/// An SMB location without a share stands for the whole server. Only systems with a share
-/// picker allow it.
+/// An SMB location without a share stands for the whole server.
 pub fn is_server_root(target: &Target) -> bool {
     target.protocol == Protocol::Smb && targets::split_share(&target.path).0.is_empty()
 }
@@ -87,18 +90,23 @@ pub fn list_shares(
     platform::list_shares(target, credentials)
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+pub fn list_shares(
+    target: &Target,
+    credentials: &Credentials,
+) -> Result<Vec<String>, ConnectError> {
+    platform::list_shares(target, credentials)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 pub fn list_shares(
     _target: &Target,
     _credentials: &Credentials,
 ) -> Result<Vec<String>, ConnectError> {
-    Err(ConnectError::new(
-        ErrorKind::Unsupported,
-        "Listing shares isn’t available on this system. Enter a share name.",
-    ))
+    Err(unsupported_system())
 }
 
-/// Other systems need a share name, so a server root never exists there.
+/// Non-desktop systems cannot enumerate mounted SMB shares.
 #[cfg(not(target_os = "macos"))]
 pub fn mounted_shares(_target: &Target) -> Vec<(String, PathBuf)> {
     Vec::new()
