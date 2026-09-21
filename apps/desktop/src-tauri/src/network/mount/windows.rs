@@ -104,7 +104,7 @@ pub fn list_shares(
         return Err(targets::wnet_error(status));
     }
     let shares = unsafe {
-        std::slice::from_raw_parts(buffer.cast::<SHARE_INFO_1>(), read as usize)
+        let shares = std::slice::from_raw_parts(buffer.cast::<SHARE_INFO_1>(), read as usize)
             .iter()
             .filter(|share| share.shi1_type == STYPE_DISKTREE && !share.shi1_netname.is_null())
             .filter_map(|share| {
@@ -116,7 +116,7 @@ pub fn list_shares(
                 (!name.ends_with('$')).then_some(name)
             })
             .collect();
-        NetApiBufferFree(buffer);
+        NetApiBufferFree(buffer.cast());
         shares
     };
     Ok(shares)
