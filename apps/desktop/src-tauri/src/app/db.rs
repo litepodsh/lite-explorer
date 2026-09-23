@@ -6,7 +6,7 @@ use sqlx::{
 };
 use tauri::Manager;
 
-use crate::explorer::paths::system_locations;
+use crate::explorer::paths::{system_locations, Location};
 
 pub struct Database(pub(crate) SqlitePool);
 
@@ -27,17 +27,24 @@ pub async fn open_database(
     sqlx::query("DELETE FROM locations WHERE kind = 'cloud'")
         .execute(&pool)
         .await?;
-    let system = system_locations();
+    sync_system_locations(&pool, &system_locations()).await?;
+    Ok(pool)
+}
+
+/// Upserts the detected system locations and drops volume rows whose drive is gone, so
+/// removed drives don't linger in the sidebar.
+pub async fn sync_system_locations(
+    pool: &SqlitePool,
+    system: &[Location],
+) -> Result<(), sqlx::Error> {
     for (position, location) in system.iter().enumerate() {
         sqlx::query("INSERT INTO locations (path, name, kind, position) VALUES (?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET name = excluded.name, kind = excluded.kind, position = excluded.position")
             .bind(&location.path).bind(&location.name).bind(&location.kind).bind(position as i64)
-            .execute(&pool).await?;
+            .execute(pool).await?;
     }
-    // Drives can come and go; drop volume rows that no longer exist so already-removed drives
-    // don't linger in the sidebar.
     let volume_paths: Vec<&str> = system
         .iter()
-        .filter(|location| matches!(location.kind.as_str(), "volume" | "hfs-volume"))
+        .filter(|location| is_volume(location))
         .map(|location| location.path.as_str())
         .collect();
     if !volume_paths.is_empty() {
@@ -50,9 +57,13 @@ pub async fn open_database(
         for path in &volume_paths {
             query = query.bind(path);
         }
-        query.execute(&pool).await?;
+        query.execute(pool).await?;
     }
-    Ok(pool)
+    Ok(())
+}
+
+pub fn is_volume(location: &Location) -> bool {
+    matches!(location.kind.as_str(), "volume" | "hfs-volume")
 }
 
 pub async fn apply_migrations(pool: &SqlitePool) -> Result<(), sqlx::migrate::MigrateError> {

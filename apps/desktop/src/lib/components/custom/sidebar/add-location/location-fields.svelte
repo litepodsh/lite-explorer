@@ -1,13 +1,35 @@
 <script lang="ts">
   import EyeIcon from "@lucide/svelte/icons/eye";
   import EyeOffIcon from "@lucide/svelte/icons/eye-off";
-  import { AWS_REGIONS, type RemoteLocationInput } from "$lib/remote/remote-locations.js";
+  import { AWS_REGIONS, isPendingProvider, type RemoteLocationInput } from "$lib/remote/remote-locations.js";
 
   let { input = $bindable() }: { input: RemoteLocationInput } = $props();
 
   let revealSecret = $state(false);
 </script>
 
+{#if isPendingProvider(input.provider)}
+  <div class="provider-pending">
+    <strong>{input.provider === "azblob" ? "Azure Blob setup" : "OAuth setup required"}</strong>
+    <p>
+      {input.provider === "azblob"
+        ? "Azure Blob will be available after the OpenDAL connection layer is enabled."
+        : "Register this desktop OAuth app first. Lite Explorer will use your own client configuration, never a shared client ID."}
+    </p>
+  </div>
+{:else if input.provider === "gdrive"}
+  <div class="fields">
+    <div class="wide">
+      <label class="loc-label" for="loc-name">Name <small>optional</small></label>
+      <input id="loc-name" class="loc-input" placeholder="Google Drive" autocomplete="off" bind:value={input.name} />
+    </div>
+    <div class="wide">
+      <label class="loc-label" for="loc-prefix">Start in folder <small>optional</small></label>
+      <input id="loc-prefix" class="loc-input mono" placeholder="Projects/2026/" spellcheck="false" autocomplete="off" bind:value={input.prefix} />
+      <p class="loc-help">Selecting Connect opens Google in your default browser. The renewable access token stays in your system keychain.</p>
+    </div>
+  </div>
+{:else}
 <div class="fields">
   <div class="wide">
     <label class="loc-label" for="loc-name">Name <small>optional</small></label>
@@ -31,13 +53,13 @@
         bind:value={input.accountId} />
       <p class="loc-help">Shown in the Cloudflare dashboard under R2.</p>
     </div>
-  {:else if input.provider === "custom"}
+  {:else if input.provider === "custom" || input.provider === "azblob"}
     <div class="wide">
       <label class="loc-label" for="loc-endpoint">Endpoint URL</label>
       <input
         id="loc-endpoint"
         class="loc-input mono"
-        placeholder="https://minio.internal:9000"
+        placeholder={input.provider === "azblob" ? "https://account.blob.core.windows.net" : "https://minio.internal:9000"}
         spellcheck="false"
         autocomplete="off"
         bind:value={input.endpoint} />
@@ -45,7 +67,7 @@
   {/if}
 
   <div>
-    <label class="loc-label" for="loc-key">Access key ID</label>
+    <label class="loc-label" for="loc-key">{input.provider === "azblob" ? "Storage account name" : "Access key ID"}</label>
     <input
       id="loc-key"
       class="loc-input mono"
@@ -54,7 +76,7 @@
       bind:value={input.accessKeyId} />
   </div>
   <div>
-    <label class="loc-label" for="loc-secret">Secret access key</label>
+    <label class="loc-label" for="loc-secret">{input.provider === "azblob" ? "Account key" : "Secret access key"}</label>
     <div class="loc-secret">
       <input
         id="loc-secret"
@@ -94,11 +116,11 @@
   {/if}
 
   <div class:wide={input.provider === "r2"}>
-    <label class="loc-label" for="loc-bucket">Bucket <small>optional</small></label>
+    <label class="loc-label" for="loc-bucket">{input.provider === "azblob" ? "Container" : "Bucket"} <small>{input.provider === "azblob" ? "required" : "optional"}</small></label>
     <input
       id="loc-bucket"
       class="loc-input mono"
-      placeholder="All buckets"
+      placeholder={input.provider === "azblob" ? "media" : "All buckets"}
       spellcheck="false"
       autocomplete="off"
       bind:value={input.bucket} />
@@ -124,6 +146,7 @@
     </label>
   {/if}
 </div>
+{/if}
 
 <style>
   .fields {
@@ -140,5 +163,18 @@
   .mono {
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
     font-size: 12px;
+  }
+  .provider-pending {
+    padding: 14px;
+    border-radius: 10px;
+    background: rgb(10 155 255 / 0.08);
+    box-shadow: inset 0 0 0 1px rgb(10 155 255 / 0.2);
+    color: var(--loc-text);
+  }
+  .provider-pending p {
+    margin: 6px 0 0;
+    color: var(--loc-muted);
+    font-size: 12px;
+    line-height: 1.45;
   }
 </style>

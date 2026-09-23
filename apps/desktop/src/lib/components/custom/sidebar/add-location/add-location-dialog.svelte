@@ -38,6 +38,7 @@
   let step = $state<"choose" | "details">("choose");
   let address = $state("");
   let addressInvalid = $state(false);
+  const comingSoon = new Set<LocationKind>(["onedrive", "dropbox"]);
 
   $effect(() => {
     const path = editing?.path;
@@ -169,10 +170,10 @@
                   <p class="loc-section-label">{group.label}</p>
                   <div class="type-list">
                     {#each group.kinds as kind (kind)}
-                      <button type="button" class="type" onclick={() => pick(kind)}>
+                      <button type="button" class="type" class:soon={comingSoon.has(kind)} disabled={comingSoon.has(kind)} onclick={() => pick(kind)}>
                         <ProtocolMark {kind} />
                         <span class="copy">
-                          <strong>{LOCATION_TYPES[kind].label}</strong>
+                          <strong>{LOCATION_TYPES[kind].label}{#if comingSoon.has(kind)} <em>Soon</em>{/if}</strong>
                           <small>{LOCATION_TYPES[kind].hint}</small>
                         </span>
                       </button>
@@ -505,6 +506,22 @@
   }
   .type:active {
     transform: scale(0.98);
+  }
+  .type.soon {
+    opacity: 0.48;
+    cursor: not-allowed;
+  }
+  .type.soon:hover {
+    background: transparent;
+  }
+  .type em {
+    margin-left: 5px;
+    color: var(--loc-faint);
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
   .copy {
     display: grid;

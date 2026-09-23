@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
 import type { Location } from "$lib/tabs/tabs.js";
 
-export type Provider = "aws" | "r2" | "custom";
+export type Provider = "aws" | "r2" | "custom" | "gdrive" | "onedrive" | "dropbox" | "azblob";
 
 /** Form state of the add-location dialog. Mirrors `RemoteLocationInput` in `src-tauri/src/remote.rs`. */
 export type RemoteLocationInput = {
@@ -26,6 +26,10 @@ export const PROVIDERS: { id: Provider; label: string; hint: string }[] = [
   { id: "aws", label: "Amazon S3", hint: "Buckets on AWS" },
   { id: "r2", label: "Cloudflare R2", hint: "Zero-egress object storage" },
   { id: "custom", label: "S3 compatible", hint: "MinIO, Backblaze, Wasabi, Ceph" },
+  { id: "gdrive", label: "Google Drive", hint: "Connect securely with Google" },
+  { id: "onedrive", label: "OneDrive", hint: "OAuth connection — setup required" },
+  { id: "dropbox", label: "Dropbox", hint: "OAuth connection — setup required" },
+  { id: "azblob", label: "Azure Blob", hint: "Container storage — setup required" },
 ];
 
 export const AWS_REGIONS = [
@@ -70,12 +74,19 @@ export function withProvider(input: RemoteLocationInput, provider: Provider): Re
 
 /** Labels of required fields that are still empty. The backend validates formats. */
 export function missingFields(input: RemoteLocationInput): string[] {
+  if (isPendingProvider(input.provider)) return ["Provider setup"];
+  if (input.provider === "gdrive") return [];
   const missing: string[] = [];
   if (input.provider === "r2" && !input.accountId.trim()) missing.push("Account ID");
-  if (input.provider === "custom" && !input.endpoint.trim()) missing.push("Endpoint URL");
+  if ((input.provider === "custom" || input.provider === "azblob") && !input.endpoint.trim()) missing.push("Endpoint URL");
+  if (input.provider === "azblob" && !input.bucket.trim()) missing.push("Container");
   if (!input.accessKeyId.trim()) missing.push("Access key ID");
   if (!input.secretAccessKey) missing.push("Secret access key");
   return missing;
+}
+
+export function isPendingProvider(provider: Provider): boolean {
+  return provider === "onedrive" || provider === "dropbox";
 }
 
 export function describeTest(input: RemoteLocationInput, result: ConnectionTest): string {
@@ -107,6 +118,10 @@ export function addRemoteLocation(input: RemoteLocationInput): Promise<Location>
   return activity.action(`Add location: ${input.name}`, "", () =>
     invoke<Location>("add_remote_location", { input }),
   );
+}
+
+export function connectGoogleDrive(input: Pick<RemoteLocationInput, "name" | "prefix">): Promise<Location> {
+  return activity.action("Connect Google Drive", "", () => invoke<Location>("connect_google_drive", { input }));
 }
 
 /** Downloads an object to the app cache and returns the local copy's path. */

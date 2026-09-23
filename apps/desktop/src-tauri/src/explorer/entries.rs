@@ -320,7 +320,12 @@ pub async fn entry_details(paths: Vec<String>) -> Result<Vec<EntryDetails>, Stri
             let workers: Vec<_> = paths
                 .chunks(chunk)
                 .map(|chunk| {
-                    scope.spawn(move || chunk.iter().map(|path| entry_details_for(path)).collect::<Vec<_>>())
+                    scope.spawn(move || {
+                        chunk
+                            .iter()
+                            .map(|path| entry_details_for(path))
+                            .collect::<Vec<_>>()
+                    })
                 })
                 .collect();
             workers

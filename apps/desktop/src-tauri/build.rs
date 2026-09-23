@@ -6,6 +6,8 @@ fn main() {
     // tauri.conf.json changes, so a new icon would otherwise keep the old one in cached builds.
     println!("cargo:rerun-if-changed=icons");
     emit_env("SENTRY_DSN");
+    emit_env("GOOGLE_OAUTH_CLIENT_ID");
+    emit_env("GOOGLE_OAUTH_CLIENT_SECRET");
     tauri_build::build()
 }
 

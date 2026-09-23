@@ -507,6 +507,19 @@
       if (inside !== pointerInList) pointerInList = inside;
     };
     window.addEventListener("pointermove", trackSwipePointer);
+    // Drives mounted or ejected while the app is open (a DMG, a USB stick) reach the sidebar here.
+    const volumeKey = (list: Location[]) =>
+      list.filter(({ kind }) => kind === "volume" || kind === "hfs-volume").map(({ path }) => path).sort().join("\n");
+    const refreshVolumes = () => {
+      if (document.visibilityState !== "visible") return;
+      void invoke<Location[]>("refresh_locations")
+        .then((fresh) => {
+          if (volumeKey(fresh) !== volumeKey(locations)) locations = fresh;
+        })
+        .catch(() => {});
+    };
+    const volumePoll = setInterval(refreshVolumes, 3000);
+    window.addEventListener("focus", refreshVolumes);
     const unlisteners = [
       listen<TransferEventPayload>("transfer-progress", ({ payload }) => {
         const previousProgress = fileDownloads.jobs[payload.id];
@@ -595,6 +608,8 @@
       window.removeEventListener("keydown", refreshFolder, true);
       window.removeEventListener("pointerdown", markPointer, true);
       window.removeEventListener("pointermove", trackSwipePointer);
+      clearInterval(volumePoll);
+      window.removeEventListener("focus", refreshVolumes);
       activity.publish = () => {};
       fileDownloads.jobs = {};
       stopUpdates();

@@ -9,7 +9,7 @@ use serde::Serialize;
 use sqlx::Row;
 use tauri::State;
 
-use crate::app::db::Database;
+use crate::app::db::{self, Database};
 use crate::{network, remote};
 
 #[derive(Serialize)]
@@ -261,6 +261,33 @@ pub async fn locations(database: State<'_, Database>) -> Result<Vec<Location>, S
             .map_err(|error| error.to_string())?,
     );
     Ok(locations)
+}
+
+/// Picks up drives mounted or ejected since launch (a DMG, a USB stick), then lists locations.
+#[tauri::command]
+pub async fn refresh_locations(database: State<'_, Database>) -> Result<Vec<Location>, String> {
+    let system = tauri::async_runtime::spawn_blocking(system_locations)
+        .await
+        .map_err(|error| error.to_string())?;
+    let mut detected: Vec<&str> = system
+        .iter()
+        .filter(|location| db::is_volume(location))
+        .map(|location| location.path.as_str())
+        .collect();
+    detected.sort_unstable();
+    let mut saved: Vec<String> =
+        sqlx::query_scalar("SELECT path FROM locations WHERE kind IN ('volume', 'hfs-volume')")
+            .fetch_all(&database.0)
+            .await
+            .map_err(|error| error.to_string())?;
+    saved.sort_unstable();
+    // Polled while the window is open, so only write when the set of drives changed.
+    if saved != detected {
+        db::sync_system_locations(&database.0, &system)
+            .await
+            .map_err(|error| error.to_string())?;
+    }
+    locations(database).await
 }
 
 #[cfg(test)]
