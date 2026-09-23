@@ -6,7 +6,7 @@
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import { Tween, prefersReducedMotion } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
-  import { formatSize } from "$lib/components/custom/preview/format.js";
+  import { formatCount, formatSize } from "$lib/components/custom/preview/format.js";
   import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
   import FpsMeter from "./fps-meter.svelte";
   import { openCommandPaletteWith } from "$lib/state/command-palette.svelte";
@@ -59,7 +59,9 @@
   const bytes = new Tween(0, { duration: () => prefersReducedMotion.current ? 0 : 650, easing: cubicOut });
 
   $effect(() => {
-    count.target = targetCount;
+    // A folder still streaming in jumps by thousands; counting up to it would never catch up.
+    if (Math.abs(targetCount - count.current) > 5_000) count.set(targetCount, { duration: 0 });
+    else count.target = targetCount;
     bytes.target = targetBytes;
   });
 
@@ -171,8 +173,8 @@
     <span
       class="{activity || sizeScanning || sizeScanMessage ? 'pl-3' : 'ml-auto'} shrink-0 tabular-nums text-[#9c9895]"
       aria-live="polite"
-      aria-label={`${selecting ? `${selectedEntries.length} of ` : ""}${targetCount} items${selecting ? " selected" : ""}${targetBytes > 0 ? `, ${sizesPartial ? "at least " : ""}${formatSize(targetBytes)}` : ""}`}>
-      {#if selecting}<span class="text-[#5cb9ff]">{Math.round(selectedTween.current)}</span> of {/if}{Math.round(count.current)} item{targetCount === 1 ? "" : "s"}{#if selecting} selected{/if}{#if targetBytes > 0}<span
+      aria-label={`${selecting ? `${formatCount(selectedEntries.length)} of ` : ""}${formatCount(targetCount)} items${selecting ? " selected" : ""}${targetBytes > 0 ? `, ${sizesPartial ? "at least " : ""}${formatSize(targetBytes)}` : ""}`}>
+      {#if selecting}<span class="text-[#5cb9ff]">{formatCount(Math.round(selectedTween.current))}</span> of {/if}{formatCount(Math.round(count.current))} item{targetCount === 1 ? "" : "s"}{#if selecting} selected{/if}{#if targetBytes > 0}<span
           class="px-1 text-[#5c5854]">·</span
         >{sizesPartial ? "≥ " : ""}{formatSize(bytes.current)}{/if}
     </span>

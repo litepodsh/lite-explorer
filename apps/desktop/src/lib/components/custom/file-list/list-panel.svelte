@@ -13,7 +13,7 @@
   import { sortEntries, entryType, type SortColumn, type SortDir } from "./sort.js";
   import { DEFAULT_COLUMNS, COLUMN_LABELS, loadColumns, saveColumns, moveColumn, type ListColumn } from "./columns.js";
   import { loadFolderSort, saveFolderSort } from "./folder-sort.js";
-  import { drag } from "$lib/file-drag/drag.svelte.js";
+  import { drag, type DraggedEntry } from "$lib/file-drag/drag.svelte.js";
   import { dropTargetAt } from "$lib/file-drag/drop-target.js";
   import { trackPointerDrag } from "$lib/file-drag/pointer-drag.js";
   import { atWindowEdge, canDragOut, startNativeDrag, type DragIcon } from "$lib/file-drag/native-drag.js";
@@ -52,6 +52,7 @@
     pastedPaths = new Set<string>(),
     searchQuery = "",
     onFilesChanged,
+    onNeedDetails,
     previewing = false,
   } = $props<{
     entries?: DirectoryEntry[];
@@ -78,7 +79,7 @@
     onRename?: (oldPath: string, newName: string) => void;
     onRenameCancel?: () => void;
     onContextMenu?: (entry: DirectoryEntry) => void;
-    onExternalDrop?: (paths: string[], options: { move: boolean }) => void;
+    onExternalDrop?: (entries: DraggedEntry[], destination?: string) => void;
     previewPath?: string;
     previewOpen?: boolean;
     scrollTop?: number;
@@ -90,6 +91,8 @@
     searchQuery?: string;
     /** Rendered as a non-interactive preview of another folder (swipe animation). */
     previewing?: boolean;
+    /** Paths of shown rows that carry no size or dates yet, for a streamed network listing. */
+    onNeedDetails?: (paths: string[]) => void;
   }>();
 
   let sortColumn = $state<SortColumn | null>(null);
@@ -216,7 +219,7 @@
   $effect(() => {
     if (previewing) return;
     const id = paneId;
-    const handler = (paths: string[], options: { move: boolean }) => onExternalDrop?.(paths, options);
+    const handler = (entries: DraggedEntry[], destination?: string) => onExternalDrop?.(entries, destination);
     drag.paneDrops.set(id, handler);
     return () => {
       if (drag.paneDrops.get(id) === handler) drag.paneDrops.delete(id);
@@ -225,6 +228,15 @@
 
   let cancelEntryDrag = () => {};
   $effect(() => () => cancelEntryDrag());
+
+  const FOLDER_HOVER_DELAY = 600;
+  $effect(() => {
+    const path = drag.overEntryPath;
+    const folder = path ? visibleEntries.find((entry: DirectoryEntry) => entry.path === path && entry.is_directory) : null;
+    if (!folder) return;
+    const timer = setTimeout(() => onOpen?.(folder, { newTab: false }), FOLDER_HOVER_DELAY);
+    return () => clearTimeout(timer);
+  });
 
   function toDragged(entry: DirectoryEntry) {
     return { path: entry.path, name: entry.name, paneId, isDirectory: entry.is_directory, kind: entry.kind };
@@ -267,19 +279,21 @@
     }
     const target = dropTargetAt(event.clientX, event.clientY);
     const toFavorites = target?.kind === "favorites" && group.length === 1 && canFavorite(entry);
+    const targetEntry = target?.kind === "entry" ? target : null;
     const toPane = target !== null && target.kind !== "favorites" && target.paneId !== paneId;
+    const toFolder =
+      targetEntry != null &&
+      drag.paneEntryFolders.get(targetEntry.paneId)?.(targetEntry.path) === true &&
+      !group.some((dragged) => dragged.path === targetEntry.path);
     drag.favoriteDropAt = toFavorites ? target.index : null;
-    drag.overPaneId = toPane ? target.paneId : null;
-    drag.overEntryPath =
-      group.length === 1 && target?.kind === "entry" && target.paneId === paneId && target.path !== entry.path
-        ? target.path
-        : null;
+    drag.overPaneId = target && target.kind !== "favorites" && (toPane || toFolder) ? target.paneId : null;
+    drag.overEntryPath = toFolder ? targetEntry.path : null;
     drag.ghost = {
       x: event.clientX,
       y: event.clientY,
       name: entry.name,
       icon: entryIcon(entry),
-      action: toFavorites ? "favorite" : toPane ? (event.metaKey || event.ctrlKey ? "move" : "copy") : null,
+      action: toFavorites ? "favorite" : toPane ? "copy" : toFolder ? "move" : null,
       count: group.length,
     };
   }
@@ -287,14 +301,17 @@
   function dropEntry(event: PointerEvent, entry: DirectoryEntry) {
     const target = dropTargetAt(event.clientX, event.clientY);
     const paths = draggedPaths(entry);
+    const entries = [...drag.entries];
     endEntryDrag();
     if (!target) return;
     if (target.kind === "favorites") {
       if (paths.length === 1 && canFavorite(entry)) drag.favoritesDrop?.(entry.path, target.index);
+    } else if (target.kind === "entry") {
+      const isFolder = drag.paneEntryFolders.get(target.paneId)?.(target.path) === true;
+      if (isFolder && !paths.includes(target.path)) drag.paneDrops.get(target.paneId)?.(entries, target.path);
+      else if (target.paneId === paneId && paths.length === 1) reorder(entry.path, target.path);
     } else if (target.paneId !== paneId) {
-      drag.paneDrops.get(target.paneId)?.(paths, { move: event.metaKey || event.ctrlKey });
-    } else if (target.kind === "entry" && paths.length === 1) {
-      reorder(entry.path, target.path);
+      drag.paneDrops.get(target.paneId)?.(entries);
     }
   }
 
@@ -441,6 +458,18 @@
         saveFolderSort(sortKey, { column, dir });
       },
     });
+  });
+
+  // A streamed network listing carries names only; ask for the details of what is shown.
+  const detailPaths = $derived(rows.virtualItems.flatMap((row) =>
+    view === "grid" ? gridRowEntries(row.index) : [visibleEntries[row.index]],
+  ).filter((entry): entry is DirectoryEntry => !!entry && !entry.inner_path &&
+    entry.modified == null && entry.created == null && entry.size == null)
+    .map((entry) => entry.path).join("\0"));
+
+  $effect(() => {
+    if (previewing || !detailPaths) return;
+    untrack(() => onNeedDetails)?.(detailPaths.split("\0"));
   });
 
   let downloadSnapshots = $state<Record<string, DownloadSnapshot>>({});

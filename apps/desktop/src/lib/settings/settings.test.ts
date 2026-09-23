@@ -31,6 +31,7 @@ describe("defaultSettings", () => {
     expect(defaultSettings({ dev: false }).chordTimeoutMs).toBe(1500);
     expect(defaultSettings({ dev: false }).terminalApp).toBe("system");
     expect(defaultSettings({ dev: false }).terminalCommand).toBe("");
+    expect(defaultSettings({ dev: false }).previewOpenByDefault).toBe(false);
   });
 });
 

@@ -47,7 +47,7 @@ export function defaultSettings({ dev }: { dev: boolean }): Settings {
     automaticSizesInHome: false,
     automaticSizePaths: [],
     defaultViewMode: "list",
-    previewOpenByDefault: true,
+    previewOpenByDefault: false,
     panesLayout: "row",
     swipeNavigation: true,
     terminalApp: "system",

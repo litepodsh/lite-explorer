@@ -82,6 +82,11 @@ export type SearchEntry = DirectoryEntry & {
 };
 type SearchResponse = { results: SearchEntry[]; skipped: number; limited: boolean };
 type DirectoryListingProgress = { entries: DirectoryEntry[]; done: boolean; error: string | null };
+type EntryDetails = { path: string; size: number | null; created: number | null; modified: number | null };
+
+/** Rows asked for at once, and the pause that lets scrolling settle before asking. */
+const DETAILS_BATCH = 256;
+const DETAILS_DELAY = 60;
 
 /** What the mounted file list exposes so keyboard selection follows its visible order and layout. */
 export type ListNavigator = {
@@ -123,6 +128,10 @@ export class FilePaneController {
   sizeScanMessage = $state("");
   #sizeRequest = "";
   #listingRequest = "";
+  /** Paths already sent to `entry_details`, so scrolling back does not ask again. */
+  #detailsAsked = new Set<string>();
+  #detailsWanted = new Set<string>();
+  #detailsTimer: ReturnType<typeof setTimeout> | undefined;
 
   get canCalculateSizes() {
     return (
@@ -563,6 +572,10 @@ export class FilePaneController {
   private loadToken = 0;
 
   private cancelDirectoryListing() {
+    clearTimeout(this.#detailsTimer);
+    this.#detailsTimer = undefined;
+    this.#detailsAsked.clear();
+    this.#detailsWanted.clear();
     const requestId = this.#listingRequest;
     this.#listingRequest = "";
     if (requestId) void invoke("cancel_directory_listing", { requestId }).catch(() => {});
@@ -576,7 +589,8 @@ export class FilePaneController {
       const channel = new Channel<DirectoryListingProgress>();
       channel.onmessage = (update) => {
         if (requestId !== this.#listingRequest || token !== this.loadToken || path !== this.listingPath) return;
-        if (update.entries.length) this.entries = [...this.entries, ...update.entries];
+        // Appending in place: copying the array per batch is quadratic over a million entries.
+        if (update.entries.length) this.entries.push(...update.entries);
         if (!update.done) return;
         this.#listingRequest = "";
         if (update.error) reject(new Error(update.error));
@@ -584,10 +598,59 @@ export class FilePaneController {
           this.#listingCache.set(path, this.entries);
           this.pruneSelection();
           resolve();
+          // Rows shown during the stream asked for details and were held back; read them now.
+          if (this.#detailsWanted.size && !this.#detailsTimer) {
+            this.#detailsTimer = setTimeout(() => void this.#loadDetails(path), DETAILS_DELAY);
+          }
         }
       };
       invoke("read_directory_progressively", { path, requestId, onProgress: channel }).catch(reject);
     });
+  }
+
+  /** Whether the folder is still streaming rows in. */
+  get listingPartial() {
+    return this.listing && this.entries.length > 0;
+  }
+
+  /** Asks for the size and dates of rows the list just showed. A streamed network listing
+   *  carries names only, so details are read for what is on screen. */
+  requestDetails(paths: string[]) {
+    let queued = false;
+    for (const path of paths) {
+      if (this.#detailsAsked.has(path) || this.#detailsWanted.has(path)) continue;
+      this.#detailsWanted.add(path);
+      queued = true;
+    }
+    // While names are still streaming in, every stat competes with the listing for the
+    // share's round trips, so details wait for the listing to finish.
+    if (!queued || this.listing || this.#detailsTimer) return;
+    const path = this.listingPath;
+    this.#detailsTimer = setTimeout(() => void this.#loadDetails(path), DETAILS_DELAY);
+  }
+
+  async #loadDetails(path: string) {
+    this.#detailsTimer = undefined;
+    const wanted = [...this.#detailsWanted].slice(0, DETAILS_BATCH);
+    for (const entry of wanted) {
+      this.#detailsWanted.delete(entry);
+      this.#detailsAsked.add(entry);
+    }
+    if (!wanted.length || path !== this.listingPath) return;
+    const details = await invoke<EntryDetails[]>("entry_details", { paths: wanted }).catch(() => []);
+    if (path === this.listingPath) {
+      const byPath = new Map(details.map((detail) => [detail.path, detail]));
+      for (const entry of this.entries) {
+        const detail = byPath.get(entry.path);
+        if (!detail) continue;
+        entry.size = detail.size ?? undefined;
+        entry.created = detail.created ?? undefined;
+        entry.modified = detail.modified ?? undefined;
+      }
+    }
+    if (this.#detailsWanted.size && !this.#detailsTimer) {
+      this.#detailsTimer = setTimeout(() => void this.#loadDetails(this.listingPath), DETAILS_DELAY);
+    }
   }
 
   /** Lists the active tab's folder again, for example after reconnecting its share. */
