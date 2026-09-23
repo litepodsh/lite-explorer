@@ -19,6 +19,7 @@ export function fakeContext(calls: string[], overrides: ContextOverrides = {}): 
       moveFocus: (key, modifiers) =>
         record(calls, `move ${key} ${modifiers.shift} ${modifiers.primary}`),
       moveHalfPage: (direction) => record(calls, `half ${direction}`),
+      typeSelect: (char) => record(calls, `type ${char}`),
       enterFocused: () => record(calls, "enter"),
       enterOrOpenFocused: () => record(calls, "enter or open"),
       openParent: () => record(calls, "parent"),
