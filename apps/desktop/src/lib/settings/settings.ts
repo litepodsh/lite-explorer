@@ -1,10 +1,20 @@
 export type WindowControlsMode = "automatic" | "visible" | "hover" | "hidden";
 export type KeyboardMode = "standard" | "yazi";
 export type ChordTimeout = 1000 | 1500 | 3000;
+export type Theme = "off-white" | "light" | "dark" | "off-black" | "oled";
+export type ThemeMode = "manual" | "system";
+export type Radius = "compact" | "soft" | "round";
+export type Elevation = "flat" | "soft" | "lifted";
+export type Texture = "none" | "paper";
 /** Terminal id reported by the backend's detection ("system", "custom", or a detected app). */
 export type TerminalApp = string;
 
 export type Settings = {
+  theme: Theme;
+  themeMode: ThemeMode;
+  radius: Radius;
+  elevation: Elevation;
+  texture: Texture;
   windowControls: WindowControlsMode;
   keyboardMode: KeyboardMode;
   showWhichKey: boolean;
@@ -39,6 +49,11 @@ export const LEGACY_STORAGE_KEYS: readonly string[] = [
 
 export function defaultSettings({ dev }: { dev: boolean }): Settings {
   return {
+    theme: "dark",
+    themeMode: "manual",
+    radius: "soft",
+    elevation: "soft",
+    texture: "none",
     windowControls: "automatic",
     keyboardMode: "standard",
     showWhichKey: true,
@@ -60,6 +75,12 @@ export function defaultSettings({ dev }: { dev: boolean }): Settings {
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
 
 const VALIDATORS: { [K in SettingKey]: (value: unknown) => value is Settings[K] } = {
+  theme: (value): value is Theme =>
+    value === "off-white" || value === "light" || value === "dark" || value === "off-black" || value === "oled",
+  themeMode: (value): value is ThemeMode => value === "manual" || value === "system",
+  radius: (value): value is Radius => value === "compact" || value === "soft" || value === "round",
+  elevation: (value): value is Elevation => value === "flat" || value === "soft" || value === "lifted",
+  texture: (value): value is Texture => value === "none" || value === "paper",
   windowControls: (value): value is WindowControlsMode =>
     value === "automatic" || value === "visible" || value === "hover" || value === "hidden",
   keyboardMode: (value): value is KeyboardMode => value === "standard" || value === "yazi",

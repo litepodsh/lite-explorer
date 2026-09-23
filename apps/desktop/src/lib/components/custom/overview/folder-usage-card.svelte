@@ -40,21 +40,21 @@
   const largest = $derived(summary.top[0]?.bytes ?? 0);
 </script>
 
-<article class="overflow-hidden rounded-xl border border-[#3a3734] bg-[#2d2a28]">
-  <header class="flex items-center gap-3 border-b border-[#3a3734] px-4 py-3.5">
+<article class="overflow-hidden rounded-[var(--app-radius)] border border-[var(--app-border)] bg-[var(--app-surface)]">
+  <header class="flex items-center gap-3 border-b border-[var(--app-border)] px-4 py-3.5">
     <HouseIcon class="size-7 shrink-0 stroke-[1.4] text-blue-400" />
     <div class="min-w-0">
-      <h2 class="text-[15px] font-semibold text-[#f2f1f0]">What’s using your home folder</h2>
-      <p class="mt-0.5 truncate text-xs text-[#9c9895]">{rootName || "Home"}</p>
+      <h2 class="text-[15px] font-semibold text-[var(--app-fg)]">What’s using your home folder</h2>
+      <p class="mt-0.5 truncate text-xs text-[var(--app-fg-muted)]">{rootName || "Home"}</p>
     </div>
-    <div class="ml-auto flex shrink-0 items-center gap-2 text-xs tabular-nums text-[#9c9895]" aria-live="polite">
+    <div class="ml-auto flex shrink-0 items-center gap-2 text-xs tabular-nums text-[var(--app-fg-muted)]" aria-live="polite">
       {#if scanning}
-        <LoaderCircleIcon class="size-3.5 animate-spin text-[#0a9bff] motion-reduce:animate-none" />
+        <LoaderCircleIcon class="size-3.5 animate-spin text-[var(--app-accent)] motion-reduce:animate-none" />
         <span title={currentFolder ?? undefined}>Refreshing… {formatSize(scannedBytes)}</span>
       {:else}
         {#if usage?.scanned_at}<span>Updated {formatAge(usage.scanned_at, nowSeconds)}</span>{/if}
         <button
-          class="grid size-7 place-items-center rounded-md border-0 bg-transparent text-[#9c9895] hover:bg-[#353230] hover:text-[#e8e5e2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0a9bff]"
+          class="grid size-7 place-items-center rounded-md border-0 bg-transparent text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)]"
           aria-label="Refresh folder sizes"
           title="Refresh folder sizes"
           onclick={onRefresh}><RefreshCwIcon class="size-3.5" /></button>
@@ -70,12 +70,12 @@
       {#each summary.top as entry, index (entry.path)}
         <button
           animate:flip={{ duration: 320 }}
-          class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-1.5 rounded-[7px] border-0 bg-transparent px-2.5 py-2 text-left hover:bg-[#353230] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0a9bff]"
+          class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-1.5 rounded-[calc(var(--app-radius)-5px)] border-0 bg-transparent px-2.5 py-2 text-left hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)]"
           title={entry.path}
           onclick={() => onOpen(entry)}>
           <FolderIcon class="size-4 stroke-[1.8] {entry.is_hidden ? 'text-[#67635f]' : 'text-blue-400'}" />
-          <span class="truncate text-[13px] {entry.is_hidden ? 'text-[#9c9895]' : 'text-[#d9d6d3]'}">{entry.name}</span>
-          <span class="text-right font-mono text-xs tabular-nums text-[#d9d6d3]">{formatSize(entry.bytes)}</span>
+          <span class="truncate text-[13px] {entry.is_hidden ? 'text-[var(--app-fg-muted)]' : 'text-[var(--app-fg)]'}">{entry.name}</span>
+          <span class="text-right font-mono text-xs tabular-nums text-[var(--app-fg)]">{formatSize(entry.bytes)}</span>
           <UsageBar
             class="col-start-2 col-end-4"
             height={3}
@@ -88,9 +88,9 @@
       {#if summary.restBytes > 0}
         <div class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-1.5 px-2.5 py-2">
           <EllipsisIcon class="size-4 text-[#67635f]" />
-          <span class="truncate text-[13px] text-[#9c9895]"
+          <span class="truncate text-[13px] text-[var(--app-fg-muted)]"
             >Other files and folders{summary.restHasHidden ? ", including hidden" : ""}</span>
-          <span class="text-right font-mono text-xs tabular-nums text-[#9c9895]">{formatSize(summary.restBytes)}</span>
+          <span class="text-right font-mono text-xs tabular-nums text-[var(--app-fg-muted)]">{formatSize(summary.restBytes)}</span>
           <UsageBar
             class="col-start-2 col-end-4"
             height={3}
@@ -101,17 +101,17 @@
         </div>
       {/if}
     {:else if scanning}
-      <p class="px-2.5 pt-2 pb-1 text-xs text-[#9c9895]">Measuring your home folder for the first time. This can take a minute.</p>
+      <p class="px-2.5 pt-2 pb-1 text-xs text-[var(--app-fg-muted)]">Measuring your home folder for the first time. This can take a minute.</p>
       {#each [72, 58, 44, 40, 26, 14] as width (width)}
         <div class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-2 px-2.5 py-2.5" aria-hidden="true">
-          <span class="size-4 rounded bg-[#353230]"></span>
-          <span class="h-2.5 animate-pulse rounded bg-[#353230] motion-reduce:animate-none" style:width="{width}%"></span>
-          <span class="ml-auto h-2.5 w-12 animate-pulse rounded bg-[#353230] motion-reduce:animate-none"></span>
-          <span class="col-start-2 col-end-4 h-[3px] rounded-full bg-[#1a1918]"></span>
+          <span class="size-4 rounded bg-[var(--app-surface-raised)]"></span>
+          <span class="h-2.5 animate-pulse rounded bg-[var(--app-surface-raised)] motion-reduce:animate-none" style:width="{width}%"></span>
+          <span class="ml-auto h-2.5 w-12 animate-pulse rounded bg-[var(--app-surface-raised)] motion-reduce:animate-none"></span>
+          <span class="col-start-2 col-end-4 h-[3px] rounded-full bg-[var(--app-input)]"></span>
         </div>
       {/each}
     {:else if !error}
-      <p class="px-2.5 py-3 text-xs text-[#9c9895]">No folder sizes yet. Refresh to measure your home folder.</p>
+      <p class="px-2.5 py-3 text-xs text-[var(--app-fg-muted)]">No folder sizes yet. Refresh to measure your home folder.</p>
     {/if}
   </div>
 </article>

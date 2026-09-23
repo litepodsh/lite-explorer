@@ -11,26 +11,26 @@
 </script>
 
 <section class="shrink-0 px-4 pt-3 pb-4" aria-label="File information">
-  <h2 class="truncate text-[15px] font-semibold text-[#e8e5e2]" title={name}>{name}</h2>
+  <h2 class="truncate text-[15px] font-semibold text-[var(--app-fg)]" title={name}>{name}</h2>
   {#if preview}
     <div class={pending ? "invisible" : ""} aria-hidden={pending}>
-      <p class="mt-0.5 text-[13px] text-[#9c9895]">
+      <p class="mt-0.5 text-[13px] text-[var(--app-fg-muted)]">
         {kindLabel(preview.name, preview.kind)}{preview.kind === "directory" ? "" : ` - ${formatSize(preview.size)}`}
       </p>
       {#if preview.created !== null || preview.modified !== null || defaultApp}
-        <h3 class="mt-4 mb-1.5 text-[13px] font-semibold text-[#e8e5e2]">Information</h3>
+        <h3 class="mt-4 mb-1.5 text-[13px] font-semibold text-[var(--app-fg)]">Information</h3>
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12px]">
           {#if preview.created !== null}
-            <dt class="text-[#9c9895]">Created</dt>
-            <dd class="m-0 text-right text-[#e8e5e2]">{formatDate(preview.created)}</dd>
+            <dt class="text-[var(--app-fg-muted)]">Created</dt>
+            <dd class="m-0 text-right text-[var(--app-fg)]">{formatDate(preview.created)}</dd>
           {/if}
           {#if preview.modified !== null}
-            <dt class="text-[#9c9895]">Modified</dt>
-            <dd class="m-0 text-right text-[#e8e5e2]">{formatDate(preview.modified)}</dd>
+            <dt class="text-[var(--app-fg-muted)]">Modified</dt>
+            <dd class="m-0 text-right text-[var(--app-fg)]">{formatDate(preview.modified)}</dd>
           {/if}
           {#if defaultApp}
-            <dt class="text-[#9c9895]">Opens with</dt>
-            <dd class="m-0 flex min-w-0 items-center justify-end gap-1.5 text-[#e8e5e2]" title={defaultApp.path}>
+            <dt class="text-[var(--app-fg-muted)]">Opens with</dt>
+            <dd class="m-0 flex min-w-0 items-center justify-end gap-1.5 text-[var(--app-fg)]" title={defaultApp.path}>
               {#if defaultApp.icon}<img src={defaultApp.icon} alt="" class="size-4 shrink-0" draggable="false" />{/if}
               <span class="truncate">{defaultApp.name}</span>
             </dd>

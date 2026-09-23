@@ -7,16 +7,18 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount, tick } from "svelte";
   import KeyboardIcon from "@lucide/svelte/icons/keyboard";
+  import PaletteIcon from "@lucide/svelte/icons/palette";
   import SlidersHorizontalIcon from "@lucide/svelte/icons/sliders-horizontal";
   import WrenchIcon from "@lucide/svelte/icons/wrench";
   import WindowControls from "$lib/components/custom/titlebar/window-controls.svelte";
   import { ConfirmHost, DialogSwitch, confirmation } from "$lib/components/custom/dialog/index.js";
   import SegmentedControl from "$lib/settings/segmented-control.svelte";
+  import ThemePicker from "$lib/settings/theme-picker.svelte";
   import TerminalPicker, { type TerminalOption } from "$lib/settings/terminal-picker.svelte";
   import { settings } from "$lib/settings/settings.svelte.js";
   import { detectTerminals, type TerminalInfo } from "$lib/file-ops/open.js";
   import { analytics } from "$lib/analytics/analytics.svelte.js";
-  import type { ChordTimeout, KeyboardMode, TerminalApp, WindowControlsMode } from "$lib/settings/settings.js";
+  import type { ChordTimeout, Elevation, KeyboardMode, Radius, TerminalApp, Theme, WindowControlsMode } from "$lib/settings/settings.js";
   import { settingsKeyAction } from "$lib/settings/settings-keys.js";
   import { eventToken, toKeyPlatform } from "$lib/keyboard/keys.js";
   import { platformState } from "$lib/state/platform.svelte.js";
@@ -25,6 +27,7 @@
 
   const sections = [
     { id: "keyboard", label: "Keyboard", icon: KeyboardIcon },
+    { id: "appearance", label: "Appearance", icon: PaletteIcon },
     { id: "general", label: "General", icon: SlidersHorizontalIcon },
     { id: "advanced", label: "Advanced", icon: WrenchIcon },
   ] as const;
@@ -179,6 +182,38 @@
           </div>
           <button type="button" class="secondary-button" onclick={() => void emit("open-shortcuts")}>View shortcuts</button>
         </div></div>
+      {:else if active === "appearance"}
+        <h1>Appearance</h1>
+        <div class="card"><div class="card-core">
+          <ThemePicker
+            value={current.theme}
+            disabled={current.themeMode === "system"}
+            onchange={(value) => settings.set("theme", value as Theme)} />
+          <DialogSwitch
+            label="Use system appearance"
+            description="Follows your system light or dark setting. Specialty themes stay available when this is off."
+            checked={current.themeMode === "system"}
+            onchange={(checked) => settings.set("themeMode", checked ? "system" : "manual")} />
+        </div></div>
+        <div class="card"><div class="card-core">
+          <SegmentedControl
+            label="Corner style"
+            description="Changes the shape of controls and surfaces."
+            options={[{ value: "compact", label: "Compact" }, { value: "soft", label: "Soft" }, { value: "round", label: "Round" }]}
+            value={current.radius}
+            onchange={(value) => settings.set("radius", value as Radius)} />
+          <SegmentedControl
+            label="Surface depth"
+            description="Controls elevation throughout the interface."
+            options={[{ value: "flat", label: "Flat" }, { value: "soft", label: "Soft" }, { value: "lifted", label: "Lifted" }]}
+            value={current.elevation}
+            onchange={(value) => settings.set("elevation", value as Elevation)} />
+          <DialogSwitch
+            label="Paper texture"
+            description="Adds a subtle static grain. Disabled when reduced transparency is requested."
+            checked={current.texture === "paper"}
+            onchange={(checked) => settings.set("texture", checked ? "paper" : "none")} />
+        </div></div>
       {:else if active === "general"}
         <h1>General</h1>
         <div class="card"><div class="card-core">
@@ -307,13 +342,14 @@
   :global(html),
   :global(body) {
     height: 100%;
-    background: #242220;
+    background: var(--app-bg);
   }
   .settings-window {
     display: flex;
     height: 100vh;
     flex-direction: column;
-    color: #e8e5e2;
+    background: var(--app-bg);
+    color: var(--app-fg);
   }
   .settings-titlebar {
     position: relative;
@@ -322,8 +358,8 @@
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    border-bottom: 1px solid rgb(255 255 255 / 6%);
-    background: rgb(43 41 39 / 88%);
+    border-bottom: 1px solid var(--app-border);
+    background: color-mix(in srgb, var(--app-surface) 88%, transparent);
     backdrop-filter: blur(20px) saturate(125%);
   }
   /* Same height as the main window toolbar, so the traffic lights at y 27 sit centered. */
@@ -335,7 +371,7 @@
     padding-left: 14px;
   }
   .settings-title {
-    color: #cfcbc8;
+    color: var(--app-fg-muted);
     font-size: 12.5px;
     font-weight: 600;
   }
@@ -351,7 +387,7 @@
     flex-direction: column;
     gap: 2px;
     padding: 12px 8px;
-    border-right: 1px solid rgb(255 255 255 / 6%);
+    border-right: 1px solid var(--app-border);
   }
   .settings-nav button {
     display: flex;
@@ -359,22 +395,22 @@
     gap: 8px;
     padding: 6px 10px;
     border: 0;
-    border-radius: 8px;
+    border-radius: calc(var(--app-radius) - 4px);
     background: transparent;
-    color: #a8a4a1;
+    color: var(--app-fg-muted);
     font-size: 13px;
     text-align: left;
     transition: background-color 180ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   .settings-nav button:hover {
-    background: rgb(255 255 255 / 4%);
+    background: color-mix(in srgb, var(--app-fg) 6%, transparent);
   }
   .settings-nav button[aria-current="page"] {
-    background: #0a9bff;
-    color: #fff;
+    background: var(--app-accent);
+    color: var(--app-accent-fg);
   }
   .settings-nav button:focus-visible {
-    outline: 2px solid rgb(10 155 255 / 0.6);
+    outline: 2px solid var(--app-accent);
     outline-offset: 1px;
   }
   .settings-content {
@@ -385,27 +421,27 @@
   }
   h1 {
     margin: 0 0 12px;
-    color: #f2f1f0;
+    color: var(--app-fg);
     font-size: 15px;
     font-weight: 600;
   }
   .card {
     margin-bottom: 12px;
     padding: 4px;
-    border-radius: 14px;
-    background: rgb(255 255 255 / 3%);
-    box-shadow: 0 0 0 1px rgb(255 255 255 / 5%);
+    border-radius: var(--app-radius);
+    background: color-mix(in srgb, var(--app-fg) 4%, transparent);
+    box-shadow: 0 0 0 1px var(--app-border);
   }
   .card-core {
     display: flex;
     flex-direction: column;
     gap: 16px;
     padding: 14px 16px;
-    border-radius: 10px;
-    background: #2b2927;
+    border-radius: calc(var(--app-radius) - 4px);
+    background: var(--app-surface);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 6%),
-      0 8px 24px -12px rgb(0 0 0 / 35%);
+      var(--app-shadow);
   }
   .reset-row {
     flex-direction: row;
@@ -413,13 +449,13 @@
     justify-content: space-between;
   }
   .reset-label {
-    color: #eceae8;
+    color: var(--app-fg);
     font-size: 12.5px;
     font-weight: 500;
   }
   .reset-row p {
     margin: 3px 0 0;
-    color: #8f8b88;
+    color: var(--app-fg-muted);
     font-size: 11.5px;
   }
   .reset-button {
@@ -442,25 +478,25 @@
   }
   .size-paths { display: flex; flex-direction: column; gap: 10px; }
   .size-paths-heading, .size-path-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .size-path-row { padding-top: 8px; border-top: 1px solid rgb(255 255 255 / 6%); }
-  .size-path { min-width: 0; overflow-wrap: anywhere; color: #c3bfbc; font-size: 12px; }
-  .size-path-error { color: #ff8a8e; font-size: 12px; }
+  .size-path-row { padding-top: 8px; border-top: 1px solid var(--app-border); }
+  .size-path { min-width: 0; overflow-wrap: anywhere; color: var(--app-fg-muted); font-size: 12px; }
+  .size-path-error { color: var(--app-danger-fg); font-size: 12px; }
   .secondary-button {
     flex-shrink: 0;
     padding: 5px 12px;
     border: 0;
-    border-radius: 8px;
-    background: #3a3734;
-    color: #f2f1f0;
+    border-radius: calc(var(--app-radius) - 4px);
+    background: var(--app-surface-raised);
+    color: var(--app-fg);
     font-size: 12px;
     font-weight: 500;
     transition: background-color 180ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   .secondary-button:hover {
-    background: #45413e;
+    background: color-mix(in srgb, var(--app-surface-raised) 82%, var(--app-fg));
   }
   .secondary-button:focus-visible {
-    outline: 2px solid rgb(10 155 255 / 0.6);
+    outline: 2px solid var(--app-accent);
     outline-offset: 2px;
   }
   .field {
@@ -473,13 +509,13 @@
     min-width: 0;
   }
   .field-copy label {
-    color: #eceae8;
+    color: var(--app-fg);
     font-size: 12.5px;
     font-weight: 500;
   }
   .field-copy p {
     margin: 3px 0 0;
-    color: #8f8b88;
+    color: var(--app-fg-muted);
     font-size: 11.5px;
     line-height: 1.4;
   }
@@ -492,9 +528,9 @@
   .field select {
     padding: 5px 8px;
     border: 1px solid rgb(255 255 255 / 8%);
-    border-radius: 8px;
-    background: #1f1d1b;
-    color: #f2f1f0;
+    border-radius: calc(var(--app-radius) - 4px);
+    background: var(--app-input);
+    color: var(--app-fg);
     font-size: 12px;
     flex-shrink: 0;
   }
@@ -504,15 +540,15 @@
     max-width: 220px;
     padding: 5px 8px;
     border: 1px solid rgb(255 255 255 / 8%);
-    border-radius: 8px;
-    background: #1f1d1b;
-    color: #f2f1f0;
+    border-radius: calc(var(--app-radius) - 4px);
+    background: var(--app-input);
+    color: var(--app-fg);
     font-size: 12px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .field select:focus-visible,
   .field input:focus-visible {
-    outline: 2px solid rgb(10 155 255 / 0.6);
+    outline: 2px solid var(--app-accent);
     outline-offset: 1px;
   }
   @media (prefers-reduced-motion: reduce) {

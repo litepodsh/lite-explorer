@@ -209,20 +209,20 @@
 
 {#snippet mediaSpinner()}
   <div class="grid flex-1 place-items-center">
-    <span class="size-6 animate-spin rounded-full border-2 border-white/20 border-t-white/70" aria-label="Loading"></span>
+    <span class="size-6 animate-spin rounded-full border-2 border-[color-mix(in_srgb,var(--app-fg)_20%,transparent)] border-t-[var(--app-fg)]" aria-label="Loading"></span>
   </div>
 {/snippet}
 
-<aside class="flex h-full min-w-0 flex-col bg-[#242220]" aria-label="Preview">
+<aside class="flex h-full min-w-0 flex-col bg-[var(--app-bg)]" aria-label="Preview">
   <div
-    class="relative m-3 mb-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-[#1f1d1b] transition-opacity duration-150 {slow
+    class="relative m-3 mb-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--app-radius)] bg-[var(--app-input)] transition-opacity duration-150 {slow
       ? 'opacity-60'
       : ''}">
     {#if error}
       <div class="grid flex-1 place-content-center justify-items-center gap-1 px-4 text-center">
         <FileIcon class="mb-2 size-12 stroke-[1.2] text-[#67635f]" />
-        <p class="text-[14px] font-semibold text-[#e8e5e2]">Can’t preview this file</p>
-        <p class="text-[12px] break-all text-[#9c9895]">{error}</p>
+        <p class="text-[14px] font-semibold text-[var(--app-fg)]">Can’t preview this file</p>
+        <p class="text-[12px] break-all text-[var(--app-fg-muted)]">{error}</p>
       </div>
     {:else if !preview}
       <div class="flex-1"></div>
@@ -334,10 +334,10 @@
     {:else if preview.kind === "arrow"}
       <ArrowView path={previewPath} name={preview.name} />
     {:else if !preview.content}
-      <div class="grid flex-1 place-items-center text-[13px] text-[#9c9895]">Empty file</div>
+      <div class="grid flex-1 place-items-center text-[13px] text-[var(--app-fg-muted)]">Empty file</div>
     {:else}
       {#if preview.truncated && !(previewIsData && showRendered)}
-        <p class="shrink-0 border-b border-[#3a3734] px-3 py-1 text-[11px] text-[#9c9895]">
+        <p class="shrink-0 border-b border-[var(--app-border)] px-3 py-1 text-[11px] text-[var(--app-fg-muted)]">
           Large file - showing first 2 MB
         </p>
       {/if}
@@ -369,7 +369,7 @@
       {/if}
       {#if showViewToggle}
         <div
-          class="absolute right-2 bottom-2 z-10 flex items-center gap-1 rounded-md border border-[#3a3734] bg-[#2d2a28] p-0.5 text-[11px]"
+          class="absolute right-2 bottom-2 z-10 flex items-center gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-0.5 text-[11px]"
           role="group"
           aria-label="Preview view">
           {#if htmlSafety}
@@ -389,27 +389,27 @@
           {/if}
           {#if previewIsHtml && showRendered}
             <button
-              class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#e8e5e2] hover:bg-[#3b3836]"
+              class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)]"
               aria-label="Zoom out"
               disabled={htmlZoom === MIN_HTML_ZOOM}
               onclick={() => adjustHtmlZoom(-0.1)}>−</button>
-            <span class="min-w-9 text-center text-[#9c9895]" aria-live="polite">{Math.round(htmlZoom * 100)}%</span>
+            <span class="min-w-9 text-center text-[var(--app-fg-muted)]" aria-live="polite">{Math.round(htmlZoom * 100)}%</span>
             <button
-              class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#e8e5e2] hover:bg-[#3b3836]"
+              class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)]"
               aria-label="Zoom in"
               disabled={htmlZoom === MAX_HTML_ZOOM}
               onclick={() => adjustHtmlZoom(0.1)}>+</button>
           {/if}
           <button
             class="rounded border-0 px-2 py-0.5 {viewMode === 'render'
-              ? 'bg-[#3b3836] text-[#e8e5e2]'
-              : 'bg-transparent text-[#9c9895] hover:text-[#e8e5e2]'}"
+              ? 'bg-[var(--app-surface-raised)] text-[var(--app-fg)]'
+              : 'bg-transparent text-[var(--app-fg-muted)] hover:text-[var(--app-fg)]'}"
             aria-pressed={viewMode === "render"}
             onclick={() => setViewMode("render")}>{previewIsData ? "Tree" : previewIsCsv ? "Table" : "Render"}</button>
           <button
             class="rounded border-0 px-2 py-0.5 {viewMode === 'code'
-              ? 'bg-[#3b3836] text-[#e8e5e2]'
-              : 'bg-transparent text-[#9c9895] hover:text-[#e8e5e2]'}"
+              ? 'bg-[var(--app-surface-raised)] text-[var(--app-fg)]'
+              : 'bg-transparent text-[var(--app-fg-muted)] hover:text-[var(--app-fg)]'}"
             aria-pressed={viewMode === "code"}
             onclick={() => setViewMode("code")}>Code</button>
         </div>

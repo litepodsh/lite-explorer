@@ -115,20 +115,20 @@
   }
 </script>
 
-<article class="overflow-hidden rounded-xl border border-[#3a3734] bg-[#2d2a28]">
-  <header class="flex items-center gap-3 border-b border-[#3a3734] px-4 py-3.5">
+<article class="overflow-hidden rounded-[var(--app-radius)] border border-[var(--app-border)] bg-[var(--app-surface)]">
+  <header class="flex items-center gap-3 border-b border-[var(--app-border)] px-4 py-3.5">
     <Trash2Icon class="size-7 shrink-0 stroke-[1.4] text-amber-400" />
     <div class="min-w-0">
-      <h2 class="text-[15px] font-semibold text-[#f2f1f0]">Trash</h2>
-      <p class="mt-0.5 truncate text-xs text-[#9c9895]">Files you’ve deleted</p>
+      <h2 class="text-[15px] font-semibold text-[var(--app-fg)]">Trash</h2>
+      <p class="mt-0.5 truncate text-xs text-[var(--app-fg-muted)]">Files you’ve deleted</p>
     </div>
     <button
-      class="ml-auto flex shrink-0 items-center gap-1.5 rounded-md border border-[#3a3734] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[#d9d6d3] hover:bg-[#353230] hover:text-[#f2f1f0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0a9bff] disabled:cursor-not-allowed disabled:opacity-40"
+      class="ml-auto flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--app-border)] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)] disabled:cursor-not-allowed disabled:opacity-40"
       onclick={openTrash}
       disabled={opening || (size !== null && size === 0)}
       title="Open the trash so you can empty it manually">
       {#if opening}
-        <LoaderCircleIcon class="size-3.5 animate-spin text-[#0a9bff] motion-reduce:animate-none" />
+        <LoaderCircleIcon class="size-3.5 animate-spin text-[var(--app-accent)] motion-reduce:animate-none" />
         <span>Opening…</span>
       {:else}
         <FolderOpenIcon class="size-3.5" />
@@ -136,12 +136,12 @@
       {/if}
     </button>
     <button
-      class="flex shrink-0 items-center gap-1.5 rounded-md border border-[#3a3734] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[#d9d6d3] hover:bg-[#353230] hover:text-[#f2f1f0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0a9bff] disabled:cursor-not-allowed disabled:opacity-40"
+      class="flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--app-border)] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)] disabled:cursor-not-allowed disabled:opacity-40"
       onclick={empty}
       disabled={emptying || size === null || size === 0}
       title={size === 0 ? "Trash is already empty" : "Empty the trash"}>
       {#if emptying}
-        <LoaderCircleIcon class="size-3.5 animate-spin text-[#0a9bff] motion-reduce:animate-none" />
+        <LoaderCircleIcon class="size-3.5 animate-spin text-[var(--app-accent)] motion-reduce:animate-none" />
         <span>Emptying…</span>
       {:else}
         <Trash2Icon class="size-3.5" />
@@ -155,19 +155,19 @@
       <p class="px-2.5 py-2 text-xs text-[#ff8a80]">{error}</p>
     {:else if size === null}
       <div class="grid gap-2 px-2.5 py-3">
-        <p class="text-xs text-[#9c9895]">
+        <p class="text-xs text-[var(--app-fg-muted)]">
           {scanning ? "Measuring your trash…" : unavailableHint}
         </p>
         {#if showPermissionButton}
           <div class="flex flex-wrap items-center gap-2">
             <button
-              class="flex w-fit items-center gap-1.5 rounded-md border border-[#0a9bff] bg-[#0a9bff]/10 px-2.5 py-1.5 text-xs font-medium text-[#7fd0ff] hover:bg-[#0a9bff]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0a9bff] disabled:opacity-40"
+              class="flex w-fit items-center gap-1.5 rounded-md border border-[var(--app-accent)] bg-[color-mix(in_srgb,var(--app-accent)_10%,transparent)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-accent)] hover:bg-[color-mix(in_srgb,var(--app-accent)_20%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)] disabled:opacity-40"
               onclick={requestAccess}
               disabled={detecting}>
               {detecting ? "Checking…" : "Request access"}
             </button>
             <button
-              class="flex w-fit items-center gap-1.5 rounded-md border border-[#3a3734] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[#d9d6d3] hover:bg-[#353230] hover:text-[#f2f1f0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0a9bff]"
+              class="flex w-fit items-center gap-1.5 rounded-md border border-[var(--app-border)] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)]"
               onclick={openSettings}>
               Open System Settings
             </button>
@@ -177,10 +177,10 @@
     {:else}
       <div class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 px-2.5 py-3">
         <Trash2Icon class="size-4 stroke-[1.8] {size > 0 ? 'text-amber-400' : 'text-[#67635f]'}" />
-        <span class="truncate text-[13px] text-[#d9d6d3]">
+        <span class="truncate text-[13px] text-[var(--app-fg)]">
           {size > 0 ? "Taking up space" : "Empty"}
         </span>
-        <span class="text-right font-mono text-xs tabular-nums text-[#d9d6d3]">{formatSize(size)}</span>
+        <span class="text-right font-mono text-xs tabular-nums text-[var(--app-fg)]">{formatSize(size)}</span>
       </div>
     {/if}
   </div>

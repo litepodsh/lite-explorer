@@ -94,7 +94,7 @@
 {/snippet}
 
 <footer
-  class="group relative flex h-7 shrink-0 items-center gap-1.5 border-t border-[#3a3734] bg-[#242220] px-3 text-[11px] text-[#9c9895]"
+  class="group relative flex h-7 shrink-0 items-center gap-1.5 border-t border-[var(--app-border)] bg-[var(--app-bg)] px-3 text-[11px] text-[var(--app-fg-muted)]"
   aria-label="Current path">
   {#if sizeScanning}<span class="size-scan-track" aria-hidden="true"><span></span></span>{/if}
   {#if network}
@@ -129,7 +129,7 @@
   {/if}
   {#if editable}
     <button
-      class="grid size-5 shrink-0 place-items-center rounded border-0 bg-transparent text-[#9c9895] opacity-0 transition-opacity hover:bg-[#353230] hover:text-[#e8e5e2] focus-visible:opacity-100 group-hover:opacity-100"
+      class="grid size-5 shrink-0 place-items-center rounded border-0 bg-transparent text-[var(--app-fg-muted)] opacity-0 transition-opacity hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)] focus-visible:opacity-100 group-hover:opacity-100"
       aria-label="Edit path"
       title="Edit path"
       onclick={editPath}>
@@ -138,7 +138,7 @@
   {/if}
   {#if path}
     <button
-      class="grid size-5 shrink-0 place-items-center rounded border-0 bg-transparent text-[#9c9895] opacity-0 transition-opacity hover:bg-[#353230] hover:text-[#e8e5e2] focus-visible:opacity-100 group-hover:opacity-100 {copied ? 'opacity-100 text-green-400' : ''}"
+      class="grid size-5 shrink-0 place-items-center rounded border-0 bg-transparent text-[var(--app-fg-muted)] opacity-0 transition-opacity hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)] focus-visible:opacity-100 group-hover:opacity-100 {copied ? 'opacity-100 text-green-400' : ''}"
       aria-label={copied ? "Path copied" : "Copy path"}
       title={copied ? "Copied" : "Copy path"}
       onclick={copyPath}>
@@ -165,13 +165,13 @@
       <button type="button" class="shrink-0 rounded px-1.5 py-0.5 text-[#c5c1be] transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#5cb9ff]" onclick={onCancelSizeScan}>Cancel</button>
     {/if}
   {:else if activity}
-    <span class="ml-auto inline-flex shrink-0 items-center gap-1.5 tabular-nums text-[#9c9895]" aria-live="polite">
+    <span class="ml-auto inline-flex shrink-0 items-center gap-1.5 tabular-nums text-[var(--app-fg-muted)]" aria-live="polite">
       <LoaderCircleIcon class="size-3 animate-spin text-[#0a9bff] motion-reduce:animate-none" />{activity}
     </span>
   {/if}
   {#if targetCount > 0}
     <span
-      class="{activity || sizeScanning || sizeScanMessage ? 'pl-3' : 'ml-auto'} shrink-0 tabular-nums text-[#9c9895]"
+      class="{activity || sizeScanning || sizeScanMessage ? 'pl-3' : 'ml-auto'} shrink-0 tabular-nums text-[var(--app-fg-muted)]"
       aria-live="polite"
       aria-label={`${selecting ? `${formatCount(selectedEntries.length)} of ` : ""}${formatCount(targetCount)} items${selecting ? " selected" : ""}${targetBytes > 0 ? `, ${sizesPartial ? "at least " : ""}${formatSize(targetBytes)}` : ""}`}>
       {#if selecting}<span class="text-[#5cb9ff]">{formatCount(Math.round(selectedTween.current))}</span> of {/if}{formatCount(Math.round(count.current))} item{targetCount === 1 ? "" : "s"}{#if selecting} selected{/if}{#if targetBytes > 0}<span

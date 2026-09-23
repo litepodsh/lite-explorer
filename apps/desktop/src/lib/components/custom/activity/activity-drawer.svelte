@@ -164,8 +164,8 @@
     flex-shrink: 0;
     flex-direction: column;
     overflow: hidden;
-    border-top: 1px solid #3a3734;
-    background: #292725;
+    border-top: 1px solid var(--app-border);
+    background: var(--app-sidebar);
     transition: height 200ms cubic-bezier(0.2, 0, 0, 1);
   }
   .activity-drawer.open {
@@ -181,7 +181,7 @@
     gap: 10px;
     height: 44px;
     padding: 0 14px;
-    border-bottom: 1px solid #3a3734;
+    border-bottom: 1px solid var(--app-border);
   }
   .title {
     display: flex;
@@ -189,10 +189,10 @@
     gap: 7px;
     font-size: 13px;
     font-weight: 600;
-    color: #f2f1f0;
+    color: var(--app-fg);
   }
   .title :global(svg) {
-    color: #0a9bff;
+    color: var(--app-accent);
   }
   .count {
     display: grid;
@@ -201,8 +201,8 @@
     height: 18px;
     padding: 0 5px;
     border-radius: 999px;
-    background: #0a9bff;
-    color: #04121f;
+    background: var(--app-accent);
+    color: var(--app-accent-fg);
     font-size: 10.5px;
     font-weight: 700;
   }
@@ -211,24 +211,24 @@
     gap: 3px;
     padding: 2px;
     border-radius: 8px;
-    background: #1d1b1a;
+    background: var(--app-input);
   }
   .filters button {
     padding: 4px 10px;
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: #a8a4a1;
+    color: var(--app-fg-muted);
     font: inherit;
     font-size: 12px;
     cursor: pointer;
   }
   .filters button:hover {
-    color: #f2f1f0;
+    color: var(--app-fg);
   }
   .filters button.on {
-    background: #3b3836;
-    color: #f2f1f0;
+    background: var(--app-surface-raised);
+    color: var(--app-fg);
   }
   .spacer {
     flex: 1;
@@ -238,14 +238,14 @@
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: #a8a4a1;
+    color: var(--app-fg-muted);
     font: inherit;
     font-size: 12px;
     cursor: pointer;
   }
   .ghost:hover {
-    background: #353230;
-    color: #f2f1f0;
+    background: var(--app-surface-raised);
+    color: var(--app-fg);
   }
   .collapse {
     display: grid;
@@ -254,16 +254,16 @@
     place-items: center;
     width: 30px;
     height: 30px;
-    border: 1px solid #4a4642;
-    border-radius: 6px;
-    background: #34312e;
-    color: #f2f1f0;
+    border: 1px solid var(--app-border);
+    border-radius: calc(var(--app-radius) - 5px);
+    background: var(--app-surface-raised);
+    color: var(--app-fg);
     cursor: pointer;
   }
   .collapse:hover {
-    border-color: #0a9bff;
-    background: #0a9bff;
-    color: #04121f;
+    border-color: var(--app-accent);
+    background: var(--app-accent);
+    color: var(--app-accent-fg);
   }
   .activity-body {
     flex: 1;
@@ -273,7 +273,7 @@
   }
   .empty {
     padding: 30px 0;
-    color: #8d8986;
+    color: var(--app-fg-muted);
     font-size: 12.5px;
     text-align: center;
   }
@@ -286,10 +286,10 @@
     border-radius: 9px;
   }
   .job:hover {
-    background: #2e2b29;
+    background: var(--app-surface-raised);
   }
   .job + .job {
-    border-top: 1px solid rgb(58 55 52 / 55%);
+    border-top: 1px solid var(--app-border);
   }
   .kind {
     display: grid;
@@ -297,8 +297,8 @@
     width: 30px;
     height: 30px;
     border-radius: 8px;
-    background: #34312e;
-    color: #7cc4ff;
+    background: var(--app-surface-raised);
+    color: var(--app-accent);
   }
   .kind :global(svg) {
     width: 15px;
@@ -315,7 +315,7 @@
   .fname {
     display: block;
     overflow: hidden;
-    color: #eceae8;
+    color: var(--app-fg);
     font-size: 13px;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -323,7 +323,7 @@
   .dest {
     margin-top: 2px;
     overflow: hidden;
-    color: #8d8986;
+    color: var(--app-fg-muted);
     font-size: 11.5px;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -333,20 +333,20 @@
     margin-top: 8px;
     overflow: hidden;
     border-radius: 999px;
-    background: #3a3734;
+    background: var(--app-input);
   }
   .bar span {
     display: block;
     height: 100%;
     border-radius: 999px;
-    background: #0a9bff;
+    background: var(--app-accent);
     transition: width 0.2s linear;
   }
   .stats {
     display: flex;
     gap: 10px;
     margin-top: 4px;
-    color: #8d8986;
+    color: var(--app-fg-muted);
     font-size: 11px;
   }
   .stats.ok {
@@ -361,7 +361,7 @@
     flex-wrap: wrap;
     gap: 3px 14px;
     margin-top: 6px;
-    color: #a8a4a1;
+    color: var(--app-fg-muted);
     font-size: 11px;
     font-variant-numeric: tabular-nums;
   }
@@ -378,12 +378,12 @@
     border: 0;
     border-radius: 7px;
     background: transparent;
-    color: #a8a4a1;
+    color: var(--app-fg-muted);
     cursor: pointer;
   }
   .icon:hover {
-    background: #353230;
-    color: #f2f1f0;
+    background: var(--app-surface-raised);
+    color: var(--app-fg);
   }
   .state-ok {
     color: #28c840;

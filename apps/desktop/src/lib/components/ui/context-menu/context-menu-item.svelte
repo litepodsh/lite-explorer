@@ -20,7 +20,7 @@
   data-inset={inset}
   data-variant={variant}
   class={cn(
-    "focus:bg-[#0a84ff] focus:text-white data-[variant=destructive]:text-[#ff453a] data-[variant=destructive]:focus:bg-[#ff453a] data-[variant=destructive]:focus:text-white! data-[variant=destructive]:data-highlighted:text-white! data-[variant=destructive]:*:[svg]:text-[#ff453a] focus:*:[svg]:text-white data-[variant=destructive]:focus:*:[svg]:text-white! data-[variant=destructive]:data-highlighted:*:[svg]:text-white! gap-2 min-h-[22px] rounded-md px-3 py-1 text-[13px] data-inset:pl-7 [&_svg:not([class*='size-'])]:size-4 group/context-menu-item relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+    "focus:bg-[var(--app-accent)] focus:text-[var(--app-accent-fg)] data-[variant=destructive]:text-[var(--app-danger)] data-[variant=destructive]:focus:bg-[var(--app-danger)] data-[variant=destructive]:focus:text-[var(--app-accent-fg)]! data-[variant=destructive]:data-highlighted:text-[var(--app-accent-fg)]! data-[variant=destructive]:*:[svg]:text-[var(--app-danger)] focus:*:[svg]:text-[var(--app-accent-fg)] data-[variant=destructive]:focus:*:[svg]:text-[var(--app-accent-fg)]! data-[variant=destructive]:data-highlighted:*:[svg]:text-[var(--app-accent-fg)]! gap-2 min-h-[22px] rounded-md px-3 py-1 text-[13px] data-inset:pl-7 [&_svg:not([class*='size-'])]:size-4 group/context-menu-item relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
     className,
   )}
   {...restProps} />

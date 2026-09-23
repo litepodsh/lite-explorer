@@ -57,13 +57,13 @@
     min-width: 0;
   }
   .label {
-    color: #eceae8;
+    color: var(--app-fg);
     font-size: 12.5px;
     font-weight: 500;
   }
   p {
     margin: 3px 0 0;
-    color: #8f8b88;
+    color: var(--app-fg-muted);
     font-size: 11.5px;
     line-height: 1.4;
   }
@@ -72,17 +72,17 @@
     flex-shrink: 0;
     gap: 2px;
     padding: 2px;
-    border-radius: 9px;
-    background: #1f1d1b;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%);
+    border-radius: calc(var(--app-radius) - 3px);
+    background: var(--app-input);
+    box-shadow: inset 0 0 0 1px var(--app-border);
   }
   button {
     min-width: 56px;
     padding: 4px 10px;
     border: 0;
-    border-radius: 7px;
+    border-radius: calc(var(--app-radius) - 5px);
     background: transparent;
-    color: #a8a4a1;
+    color: var(--app-fg-muted);
     font-size: 12px;
     font-weight: 500;
     transition:
@@ -90,12 +90,12 @@
       color 180ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   button[aria-checked="true"] {
-    background: #3a3734;
-    color: #f2f1f0;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+    background: var(--app-surface-raised);
+    color: var(--app-fg);
+    box-shadow: inset 0 1px color-mix(in srgb, var(--app-fg) 12%, transparent);
   }
   button:focus-visible {
-    outline: 2px solid rgb(10 155 255 / 0.6);
+    outline: 2px solid var(--app-accent);
     outline-offset: 1px;
   }
   @media (prefers-reduced-motion: reduce) {

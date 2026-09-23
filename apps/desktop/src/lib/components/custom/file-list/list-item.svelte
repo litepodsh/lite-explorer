@@ -146,7 +146,7 @@
   <div
     role="row"
     style={style}
-    class="file-row grid h-9 cursor-default items-center text-[13px] text-[#e8e5e2] {dropTarget ? 'entry-drop-target' : ''} {pasted ? 'entry-pasted' : ''}"
+    class="file-row grid h-9 cursor-default items-center text-[13px] text-[var(--app-fg)] {dropTarget ? 'entry-drop-target' : ''} {pasted ? 'entry-pasted' : ''}"
     aria-label={entry.name}
     aria-selected={selected}
     aria-rowindex={rowIndex}
@@ -176,7 +176,7 @@
           <input
             bind:value={editName}
             use:focusRename
-            class="min-w-0 flex-1 bg-transparent px-1 text-[#e8e5e2] outline-none"
+            class="min-w-0 flex-1 bg-transparent px-1 text-[var(--app-fg)] outline-none"
             onclick={(event) => event.stopPropagation()}
             onkeydown={(event) => {
               if (event.key === "Enter") commitRename();
@@ -202,18 +202,18 @@
       {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </div>
     {:else if column === "type"}
-    <div role="gridcell" class:column-source={draggedColumn === column} class="px-2 text-xs text-[#9c9895]">{entryType(entry)}</div>
+    <div role="gridcell" class:column-source={draggedColumn === column} class="px-2 text-xs text-[var(--app-fg-muted)]">{entryType(entry)}</div>
     {:else if column === "size"}
-    <div role="gridcell" class:column-source={draggedColumn === column} class="px-2 text-right text-xs tabular-nums text-[#9c9895]">{@render sizeLabel()}</div>
+    <div role="gridcell" class:column-source={draggedColumn === column} class="px-2 text-right text-xs tabular-nums text-[var(--app-fg-muted)]">{@render sizeLabel()}</div>
     {:else}
     {@const date = column === "date" ? entry.created : entry.modified}
-    <div role="gridcell" class:column-source={draggedColumn === column} class="truncate px-2 text-right text-xs tabular-nums text-[#9c9895]" title={date == null ? "Unavailable" : new Date(date).toLocaleString()}>{date == null ? "—" : formatDate(date)}</div>
+    <div role="gridcell" class:column-source={draggedColumn === column} class="truncate px-2 text-right text-xs tabular-nums text-[var(--app-fg-muted)]" title={date == null ? "Unavailable" : new Date(date).toLocaleString()}>{date == null ? "—" : formatDate(date)}</div>
     {/if}
     {/each}
   </div>
 {:else}
   <button
-    class="file-tile relative flex h-24 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-md border-0 bg-transparent p-3 text-center text-[13px] text-[#e8e5e2] {dropTarget ? 'entry-drop-target' : ''} {pasted ? 'entry-pasted' : ''}"
+    class="file-tile relative flex h-24 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-md border-0 bg-transparent p-3 text-center text-[13px] text-[var(--app-fg)] {dropTarget ? 'entry-drop-target' : ''} {pasted ? 'entry-pasted' : ''}"
     aria-label={entry.name}
     aria-pressed={selected}
     data-entry-path={entry.path}
@@ -245,7 +245,7 @@
         <input
           bind:value={editName}
           use:focusRename
-          class="min-w-0 flex-1 bg-transparent px-1 text-[#e8e5e2] outline-none"
+          class="min-w-0 flex-1 bg-transparent px-1 text-[var(--app-fg)] outline-none"
           onclick={(event) => event.stopPropagation()}
           onkeydown={(event) => {
             if (event.key === "Enter") commitRename();
@@ -257,7 +257,7 @@
       <span class="max-w-full truncate">{entry.name}</span>
     {/if}
     {#if entry.sizeComplete != null}
-      <span class="text-[10px] tabular-nums text-[#9c9895]">{@render sizeLabel()}</span>
+      <span class="text-[10px] tabular-nums text-[var(--app-fg-muted)]">{@render sizeLabel()}</span>
     {/if}
   </button>
 {/if}
@@ -278,7 +278,7 @@
 
   .file-row {
     --ease: cubic-bezier(0.32, 0.72, 0, 1);
-    box-shadow: inset 0 -1px 0 rgb(58 55 52 / 0.6);
+    box-shadow: inset 0 -1px 0 var(--app-border);
     transition:
       transform 240ms cubic-bezier(0.2, 0, 0, 1),
       background-color 140ms var(--ease);
@@ -289,13 +289,13 @@
   }
 
   .file-row:hover {
-    background: #353230;
+    background: var(--app-surface-raised);
   }
 
   .file-row[data-selected] {
     background: rgb(10 132 255 / 0.18);
     box-shadow: none;
-    border-radius: 6px;
+    border-radius: calc(var(--app-radius) - 5px);
   }
 
   .file-row[data-selected]:hover {
@@ -317,7 +317,7 @@
   /* Keyboard focus that is not selected (moved with Ctrl/Cmd + arrows). */
   .file-row[data-focused]:not([data-selected]),
   .file-tile[data-focused]:not([data-selected]) {
-    border-radius: 6px;
+    border-radius: calc(var(--app-radius) - 5px);
     box-shadow: inset 0 0 0 1px rgb(10 132 255 / 0.6);
   }
 
@@ -326,7 +326,7 @@
   }
 
   .file-tile:hover {
-    background: #353230;
+    background: var(--app-surface-raised);
   }
 
   .file-tile[data-selected] {
@@ -341,7 +341,7 @@
   /* Like Explorer, the selection turns gray while its pane is not the active one. */
   :global(.file-pane:not(.active)) .file-row[data-selected],
   :global(.file-pane:not(.active)) .file-tile[data-selected] {
-    background: #3b3836;
+    background: var(--app-surface-raised);
   }
 
   :global(.file-pane:not(.active)) .file-tile[data-selected] {

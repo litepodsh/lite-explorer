@@ -532,7 +532,7 @@
     min-width: 0;
     min-height: 0;
     flex-direction: column;
-    background: #242220;
+    background: var(--app-bg);
     will-change: transform;
   }
   .swipe-pane.current {

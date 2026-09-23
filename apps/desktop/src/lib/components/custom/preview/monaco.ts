@@ -27,6 +27,12 @@ const models = new LruCache<string, CachedModel>(MODEL_CACHE_SIZE, (_key, entry)
   entry.model.dispose(),
 );
 
+/** Monaco's light base theme matches the two light app presets; all others use Shiki's dark theme. */
+export function previewTheme(): string {
+  const theme = document.documentElement.dataset.theme;
+  return theme === "light" || theme === "off-white" ? "vs" : PREVIEW_THEME;
+}
+
 export function loadMonaco(): Promise<MonacoApi> {
   loading ??= importMonaco().catch((error: unknown) => {
     loading = undefined;
@@ -56,6 +62,7 @@ async function importMonaco(): Promise<MonacoApi> {
   });
   applyHighlighter = highlighterApplier(monaco, shikiMonaco.shikiToMonaco);
   applyHighlighter();
+  monaco.editor.setTheme(previewTheme());
   return monaco;
 }
 
@@ -81,6 +88,8 @@ export function ensureLanguage(language: string): Promise<void> {
       .then(async (grammar) => {
         await highlighter.loadLanguage(grammar.default);
         applyHighlighter();
+        // shikiToMonaco restores its registered theme, so restore the active app mode afterward.
+        void loadMonaco().then((monaco) => monaco.editor.setTheme(previewTheme()));
       })
       .catch((error: unknown) => {
         grammars.delete(language);
