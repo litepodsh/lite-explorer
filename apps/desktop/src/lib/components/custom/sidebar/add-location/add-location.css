@@ -241,6 +241,11 @@ select.loc-input {
   height: 14px;
 }
 
+.loc-mark img {
+  width: 16px;
+  height: 16px;
+}
+
 .loc-mark.aws {
   background: #232f3e;
   box-shadow: inset 0 0 0 1px rgb(255 153 0 / 0.35);

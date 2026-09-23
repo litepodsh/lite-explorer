@@ -3,6 +3,7 @@ import {
   describeTest,
   emptyInput,
   isRemotePath,
+  isPendingProvider,
   missingFields,
   toS3Uri,
   withProvider,
@@ -44,6 +45,12 @@ describe("remote locations", () => {
     expect(describeTest(input, { buckets: null })).toBe("Bucket assets is reachable");
     expect(describeTest(input, { buckets: ["a"] })).toBe("Connected, 1 bucket available");
     expect(describeTest(input, { buckets: ["a", "b"] })).toBe("Connected, 2 buckets available");
+  });
+
+  test("only providers without a connection layer stay unavailable", () => {
+    expect(isPendingProvider("gdrive")).toBe(false);
+    expect(isPendingProvider("azblob")).toBe(false);
+    expect(isPendingProvider("aws")).toBe(false);
   });
 
   test("remote paths map to standard S3 URIs", () => {

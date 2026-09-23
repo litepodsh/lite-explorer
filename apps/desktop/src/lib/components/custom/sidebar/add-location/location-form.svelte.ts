@@ -19,9 +19,11 @@ import {
 } from "$lib/remote/network-locations.js";
 import {
   addRemoteLocation,
+  connectGoogleDrive,
   describeTest,
   emptyInput as emptyRemoteInput,
   missingFields as missingRemoteFields,
+  isPendingProvider,
   testRemoteLocation,
   withProvider,
   type RemoteLocationInput,
@@ -134,6 +136,10 @@ export class LocationForm {
   #blocked(): boolean {
     this.attempted = true;
     if (this.isNetwork) return missingFields(this.network).length > 0;
+    if (isPendingProvider(this.cloud.provider)) {
+      this.status = failure("This provider is ready to configure after its connection layer is enabled.");
+      return true;
+    }
     const missing = missingRemoteFields(this.cloud);
     if (missing.length) {
       this.status = failure(`Fill in ${missing.join(", ")}.`);
@@ -180,7 +186,9 @@ export class LocationForm {
     this.status = { state: "saving" };
     try {
       const location = !this.isNetwork
-        ? await addRemoteLocation($state.snapshot(this.cloud))
+        ? this.cloud.provider === "gdrive"
+          ? await connectGoogleDrive($state.snapshot(this.cloud))
+          : await addRemoteLocation($state.snapshot(this.cloud))
         : this.editingPath
           ? await updateNetworkLocation(this.editingPath, $state.snapshot(this.network))
           : await addNetworkLocation($state.snapshot(this.network));

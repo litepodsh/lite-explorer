@@ -35,6 +35,7 @@
   import { trackPointerDrag } from "$lib/file-drag/pointer-drag.js";
   import { atWindowEdge, startNativeDrag } from "$lib/file-drag/native-drag.js";
   import { isNetworkProtocol } from "$lib/remote/network-locations.js";
+  import { sidebarLocations, volumeLocations } from "./sidebar-sections.js";
   import type { LocationStatus } from "$lib/remote/network-status.svelte.js";
   import { onMount, tick, type ComponentProps } from "svelte";
 
@@ -93,13 +94,16 @@
   } = $props();
 
   const FAVORITES_OPEN_KEY = "sidebar-favorites-open";
+  const VOLUMES_OPEN_KEY = "sidebar-volumes-open";
   const LOCATIONS_OPEN_KEY = "sidebar-locations-open";
   let favoritesOpen = $state(true);
+  let volumesOpen = $state(true);
   let locationsOpen = $state(true);
   let sectionsReady = $state(false);
 
   onMount(() => {
     favoritesOpen = localStorage.getItem(FAVORITES_OPEN_KEY) !== "false";
+    volumesOpen = localStorage.getItem(VOLUMES_OPEN_KEY) !== "false";
     locationsOpen = localStorage.getItem(LOCATIONS_OPEN_KEY) !== "false";
     const frame = requestAnimationFrame(() => (sectionsReady = true));
     return () => cancelAnimationFrame(frame);
@@ -114,6 +118,14 @@
     locationsOpen = !locationsOpen;
     localStorage.setItem(LOCATIONS_OPEN_KEY, String(locationsOpen));
   }
+
+  function toggleVolumes() {
+    volumesOpen = !volumesOpen;
+    localStorage.setItem(VOLUMES_OPEN_KEY, String(volumesOpen));
+  }
+
+  let volumes = $derived(volumeLocations(locations));
+  let savedLocations = $derived(sidebarLocations(locations));
 
   let externalDroppable = $derived(
     drag.entry !== null &&
@@ -222,6 +234,7 @@
   $effect(() => {
     void favorites.length;
     void locations.length;
+    void volumesOpen;
     void favoritesOpen;
     void locationsOpen;
     void tick().then(() => {
@@ -350,6 +363,37 @@
       </div>
         </div>
       </div>
+      {#if volumes.length}
+        <div class="finder-section">
+          <button
+            type="button"
+            class="section-toggle"
+            data-sidebar-item
+            aria-expanded={volumesOpen}
+            aria-controls="sidebar-volumes"
+            onclick={toggleVolumes}><ChevronDownIcon class={volumesOpen ? "" : "closed"} /><span>Volumes</span></button>
+        </div>
+        <div id="sidebar-volumes" class="section-collapse" class:collapsed={!volumesOpen} class:ready={sectionsReady} inert={!volumesOpen}>
+          <div class="section-collapse-inner">
+            {#each volumes as location (location.path)}
+              <div class="location-row">
+                <button
+                  aria-label={location.name} data-sidebar-item
+                  title={location.path}
+                  class:active={selected === location.name}
+                  onclick={() => onOpen?.(location)}><HardDriveIcon /><span>{location.name}</span></button>
+                {#if location.kind === "hfs-volume"}
+                  <button
+                    class="location-trail"
+                    aria-label={`Eject ${location.name}`}
+                    title="Eject"
+                    onclick={() => onEjectLocation?.(location)}><EjectIcon /></button>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
       <div class="finder-section">
         <button
           type="button"
@@ -368,7 +412,7 @@
       </div>
       <div id="sidebar-locations" class="section-collapse" class:collapsed={!locationsOpen} class:ready={sectionsReady} inert={!locationsOpen}>
         <div class="section-collapse-inner">
-      {#each locations as location (location.path)}
+      {#each savedLocations as location (location.path)}
         {#if location.kind === "s3" || isNetworkProtocol(location.kind)}
           {@const status = statuses[location.path]}
           <ContextMenu.Root>
@@ -422,27 +466,12 @@
             </ContextMenu.Content>
           </ContextMenu.Root>
         {:else}
-          {#if location.kind === "hfs-volume"}
-            <div class="location-row">
-              <button
-                aria-label={location.name} data-sidebar-item
-                title={location.path}
-                class:active={selected === location.name}
-                onclick={() => onOpen?.(location)}><HardDriveIcon /><span>{location.name}</span></button>
-              <button
-                class="location-trail"
-                aria-label={`Eject ${location.name}`}
-                title="Eject"
-                onclick={() => onEjectLocation?.(location)}><EjectIcon /></button>
-            </div>
-          {:else}
-            <button
-              aria-label={location.name} data-sidebar-item
-              title={location.path}
-              class:active={selected === location.name}
-              onclick={() => onOpen?.(location)}
-              >{#if location.kind === "home"}<HouseIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span></button>
-          {/if}
+          <button
+            aria-label={location.name} data-sidebar-item
+            title={location.path}
+            class:active={selected === location.name}
+            onclick={() => onOpen?.(location)}
+            >{#if location.kind === "home"}<HouseIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span></button>
         {/if}
       {/each}
         </div>

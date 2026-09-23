@@ -40,6 +40,13 @@ aws-sdk-s3 = { version = "1.146", default-features = false, features = [
   "default-https-client",
   "http-1x",
 ] }
+opendal = { version = "0.59.3", default-features = false, features = [
+  "services-azblob",
+  "services-gdrive",
+  "http-transport-reqwest-rustls",
+  "executors-tokio",
+] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "form"] }
 keyring = "4.2"
 percent-encoding = "2"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "rt", "sync", "time"] }

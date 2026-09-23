@@ -21,10 +21,22 @@ use aws_sdk_s3::{
     primitives::DateTime,
     Client,
 };
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use opendal::{
+    services::{Azblob, Gdrive},
+    Operator,
+};
+use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use sqlx::{Row, SqlitePool};
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_opener::OpenerExt;
 use tokio::sync::OnceCell;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpListener,
+};
 
 use super::write;
 use crate::{
@@ -37,6 +49,7 @@ use crate::{
 };
 
 const KEYCHAIN_SERVICE: &str = "lite-explorer.s3";
+const GDRIVE_KEYCHAIN_SERVICE: &str = "lite-explorer.google-drive";
 pub(crate) const SCHEME: &str = "s3://";
 /// Listing stops after this many entries so huge prefixes stay responsive.
 const MAX_LISTING_ENTRIES: usize = 10_000;
@@ -55,6 +68,8 @@ pub enum Provider {
     Aws,
     R2,
     Custom,
+    Azblob,
+    Gdrive,
 }
 
 impl Provider {
@@ -63,6 +78,8 @@ impl Provider {
             Provider::Aws => "aws",
             Provider::R2 => "r2",
             Provider::Custom => "custom",
+            Provider::Azblob => "azblob",
+            Provider::Gdrive => "gdrive",
         }
     }
 
@@ -71,6 +88,8 @@ impl Provider {
             Provider::Aws => "Amazon S3",
             Provider::R2 => "Cloudflare R2",
             Provider::Custom => "S3 Storage",
+            Provider::Azblob => "Azure Blob",
+            Provider::Gdrive => "Google Drive",
         }
     }
 }
@@ -115,6 +134,20 @@ pub(crate) struct Connection {
 pub struct ConnectionTest {
     /// Bucket names when the location spans the whole account, `None` for a single bucket.
     buckets: Option<Vec<String>>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoogleDriveInput {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    prefix: String,
+}
+
+#[derive(Deserialize)]
+struct GoogleTokenResponse {
+    refresh_token: Option<String>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -178,7 +211,17 @@ fn resolve(input: &RemoteLocationInput) -> Result<Connection, String> {
             non_empty(&input.region).unwrap_or_else(|| "us-east-1".into()),
             input.path_style,
         ),
+        Provider::Azblob => (
+            Some(custom_endpoint(&input.endpoint)?),
+            String::new(),
+            false,
+        ),
+        Provider::Gdrive => return Err("Connect Google Drive from its sign-in screen".into()),
     };
+
+    if input.provider == Provider::Azblob && bucket.is_none() {
+        return Err("Container is required".into());
+    }
 
     let name = non_empty(&input.name)
         .or_else(|| bucket.clone())
@@ -194,6 +237,122 @@ fn resolve(input: &RemoteLocationInput) -> Result<Connection, String> {
         access_key_id,
         path_style,
     })
+}
+
+fn azblob_operator(connection: &Connection, secret: &str) -> Result<Operator, String> {
+    let endpoint = connection
+        .endpoint
+        .as_deref()
+        .ok_or("Endpoint URL is required")?;
+    let container = connection
+        .bucket
+        .as_deref()
+        .ok_or("Container is required")?;
+    Operator::new(
+        Azblob::default()
+            .endpoint(endpoint)
+            .container(container)
+            .account_name(&connection.access_key_id)
+            .account_key(secret),
+    )
+    .map_err(|error| error.to_string())
+}
+
+fn google_oauth_config() -> Result<(&'static str, &'static str), String> {
+    let client_id = option_env!("GOOGLE_OAUTH_CLIENT_ID").filter(|value| !value.is_empty());
+    let client_secret = option_env!("GOOGLE_OAUTH_CLIENT_SECRET").filter(|value| !value.is_empty());
+    match (client_id, client_secret) {
+        (Some(client_id), Some(client_secret)) => Ok((client_id, client_secret)),
+        _ => Err("Google OAuth is not configured. Add GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET to src-tauri/.env, then rebuild the app.".into()),
+    }
+}
+
+fn gdrive_operator(connection: &Connection, refresh_token: &str) -> Result<Operator, String> {
+    let (client_id, client_secret) = google_oauth_config()?;
+    Operator::new(
+        Gdrive::default()
+            .root(connection.prefix.as_deref().unwrap_or(""))
+            .client_id(client_id)
+            .client_secret(client_secret)
+            .refresh_token(refresh_token),
+    )
+    .map_err(|error| error.to_string())
+}
+
+fn oauth_value(target: &str, name: &str) -> Option<String> {
+    let query = target.split_once('?')?.1;
+    query.split('&').find_map(|part| {
+        let (key, value) = part.split_once('=')?;
+        (key == name).then(|| percent_decode_str(value).decode_utf8_lossy().into_owned())
+    })
+}
+
+async fn google_oauth_callback(listener: TcpListener, state: &str) -> Result<String, String> {
+    let (mut stream, _) = tokio::time::timeout(Duration::from_secs(300), listener.accept())
+        .await
+        .map_err(|_| "Google sign-in timed out. Try connecting again.")?
+        .map_err(|error| error.to_string())?;
+    let mut request = [0; 8192];
+    let size = stream
+        .read(&mut request)
+        .await
+        .map_err(|error| error.to_string())?;
+    let target = std::str::from_utf8(&request[..size])
+        .ok()
+        .and_then(|request| request.lines().next())
+        .and_then(|line| line.split_whitespace().nth(1))
+        .ok_or("Google returned an invalid sign-in response")?;
+    let result = match oauth_value(target, "error") {
+        Some(error) => Err(format!("Google sign-in was cancelled: {error}")),
+        None if oauth_value(target, "state").as_deref() != Some(state) => {
+            Err("Google sign-in state did not match. Try again.".into())
+        }
+        None => oauth_value(target, "code")
+            .ok_or_else(|| "Google did not return an authorization code".to_string()),
+    };
+    let body = if result.is_ok() {
+        "Connected. You can close this browser tab and return to Lite Explorer."
+    } else {
+        "Sign-in failed. You can close this browser tab and return to Lite Explorer."
+    };
+    let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+    let _ = stream.write_all(response.as_bytes()).await;
+    result
+}
+
+async fn google_refresh_token(
+    code: &str,
+    verifier: &str,
+    redirect_uri: &str,
+) -> Result<String, String> {
+    let (client_id, client_secret) = google_oauth_config()?;
+    let response = reqwest::Client::new()
+        .post("https://oauth2.googleapis.com/token")
+        .form(&[
+            ("code", code),
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+            ("code_verifier", verifier),
+            ("redirect_uri", redirect_uri),
+            ("grant_type", "authorization_code"),
+        ])
+        .send()
+        .await
+        .map_err(|_| "Couldn’t reach Google to finish sign-in.")?;
+    if !response.status().is_success() {
+        return Err(
+            "Google rejected the sign-in response. Check the OAuth client and redirect settings."
+                .into(),
+        );
+    }
+    let token: GoogleTokenResponse = serde_json::from_str(
+        &response
+            .text()
+            .await
+            .map_err(|_| "Couldn’t read Google’s sign-in response.")?,
+    )
+    .map_err(|_| "Google returned an invalid sign-in response.")?;
+    token.refresh_token.ok_or("Google did not return a refresh token. Remove Lite Explorer from your Google Account permissions, then connect again.".into())
 }
 
 fn client(connection: &Connection, secret: &str) -> Client {
@@ -252,6 +411,13 @@ where
 }
 
 async fn test_connection(connection: &Connection, secret: &str) -> Result<ConnectionTest, String> {
+    if connection.provider == Provider::Azblob {
+        azblob_operator(connection, secret)?
+            .stat("")
+            .await
+            .map_err(|_| "Couldn’t connect to this Azure container. Check the endpoint, account name, and credential.".to_string())?;
+        return Ok(ConnectionTest { buckets: None });
+    }
     let client = client(connection, secret);
     match &connection.bucket {
         Some(bucket) => {
@@ -425,6 +591,8 @@ pub(crate) async fn load_connection(pool: &SqlitePool, id: &str) -> Result<Conne
     let provider = match row.get::<String, _>("provider").as_str() {
         "r2" => Provider::R2,
         "custom" => Provider::Custom,
+        "azblob" => Provider::Azblob,
+        "gdrive" => Provider::Gdrive,
         _ => Provider::Aws,
     };
     Ok(Connection {
@@ -506,12 +674,98 @@ async fn list_buckets(client: &Client, id: &str) -> Result<Vec<DirectoryEntry>, 
         .collect())
 }
 
+async fn list_azure_directory(
+    pool: &SqlitePool,
+    id: &str,
+    bucket: &str,
+    key: &str,
+) -> Result<Vec<DirectoryEntry>, String> {
+    let connection = load_connection(pool, id).await?;
+    let secret = read_secret(id.to_string()).await?;
+    let operator = azblob_operator(&connection, &secret)?;
+    let prefix = if key.is_empty() || key.ends_with('/') {
+        key.to_string()
+    } else {
+        format!("{key}/")
+    };
+    let entries = operator
+        .list(&prefix)
+        .await
+        .map_err(|_| "Couldn’t list this Azure container. Check its permissions.".to_string())?;
+    Ok(entries
+        .into_iter()
+        .take(MAX_LISTING_ENTRIES)
+        .map(|entry| {
+            let path = entry.path();
+            let name = entry_name(path).to_string();
+            DirectoryEntry {
+                name: name.clone(),
+                path: format!("{SCHEME}{id}/{bucket}/{path}"),
+                is_directory: entry.metadata().is_dir(),
+                is_hidden: name.starts_with('.'),
+                size: (!entry.metadata().is_dir()).then_some(entry.metadata().content_length()),
+                created: None,
+                modified: None,
+                kind: None,
+            }
+        })
+        .collect())
+}
+
+async fn list_gdrive_directory(
+    pool: &SqlitePool,
+    id: &str,
+    key: &str,
+) -> Result<Vec<DirectoryEntry>, String> {
+    let connection = load_connection(pool, id).await?;
+    let refresh_token = read_optional_secret(GDRIVE_KEYCHAIN_SERVICE, id.to_string())
+        .await?
+        .ok_or("The Google Drive connection is missing from the keychain. Remove it and connect again.")?;
+    // ponytail: rebuilds the OpenDAL operator per listing; cache it per connection if profiling shows OAuth setup overhead.
+    let operator = gdrive_operator(&connection, &refresh_token)?;
+    let prefix = if key.is_empty() || key.ends_with('/') {
+        key.to_string()
+    } else {
+        format!("{key}/")
+    };
+    let entries = operator
+        .list(&prefix)
+        .await
+        .map_err(|_| "Couldn’t list Google Drive. Check that the Drive API is enabled and reconnect if access was revoked.".to_string())?;
+    Ok(entries
+        .into_iter()
+        .take(MAX_LISTING_ENTRIES)
+        .map(|entry| {
+            let path = entry.path();
+            let name = entry_name(path).to_string();
+            DirectoryEntry {
+                name: name.clone(),
+                path: format!("{SCHEME}{id}/{path}"),
+                is_directory: entry.metadata().is_dir(),
+                is_hidden: name.starts_with('.'),
+                size: (!entry.metadata().is_dir()).then_some(entry.metadata().content_length()),
+                created: None,
+                modified: None,
+                kind: None,
+            }
+        })
+        .collect())
+}
+
 pub async fn list_directory(
     pool: &SqlitePool,
     clients: &RemoteClients,
     path: &str,
 ) -> Result<Vec<DirectoryEntry>, String> {
     let remote = parse_remote_path(path).ok_or("Not a remote path")?;
+    let connection = load_connection(pool, &remote.id).await?;
+    if connection.provider == Provider::Azblob {
+        let bucket = remote.bucket.as_deref().ok_or("Open a container first")?;
+        return list_azure_directory(pool, &remote.id, bucket, &remote.key).await;
+    }
+    if connection.provider == Provider::Gdrive {
+        return list_gdrive_directory(pool, &remote.id, &remote.key).await;
+    }
     let client = client_for(pool, clients, &remote.id).await?;
     let Some(bucket) = remote.bucket else {
         return list_buckets(&client, &remote.id).await;
@@ -964,6 +1218,68 @@ pub async fn add_remote_location(
 }
 
 #[tauri::command]
+pub async fn connect_google_drive(
+    app: AppHandle,
+    database: State<'_, Database>,
+    input: GoogleDriveInput,
+) -> Result<Location, String> {
+    let (client_id, _) = google_oauth_config()?;
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .map_err(|_| "Couldn’t open a local callback for Google sign-in.")?;
+    let port = listener
+        .local_addr()
+        .map_err(|error| error.to_string())?
+        .port();
+    let redirect_uri = format!("http://127.0.0.1:{port}/oauth/google");
+    let verifier = format!(
+        "{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    );
+    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let state = uuid::Uuid::new_v4().simple().to_string();
+    let authorize_url = format!(
+        "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=code&scope={}&access_type=offline&prompt=consent&code_challenge={}&code_challenge_method=S256&state={}",
+        utf8_percent_encode(client_id, NON_ALPHANUMERIC),
+        utf8_percent_encode(&redirect_uri, NON_ALPHANUMERIC),
+        utf8_percent_encode("https://www.googleapis.com/auth/drive", NON_ALPHANUMERIC),
+        challenge,
+        state,
+    );
+    app.opener()
+        .open_url(authorize_url, None::<&str>)
+        .map_err(|_| "Couldn’t open the browser for Google sign-in.")?;
+    let code = google_oauth_callback(listener, &state).await?;
+    let refresh_token = google_refresh_token(&code, &verifier, &redirect_uri).await?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let connection = Connection {
+        provider: Provider::Gdrive,
+        name: non_empty(&input.name).unwrap_or_else(|| "Google Drive".into()),
+        endpoint: None,
+        region: String::new(),
+        bucket: None,
+        prefix: normalize_prefix(&input.prefix),
+        access_key_id: client_id.to_string(),
+        path_style: false,
+    };
+    gdrive_operator(&connection, &refresh_token)?
+        .stat("")
+        .await
+        .map_err(|_| "Google Drive connected, but its root folder could not be opened.")?;
+    store_secret(GDRIVE_KEYCHAIN_SERVICE, id.clone(), refresh_token).await?;
+    if let Err(error) = insert_connection(&database.0, &id, &connection).await {
+        let _ = delete_secret(GDRIVE_KEYCHAIN_SERVICE, id).await;
+        return Err(error.to_string());
+    }
+    Ok(Location {
+        name: connection.name,
+        path: remote_path(&id, None, None),
+        kind: "s3".into(),
+    })
+}
+
+#[tauri::command]
 pub async fn remove_remote_location(
     database: State<'_, Database>,
     clients: State<'_, RemoteClients>,
@@ -971,12 +1287,21 @@ pub async fn remove_remote_location(
 ) -> Result<(), String> {
     let remote = parse_remote_path(&path).ok_or("Not a remote location")?;
     clients.0.lock().unwrap().remove(&remote.id);
+    let provider = load_connection(&database.0, &remote.id)
+        .await
+        .ok()
+        .map(|connection| connection.provider);
     sqlx::query("DELETE FROM remote_locations WHERE id = ?")
         .bind(&remote.id)
         .execute(&database.0)
         .await
         .map_err(|error| error.to_string())?;
-    delete_secret(KEYCHAIN_SERVICE, remote.id).await
+    let service = if provider == Some(Provider::Gdrive) {
+        GDRIVE_KEYCHAIN_SERVICE
+    } else {
+        KEYCHAIN_SERVICE
+    };
+    delete_secret(service, remote.id).await
 }
 
 #[cfg(test)]
