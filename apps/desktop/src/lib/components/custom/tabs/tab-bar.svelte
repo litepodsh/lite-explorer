@@ -226,8 +226,8 @@
     scrollbar-width: none;
     padding: 2px;
     border-radius: 999px;
-    background: #1d1b1a;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.04);
+    background: color-mix(in srgb, var(--app-input) 55%, var(--app-border));
+    box-shadow: inset 0 0 0 1px var(--app-border);
   }
   .tab-track::-webkit-scrollbar {
     display: none;
@@ -246,11 +246,10 @@
     left: 0;
     width: calc(100% / var(--tab-count));
     border-radius: 999px;
-    background: #3a3735;
+    background: var(--app-surface-raised);
     box-shadow:
-      0 0 0 1px rgb(255 255 255 / 0.08),
-      inset 0 1px 0 rgb(255 255 255 / 0.06),
-      0 1px 2px rgb(20 18 16 / 0.4);
+      0 0 0 1px var(--app-border),
+      0 1px 2px var(--app-overlay);
     pointer-events: none;
     transition:
       transform 240ms cubic-bezier(0.2, 0, 0, 1),
@@ -265,7 +264,7 @@
     min-width: 0;
     padding-inline: 24px;
     border-radius: 999px;
-    color: #a5a09d;
+    color: var(--app-fg-muted);
     font-size: 12px;
     cursor: default;
     user-select: none;
@@ -275,19 +274,19 @@
       transform 200ms cubic-bezier(0.2, 0, 0, 1);
   }
   .tab:hover {
-    color: #d9d6d3;
+    color: var(--app-fg);
   }
   .tab.active {
-    color: #f2f1f0;
+    color: var(--app-fg);
     font-weight: 600;
   }
   .tab:focus-visible {
-    box-shadow: 0 0 0 2px rgb(10 132 255 / 0.6);
+    box-shadow: 0 0 0 2px var(--app-accent);
   }
   .tab.dragging {
     z-index: 2;
-    background: #2e2b29;
-    box-shadow: 0 2px 6px rgb(20 18 16 / 0.45);
+    background: var(--app-surface-raised);
+    box-shadow: 0 2px 6px var(--app-overlay);
   }
   .tab.active.dragging {
     background: transparent;
@@ -321,7 +320,7 @@
     border: 0;
     border-radius: 999px;
     background: transparent;
-    color: #d9d6d3;
+    color: var(--app-fg);
     opacity: 0;
     translate: 0 -50%;
     transition:
@@ -333,7 +332,7 @@
     opacity: 1;
   }
   .tab-close:hover {
-    background: #4a4644;
+    background: color-mix(in srgb, var(--app-fg) 12%, transparent);
   }
   .tab-close :global(svg) {
     width: 10px;
@@ -349,15 +348,15 @@
     padding: 0;
     border: 0;
     border-radius: 999px;
-    background: #1d1b1a;
-    color: #d9d6d3;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.04);
+    background: color-mix(in srgb, var(--app-input) 55%, var(--app-border));
+    color: var(--app-fg);
+    box-shadow: inset 0 0 0 1px var(--app-border);
     transition:
       background-color 150ms cubic-bezier(0.2, 0, 0, 1),
       transform 150ms cubic-bezier(0.2, 0, 0, 1);
   }
   .tab-new:hover {
-    background: #373432;
+    background: var(--app-surface-raised);
   }
   .tab-new:active {
     transform: scale(0.96);

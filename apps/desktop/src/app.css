@@ -409,12 +409,6 @@ html[data-texture="paper"] body::before {
   overflow: visible;
   padding: 6px 10px 24px;
 }
-.finder-sources p {
-  margin: 21px 10px 6px;
-  color: var(--app-fg-muted);
-  font-size: 11px;
-  font-weight: 600;
-}
 .finder-sources button {
   display: flex;
   align-items: center;
@@ -680,8 +674,48 @@ html[data-texture="paper"] body::before {
   margin: 21px 0 6px;
   padding-right: 4px;
 }
-.finder-section p {
-  margin: 0 10px;
+.finder-sources .section-toggle {
+  gap: 3px;
+  width: auto;
+  height: 20px;
+  padding: 0 10px 0 5px;
+  color: var(--app-fg-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.finder-sources .section-toggle:hover {
+  color: var(--app-fg);
+}
+.finder-sources .section-toggle:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 1px;
+}
+.finder-sources .section-toggle svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 160ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.finder-sources .section-toggle svg.closed {
+  transform: rotate(-90deg);
+}
+.section-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.section-collapse.ready {
+  transition:
+    grid-template-rows 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 160ms ease;
+}
+.section-collapse.collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+.section-collapse-inner {
+  min-height: 0;
+  overflow: hidden;
 }
 .finder-sources .section-add {
   display: grid;
@@ -716,7 +750,9 @@ html[data-texture="paper"] body::before {
   stroke-width: 2;
 }
 @media (prefers-reduced-motion: reduce) {
-  .finder-sources .section-add {
+  .finder-sources .section-add,
+  .finder-sources .section-toggle svg,
+  .section-collapse.ready {
     transition: none;
   }
 }

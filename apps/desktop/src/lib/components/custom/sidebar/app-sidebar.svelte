@@ -20,6 +20,7 @@
   import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import ClipboardCopyIcon from "@lucide/svelte/icons/clipboard-copy";
+  import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import EjectIcon from "@lucide/svelte/icons/eject";
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import LockIcon from "@lucide/svelte/icons/lock";
@@ -35,7 +36,7 @@
   import { atWindowEdge, startNativeDrag } from "$lib/file-drag/native-drag.js";
   import { isNetworkProtocol } from "$lib/remote/network-locations.js";
   import type { LocationStatus } from "$lib/remote/network-status.svelte.js";
-  import { tick, type ComponentProps } from "svelte";
+  import { onMount, tick, type ComponentProps } from "svelte";
 
   let {
     ref = $bindable(null),
@@ -90,6 +91,29 @@
     /** Show the logo, name and sidebar toggle in the header (Windows and Linux). */
     brand?: boolean;
   } = $props();
+
+  const FAVORITES_OPEN_KEY = "sidebar-favorites-open";
+  const LOCATIONS_OPEN_KEY = "sidebar-locations-open";
+  let favoritesOpen = $state(true);
+  let locationsOpen = $state(true);
+  let sectionsReady = $state(false);
+
+  onMount(() => {
+    favoritesOpen = localStorage.getItem(FAVORITES_OPEN_KEY) !== "false";
+    locationsOpen = localStorage.getItem(LOCATIONS_OPEN_KEY) !== "false";
+    const frame = requestAnimationFrame(() => (sectionsReady = true));
+    return () => cancelAnimationFrame(frame);
+  });
+
+  function toggleFavorites() {
+    favoritesOpen = !favoritesOpen;
+    localStorage.setItem(FAVORITES_OPEN_KEY, String(favoritesOpen));
+  }
+
+  function toggleLocations() {
+    locationsOpen = !locationsOpen;
+    localStorage.setItem(LOCATIONS_OPEN_KEY, String(locationsOpen));
+  }
 
   let externalDroppable = $derived(
     drag.entry !== null &&
@@ -178,7 +202,9 @@
   let lastFocused: HTMLElement | null = null;
 
   function sidebarItems(): HTMLElement[] {
-    return sourcesNav ? [...sourcesNav.querySelectorAll<HTMLElement>("[data-sidebar-item]")] : [];
+    return sourcesNav
+      ? [...sourcesNav.querySelectorAll<HTMLElement>("[data-sidebar-item]")].filter((item) => !item.closest("[inert]"))
+      : [];
   }
 
   /** One sidebar item is in the Tab order at a time; arrows or j/k move between them. */
@@ -196,6 +222,8 @@
   $effect(() => {
     void favorites.length;
     void locations.length;
+    void favoritesOpen;
+    void locationsOpen;
     void tick().then(() => {
       const items = sidebarItems();
       const current = (lastFocused && items.includes(lastFocused) ? lastFocused : null) ?? items[0];
@@ -268,7 +296,17 @@
         title="Shared"
         class:active={selected === "Shared"}
         onclick={() => onOpen?.({ name: "Shared", path: "", kind: "shared" })}><UsersIcon /> <span>Shared</span></button>
-      <p>Favorites</p>
+      <div class="finder-section">
+        <button
+          type="button"
+          class="section-toggle"
+          data-sidebar-item
+          aria-expanded={favoritesOpen}
+          aria-controls="sidebar-favorites"
+          onclick={toggleFavorites}><ChevronDownIcon class={favoritesOpen ? "" : "closed"} /><span>Favorites</span></button>
+      </div>
+      <div id="sidebar-favorites" class="section-collapse" class:collapsed={!favoritesOpen} class:ready={sectionsReady} inert={!favoritesOpen}>
+        <div class="section-collapse-inner">
       <div class="favorites-drop" role="list" aria-label="Favorites" data-favorites-drop={favorites.length}>
         {#each favorites as favorite, index (favorite.path)}
           {#if dropLineAt === index}<span class="favorite-drop-line" aria-hidden="true"></span>{/if}
@@ -310,8 +348,16 @@
           <div class="favorite-drop-hint" class:over={drag.favoriteDropAt === 0}>Drop to add to Favorites</div>
         {/if}
       </div>
+        </div>
+      </div>
       <div class="finder-section">
-        <p>Locations</p>
+        <button
+          type="button"
+          class="section-toggle"
+          data-sidebar-item
+          aria-expanded={locationsOpen}
+          aria-controls="sidebar-locations"
+          onclick={toggleLocations}><ChevronDownIcon class={locationsOpen ? "" : "closed"} /><span>Locations</span></button>
         {#if onAddLocation}
           <button
             class="section-add"
@@ -320,6 +366,8 @@
             onclick={() => onAddLocation()}><PlusIcon /></button>
         {/if}
       </div>
+      <div id="sidebar-locations" class="section-collapse" class:collapsed={!locationsOpen} class:ready={sectionsReady} inert={!locationsOpen}>
+        <div class="section-collapse-inner">
       {#each locations as location (location.path)}
         {#if location.kind === "s3" || isNetworkProtocol(location.kind)}
           {@const status = statuses[location.path]}
@@ -397,6 +445,8 @@
           {/if}
         {/if}
       {/each}
+        </div>
+      </div>
     </nav>
   </Sidebar.Content>
   <Sidebar.Footer class="hidden" />
