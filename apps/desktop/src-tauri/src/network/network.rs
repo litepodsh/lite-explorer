@@ -918,6 +918,7 @@ fn share_entry(name: &str, path: String) -> crate::DirectoryEntry {
         is_hidden: false,
         size: None,
         created: None,
+        modified: None,
         kind: Some("share"),
     }
 }

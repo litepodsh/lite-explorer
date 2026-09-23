@@ -6,7 +6,7 @@ type SortStorage = Pick<Storage, "getItem" | "setItem">;
 const FOLDER_SORT_STORAGE = "folder-sort";
 /** Oldest folders are forgotten past this many, so storage doesn't grow forever. */
 export const FOLDER_SORT_LIMIT = 500;
-const COLUMNS: SortColumn[] = ["name", "type", "size", "date"];
+const COLUMNS: SortColumn[] = ["name", "type", "size", "date", "modified"];
 
 /** `/a/b/` and `/a/b` are the same folder; a root like `/` stays as is. */
 function folderKey(path: string): string {

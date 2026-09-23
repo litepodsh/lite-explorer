@@ -11,7 +11,9 @@ use crate::app::db::Database;
 use crate::explorer::entries::{
     coordinated_read, coordinated_write, single_entry, unique_name, DirectoryEntry,
 };
-use crate::explorer::local_path::{child_path, validate_directory, validate_existing, ExpectedKind};
+use crate::explorer::local_path::{
+    child_path, validate_directory, validate_existing, ExpectedKind,
+};
 use crate::explorer::recents::{insert_recent, recent_kind};
 use crate::{network, remote};
 
@@ -44,7 +46,10 @@ pub fn create_local_item(
     name: String,
 ) -> Result<DirectoryEntry, String> {
     let parent_path = validate_directory(Path::new(&parent))?;
-    let final_name = unique_name(&parent_path, crate::explorer::local_path::validate_child_name(&name)?);
+    let final_name = unique_name(
+        &parent_path,
+        crate::explorer::local_path::validate_child_name(&name)?,
+    );
     let target = child_path(&parent_path, &final_name)?;
     if kind == "folder" {
         fs::create_dir(&target).map_err(|error| error.to_string())?;

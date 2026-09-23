@@ -338,6 +338,14 @@ export const YAZI_BINDINGS: Binding[] = [
 /** Shortcuts components handle themselves; listed in the dialog only. */
 export const COMPONENT_BINDINGS: Binding[] = [
   {
+    keys: ["<F5>"],
+    scope: "global",
+    mode: "standard",
+    source: "component",
+    desc: "Refresh current folder",
+    category: "Navigation",
+  },
+  {
     keys: ["Mod+F"],
     scope: "preview",
     mode: "standard",

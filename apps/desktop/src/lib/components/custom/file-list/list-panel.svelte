@@ -10,7 +10,8 @@
   import * as Resizable from "$lib/components/ui/resizable/index.js";
   import { createRowVirtualizer } from "$lib/virtual/row-virtualizer.svelte.js";
   import ListItem, { type DirectoryEntry } from "./list-item.svelte";
-  import { sortEntries, type SortColumn, type SortDir } from "./sort.js";
+  import { sortEntries, entryType, type SortColumn, type SortDir } from "./sort.js";
+  import { DEFAULT_COLUMNS, COLUMN_LABELS, loadColumns, saveColumns, moveColumn, type ListColumn } from "./columns.js";
   import { loadFolderSort, saveFolderSort } from "./folder-sort.js";
   import { drag } from "$lib/file-drag/drag.svelte.js";
   import { dropTargetAt } from "$lib/file-drag/drop-target.js";
@@ -18,6 +19,7 @@
   import { atWindowEdge, canDragOut, startNativeDrag, type DragIcon } from "$lib/file-drag/native-drag.js";
   import { canFavorite } from "$lib/favorites/favorites.js";
   import type { ListNavigator } from "$lib/file-pane/controller.svelte.js";
+  import { formatDate, formatSize } from "$lib/components/custom/preview/format.js";
   import SelectionSummary from "$lib/components/custom/preview/selection-summary.svelte";
   import SelectionCheckbox from "./selection-checkbox.svelte";
 
@@ -110,14 +112,58 @@
     saveFolderSort(sortKey, { column, dir: sortDir });
   }
 
-  type ColWidths = { name: number | null; type: number; size: number; date: number };
+  let columns = $state<ListColumn[]>([...DEFAULT_COLUMNS]);
+  let columnTarget = $state<ListColumn | null>(null);
+  let columnGhost = $state<{ column: ListColumn; x: number; y: number; width: number } | null>(null);
+  function columnPreview(entry: DirectoryEntry, column: ListColumn) {
+    if (column === "name") return entry.name;
+    if (column === "type") return entryType(entry);
+    if (column === "size") return entry.size == null ? "—" : formatSize(entry.size);
+    const value = column === "date" ? entry.created : entry.modified;
+    return value == null ? "—" : formatDate(value);
+  }
+  let cancelColumnDrag = () => {};
+  $effect.pre(() => { columns = loadColumns(sortKey); });
+  $effect(() => () => cancelColumnDrag());
+  function reorderColumn(from: ListColumn, to: ListColumn) {
+    columns = moveColumn(columns, from, to);
+    saveColumns(sortKey, columns);
+  }
+  function startColumnDrag(event: PointerEvent, column: ListColumn) {
+    const header = (event.currentTarget as HTMLElement).closest<HTMLElement>("[data-list-column]");
+    const row = header?.closest('[role="row"]');
+    const width = Math.min(260, Math.max(110, header?.getBoundingClientRect().width ?? 160));
+    const folderAtStart = sortKey;
+    cancelColumnDrag();
+    const clear = () => { columnTarget = null; columnGhost = null; };
+    cancelColumnDrag = trackPointerDrag(event, {
+      onStart: (move) => { columnGhost = { column, x: move.clientX + 12, y: move.clientY + 12, width }; },
+      onMove: (move) => {
+        columnGhost = { column, x: Math.min(move.clientX + 12, window.innerWidth - width - 8), y: Math.min(move.clientY + 12, window.innerHeight - 150), width };
+        const target = document.elementFromPoint(move.clientX, move.clientY)?.closest<HTMLElement>("[data-list-column]");
+        columnTarget = target && row?.contains(target) ? target.dataset.listColumn as ListColumn : null;
+      },
+      onDrop: () => { if (columnTarget && sortKey === folderAtStart) reorderColumn(column, columnTarget); clear(); },
+      onCancel: clear,
+    });
+  }
+
+  type ColWidths = { name: number | null; type: number; size: number; date: number; modified: number };
   const COL_WIDTHS_STORAGE = "file-list-col-widths";
-  const DEFAULT_COL_WIDTHS: ColWidths = { name: null, type: 96, size: 96, date: 168 };
+  const DEFAULT_COL_WIDTHS: ColWidths = { name: null, type: 96, size: 96, date: 168, modified: 168 };
 
   function loadColWidths(): ColWidths {
     try {
       const raw = localStorage.getItem(COL_WIDTHS_STORAGE);
-      if (raw) return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(raw) } as ColWidths;
+      if (raw) {
+        const saved = JSON.parse(raw);
+        const widths = { ...DEFAULT_COL_WIDTHS };
+        for (const column of DEFAULT_COLUMNS) {
+          const value = saved?.[column];
+          if (typeof value === "number" && Number.isFinite(value)) widths[column] = Math.max(column === "name" ? 80 : 48, value);
+        }
+        return widths;
+      }
     } catch {
       /* ignore malformed storage */
     }
@@ -126,11 +172,20 @@
 
   let colWidths = $state<ColWidths>(loadColWidths());
 
+  let minimumWidth = $derived(columns.reduce((sum, col) => sum + (colWidths[col] ?? 160), checkboxes ? 56 : 32));
   let gridTemplate = $derived(
-    `grid-template-columns: ${checkboxes ? "3.5rem" : "2rem"} ${colWidths.name == null ? "minmax(0,1fr)" : `${colWidths.name}px`} ${colWidths.type}px ${colWidths.size}px ${colWidths.date}px`,
+    `grid-template-columns: ${checkboxes ? "3.5rem" : "2rem"} ${columns.map(column => column === "name" && colWidths.name == null ? "minmax(160px,1fr)" : `${colWidths[column]}px`).join(" ")}`,
   );
 
+  let cancelResize = () => {};
+  $effect(() => () => cancelResize());
+  function saveWidths() {
+    try { localStorage.setItem(COL_WIDTHS_STORAGE, JSON.stringify(colWidths)); } catch { /* Keep the current widths when storage is unavailable. */ }
+  }
   function startResize(col: keyof ColWidths, event: PointerEvent) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    cancelResize();
     const header = (event.currentTarget as HTMLElement).parentElement;
     if (!header) return;
     const startX = event.clientX;
@@ -142,10 +197,13 @@
     function onUp() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      localStorage.setItem(COL_WIDTHS_STORAGE, JSON.stringify(colWidths));
+      window.removeEventListener("pointercancel", onUp);
+      saveWidths();
     }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    cancelResize = onUp;
   }
 
   let filteredEntries = $derived(showHidden ? entries : entries.filter((entry: DirectoryEntry) => !entry.is_hidden));
@@ -350,13 +408,13 @@
 
   let itemsPerRow = $derived(view === "grid" ? Math.max(1, Math.floor((containerW - SCROLL_PADDING_X + GRID_GAP) / (GRID_MIN + GRID_GAP))) : 1);
   let gridRowCount = $derived(Math.ceil(visibleEntries.length / itemsPerRow));
-  let scrollMargin = $derived(view === "list" ? insetTop : insetTop + GRID_TOP);
+  let scrollMargin = $derived(view === "list" ? insetTop + 32 : insetTop + GRID_TOP);
 
   const rows = createRowVirtualizer({
     count: () => (view === "list" ? visibleEntries.length : gridRowCount),
     estimateSize: () => (view === "list" ? (visibleEntries[0]?.relative_path != null ? SEARCH_ROW_H : LIST_ROW_H) : GRID_ROW_H),
     scrollMargin: () => scrollMargin,
-    scrollPaddingStart: () => insetTop,
+    scrollPaddingStart: () => insetTop + (view === "list" ? 32 : 0),
     overscan: 10,
     getScrollElement: () => scrollEl ?? null,
   });
@@ -475,47 +533,6 @@
           <ArrowUpDownIcon class="size-3 opacity-40" />
         {/if}
       {/snippet}
-      {#if view === "list"}
-        <!-- Glass header floats over the scroll area, so rows stay visible, blurred, behind it. -->
-        <div
-          role="row"
-          aria-rowindex={1}
-          style={gridTemplate}
-          class="list-header absolute inset-x-0 z-10 grid h-8 items-center text-[11px] font-semibold uppercase tracking-wide text-[#9c9895]">
-          <div role="columnheader" class="flex items-center px-2">
-            <!-- First click turns on checkbox selection; after that it selects or deselects everything. -->
-            <SelectionCheckbox
-              checked={checkboxes && allSelected}
-              indeterminate={checkboxes && !allSelected && selectedVisible.length > 0}
-              label={!checkboxes ? "Turn on multiple selection" : allSelected ? "Deselect all" : "Select all"}
-              onToggle={() => (checkboxes ? onToggleAll?.() : onEnableCheckboxes?.())} />
-          </div>
-          <div role="columnheader" class="relative px-2">
-            <button type="button" class="flex items-center gap-1 uppercase hover:text-[#e8e5e2]" onclick={() => toggleSort("name")} aria-label="Sort by name">
-              Name {@render sortIcon("name")}
-            </button>
-            <div role="separator" aria-label="Resize name column" class="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400/40" onpointerdown={(event) => startResize("name", event)}></div>
-          </div>
-          <div role="columnheader" class="relative px-2">
-            <button type="button" class="flex items-center gap-1 uppercase hover:text-[#e8e5e2]" onclick={() => toggleSort("type")} aria-label="Sort by type">
-              Type {@render sortIcon("type")}
-            </button>
-            <div role="separator" aria-label="Resize type column" class="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400/40" onpointerdown={(event) => startResize("type", event)}></div>
-          </div>
-          <div role="columnheader" class="relative px-2">
-            <button type="button" class="ml-auto flex items-center gap-1 uppercase hover:text-[#e8e5e2]" onclick={() => toggleSort("size")} aria-label="Sort by size">
-              Size {@render sortIcon("size")}
-            </button>
-            <div role="separator" aria-label="Resize size column" class="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400/40" onpointerdown={(event) => startResize("size", event)}></div>
-          </div>
-          <div role="columnheader" class="relative px-2">
-            <button type="button" class="ml-auto flex items-center gap-1 uppercase hover:text-[#e8e5e2]" onclick={() => toggleSort("date")} aria-label="Sort by date added">
-              Date Added {@render sortIcon("date")}
-            </button>
-            <div role="separator" aria-label="Resize date added column" class="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400/40" onpointerdown={(event) => startResize("date", event)}></div>
-          </div>
-        </div>
-      {/if}
       <!-- Blank-space click to deselect is a mouse-only convenience, like Finder. -->
       <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions, a11y_no_noninteractive_tabindex -->
       <div
@@ -530,6 +547,52 @@
         class="list-scroll min-h-0 min-w-0 flex-1 overflow-auto px-2 pb-2 [scrollbar-gutter:stable]"
         class:with-header={view === "list"}
         class:remote-drop-active={externalOver}>
+      {#if view === "list"}
+        <!-- Glass header floats over the scroll area, so rows stay visible, blurred, behind it. -->
+        <div
+          role="row"
+          aria-rowindex={1}
+          style={`${gridTemplate}; min-width: ${minimumWidth}px`}
+          class="list-header sticky z-10 grid h-8 items-center text-[11px] font-semibold uppercase tracking-wide text-[#9c9895]">
+          <div role="columnheader" class="flex items-center px-2">
+            <!-- First click turns on checkbox selection; after that it selects or deselects everything. -->
+            <SelectionCheckbox
+              checked={checkboxes && allSelected}
+              indeterminate={checkboxes && !allSelected && selectedVisible.length > 0}
+              label={!checkboxes ? "Turn on multiple selection" : allSelected ? "Deselect all" : "Select all"}
+              onToggle={() => (checkboxes ? onToggleAll?.() : onEnableCheckboxes?.())} />
+          </div>
+          {#each columns as column (column)}
+          <div role="columnheader" data-list-column={column} aria-sort={sortColumn === column ? sortDir === "asc" ? "ascending" : "descending" : "none"} class="relative flex h-full items-center px-2" class:column-source={columnGhost?.column === column}
+            class:column-target-before={columnTarget === column && columnGhost && columns.indexOf(columnGhost.column) > columns.indexOf(column)}
+            class:column-target-after={columnTarget === column && columnGhost && columns.indexOf(columnGhost.column) < columns.indexOf(column)}>
+            <button type="button" class="flex cursor-grab items-center gap-1 uppercase hover:text-[#e8e5e2] active:cursor-grabbing" class:ml-auto={column !== "name" && column !== "type"}
+              onpointerdown={(event) => startColumnDrag(event, column)}
+              onclick={() => toggleSort(column)}
+              onkeydown={(event) => {
+                if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+                  event.preventDefault(); event.stopPropagation();
+                  const target = columns[columns.indexOf(column) + (event.key === "ArrowLeft" ? -1 : 1)];
+                  if (target) reorderColumn(column, target);
+                }
+              }}
+              title="Drag to reorder · Alt + Left/Right to move" aria-label={`Sort by ${COLUMN_LABELS[column]}`}>
+              {COLUMN_LABELS[column]} {@render sortIcon(column)}
+            </button>
+            <!-- A focusable separator is the ARIA pattern for a keyboard-operated resize handle. -->
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <div role="separator" tabindex="0" aria-orientation="vertical" aria-valuemin={column === "name" ? 80 : 48} aria-valuenow={colWidths[column] ?? 160} aria-label={`Resize ${COLUMN_LABELS[column]} column`}
+              onkeydown={(event) => {
+                if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                event.preventDefault(); event.stopPropagation();
+                const width = (event.currentTarget as HTMLElement).parentElement?.getBoundingClientRect().width ?? 160;
+                colWidths[column] = Math.max(column === "name" ? 80 : 48, width + (event.key === "ArrowLeft" ? -10 : 10));
+                saveWidths();
+              }} class="column-resize" onpointerdown={(event) => startResize(column, event)}></div>
+          </div>
+          {/each}
+        </div>
+      {/if}
         {#if view === "list"}
           {#if visibleEntries.length === 0}
             <p class="p-4 text-center text-[13px] text-[#9c9895]">This folder is empty.</p>
@@ -543,6 +606,8 @@
                     {entry}
                     downloadSnapshot={downloadSnapshots[entry.path]}
                     view="list"
+                    {columns}
+                    draggedColumn={columnGhost?.column}
                     rowIndex={v.index + 2}
                     zebra={v.index % 2 === 1}
                     {selected}
@@ -552,7 +617,7 @@
                     {checkboxes}
                     revealDelay={revealDelay(v.index)}
                     renaming={entry.path === renamingPath}
-                    style="position: absolute; top: 0; left: 0; width: max-content; min-width: 100%; height: {v.size}px; transform: translateY({v.start - scrollMargin}px); {gridTemplate}"
+                    style="position: absolute; top: 0; left: 0; width: 100%; min-width: {minimumWidth}px; height: {v.size}px; transform: translateY({v.start - scrollMargin}px); {gridTemplate}"
                     {onItemClick}
                     {onToggle}
                     {onOpen}
@@ -617,23 +682,40 @@
     </Resizable.Pane>
   {/if}
 </Resizable.PaneGroup>
+{#if columnGhost}
+  <div class="column-ghost" aria-hidden="true" style={`width: ${columnGhost.width}px; transform: translate3d(${columnGhost.x}px, ${columnGhost.y}px, 0)`}>
+    <div class="ghost-title"><svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor"><circle cx="3" cy="3" r="1"/><circle cx="7" cy="3" r="1"/><circle cx="3" cy="7" r="1"/><circle cx="7" cy="7" r="1"/><circle cx="3" cy="11" r="1"/><circle cx="7" cy="11" r="1"/></svg>{COLUMN_LABELS[columnGhost.column]}</div>
+    {#each visibleEntries.slice(0, 3) as entry}<div class="ghost-cell">{columnPreview(entry, columnGhost.column)}</div>{/each}
+  </div>
+{/if}
 
 <style>
+  .column-resize { position: absolute; right: -5px; top: 0; width: 11px; height: 100%; cursor: col-resize; touch-action: none; z-index: 1; }
+  .column-resize::after { content: ""; position: absolute; left: 5px; top: 4px; bottom: 4px; width: 1px; background: rgb(232 229 226 / 28%); }
+  .column-resize:focus-visible { outline: 1px solid #70b7ff; border-radius: 3px; }
+  .column-resize:hover::after { background: #70b7ff; width: 2px; }
+  .column-source { opacity: 0.35; }
+  .column-target-before { box-shadow: inset 2px 0 #70b7ff; }
+  .column-target-after { box-shadow: inset -2px 0 #70b7ff; }
+  .column-ghost { position: fixed; top: 0; left: 0; z-index: 40; pointer-events: none; padding: 4px; border-radius: 10px; background: #34312f; color: #e8e5e2; box-shadow: 0 12px 36px rgb(0 0 0 / 18%), inset 0 0 0 1px rgb(160 204 255 / 28%); }
+  .ghost-title { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 9px; border-radius: 6px 6px 0 0; background: #45413d; color: #c0dfff; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .ghost-cell { padding: 7px 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; background: #2b2826; box-shadow: inset 0 1px rgb(255 255 255 / 5%); }
+  .ghost-cell:last-child { border-radius: 0 0 6px 6px; }
   /* `--content-overlap` is the toolbar height the pane slides under (0 when the tab bar is open). */
   .list-scroll {
     padding-top: var(--content-overlap, 0px);
     scroll-padding-top: var(--content-overlap, 0px);
   }
   .list-scroll.with-header {
-    padding-top: calc(var(--content-overlap, 0px) + 2rem);
-    scroll-padding-top: calc(var(--content-overlap, 0px) + 2rem);
+    padding-top: var(--content-overlap, 0px);
+    scroll-padding-top: var(--content-overlap, 0px);
   }
 
   .list-header {
-    top: var(--content-overlap, 0px);
+    top: 0;
     isolation: isolate;
     box-shadow: inset 0 -1px 0 rgb(255 255 255 / 7%);
-    transition: grid-template-columns 260ms cubic-bezier(0.32, 0.72, 0, 1);
+
   }
   /* One frosted band from the top of the pane (under the toolbar) to the header's bottom edge. Full blur
      from that edge up, so the header stands apart from the rows passing behind it. */

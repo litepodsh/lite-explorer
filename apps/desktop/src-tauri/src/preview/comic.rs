@@ -8,8 +8,8 @@ use serde::Serialize;
 use tauri::State;
 use zip::ZipArchive;
 
-use crate::media::{register_zip_root, MediaRegistry};
 use crate::explorer::local_path::{validate_existing, ExpectedKind};
+use crate::media::{register_zip_root, MediaRegistry};
 
 #[derive(Serialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]

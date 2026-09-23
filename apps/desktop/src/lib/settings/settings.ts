@@ -1,13 +1,17 @@
+export type WindowControlsMode = "automatic" | "visible" | "hover" | "hidden";
 export type KeyboardMode = "standard" | "yazi";
 export type ChordTimeout = 1000 | 1500 | 3000;
 /** Terminal id reported by the backend's detection ("system", "custom", or a detected app). */
 export type TerminalApp = string;
 
 export type Settings = {
+  windowControls: WindowControlsMode;
   keyboardMode: KeyboardMode;
   showWhichKey: boolean;
   chordTimeoutMs: ChordTimeout;
   showHiddenFiles: boolean;
+  automaticSizesInHome: boolean;
+  automaticSizePaths: string[];
   defaultViewMode: "list" | "grid";
   previewOpenByDefault: boolean;
   panesLayout: "row" | "column";
@@ -35,10 +39,13 @@ export const LEGACY_STORAGE_KEYS: readonly string[] = [
 
 export function defaultSettings({ dev }: { dev: boolean }): Settings {
   return {
+    windowControls: "automatic",
     keyboardMode: "standard",
     showWhichKey: true,
     chordTimeoutMs: 1500,
     showHiddenFiles: false,
+    automaticSizesInHome: false,
+    automaticSizePaths: [],
     defaultViewMode: "list",
     previewOpenByDefault: true,
     panesLayout: "row",
@@ -53,11 +60,16 @@ export function defaultSettings({ dev }: { dev: boolean }): Settings {
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
 
 const VALIDATORS: { [K in SettingKey]: (value: unknown) => value is Settings[K] } = {
+  windowControls: (value): value is WindowControlsMode =>
+    value === "automatic" || value === "visible" || value === "hover" || value === "hidden",
   keyboardMode: (value): value is KeyboardMode => value === "standard" || value === "yazi",
   showWhichKey: isBoolean,
   chordTimeoutMs: (value): value is ChordTimeout =>
     value === 1000 || value === 1500 || value === 3000,
   showHiddenFiles: isBoolean,
+  automaticSizesInHome: isBoolean,
+  automaticSizePaths: (value): value is string[] =>
+    Array.isArray(value) && value.every((path) => typeof path === "string" && path.trim().length > 0),
   defaultViewMode: (value): value is "list" | "grid" => value === "list" || value === "grid",
   previewOpenByDefault: isBoolean,
   panesLayout: (value): value is "row" | "column" => value === "row" || value === "column",

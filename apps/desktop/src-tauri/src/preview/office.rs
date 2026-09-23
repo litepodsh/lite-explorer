@@ -9,12 +9,12 @@ use serde::Serialize;
 use tauri::State;
 use zip::ZipArchive;
 
-use crate::media::{register_zip_root, MediaRegistry};
 use crate::explorer::local_path::{validate_existing, ExpectedKind};
+use crate::media::{register_zip_root, MediaRegistry};
 
+use crate::preview::xml::{self, Element};
 #[cfg(test)]
 use std::path::PathBuf;
-use crate::preview::xml::{self, Element};
 
 /// Largest XML part read from one package; bounds zip bombs.
 const MAX_PART_BYTES: u64 = 32 * 1024 * 1024;

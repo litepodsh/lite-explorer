@@ -253,7 +253,8 @@ pub fn init_tracing() {
 
 /// One event per fresh install, so "new installs" can be split from returning users.
 /// Dropped by the gate like any other event when reporting is off.
-pub fn capture_first_run(welcome_seen: bool) {    if welcome_seen {
+pub fn capture_first_run(welcome_seen: bool) {
+    if welcome_seen {
         return;
     }
     sentry::with_scope(

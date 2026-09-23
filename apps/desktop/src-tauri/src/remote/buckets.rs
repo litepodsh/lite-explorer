@@ -152,6 +152,7 @@ pub async fn create_remote_bucket(
             is_hidden: false,
             size: None,
             created: None,
+            modified: None,
             kind: Some("bucket"),
         },
         warning,

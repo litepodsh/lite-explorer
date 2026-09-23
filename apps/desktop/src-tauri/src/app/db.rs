@@ -37,7 +37,7 @@ pub async fn open_database(
     // don't linger in the sidebar.
     let volume_paths: Vec<&str> = system
         .iter()
-        .filter(|location| location.kind == "volume")
+        .filter(|location| matches!(location.kind.as_str(), "volume" | "hfs-volume"))
         .map(|location| location.path.as_str())
         .collect();
     if !volume_paths.is_empty() {
@@ -45,7 +45,7 @@ pub async fn open_database(
             .collect::<Vec<_>>()
             .join(", ");
         let sql =
-            format!("DELETE FROM locations WHERE kind = 'volume' AND path NOT IN ({placeholders})");
+            format!("DELETE FROM locations WHERE kind IN ('volume', 'hfs-volume') AND path NOT IN ({placeholders})");
         let mut query = sqlx::query(&sql);
         for path in &volume_paths {
             query = query.bind(path);

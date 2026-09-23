@@ -25,11 +25,10 @@ use crate::remote::read_optional_secret;
 use crate::remote::transfer::{self, TransferEvent, TransferRegistry};
 use crate::{
     apply_text_extension_kind, classify_preview_bytes, media_preview_kind, preview::arrow,
-    preview::avro, preview::calendar, preview::certificate, preview::data, preview::dicom,
-    preview::fb2, preview::geo, preview::iso, preview::mail, preview::mobi, preview::msg,
-    preview::notebook, preview::parquet, preview::pcap, preview::psd, preview::sheet,
-    preview::subtitle, preview::torrent, preview::vcard, DirectoryEntry, FilePreview, PreviewKind,
-    PREVIEW_MAX_BYTES,
+    preview::avro, preview::calendar, preview::certificate, preview::dicom, preview::fb2,
+    preview::geo, preview::iso, preview::mail, preview::mobi, preview::msg, preview::notebook,
+    preview::parquet, preview::pcap, preview::psd, preview::sheet, preview::subtitle,
+    preview::torrent, preview::vcard, DirectoryEntry, FilePreview, PreviewKind, PREVIEW_MAX_BYTES,
 };
 
 mod ftp;
@@ -506,7 +505,8 @@ fn directory_entry(at: &ServerPath, dir: &str, entry: RemoteEntry) -> DirectoryE
         path: network_path(at.protocol, &at.id, &join(dir, &entry.name)),
         is_hidden: entry.name.starts_with('.'),
         size: (!entry.is_dir).then_some(entry.size),
-        created: entry.modified,
+        created: None,
+        modified: entry.modified,
         is_directory: entry.is_dir,
         name: entry.name,
         kind: None,
@@ -717,10 +717,6 @@ pub async fn file_preview(
         }
         if torrent::is_torrent_extension(extension) {
             preview.kind = PreviewKind::Torrent;
-            return Ok(preview);
-        }
-        if data::is_data_extension(extension) {
-            preview.kind = PreviewKind::Data;
             return Ok(preview);
         }
         if notebook::is_notebook_extension(extension) {

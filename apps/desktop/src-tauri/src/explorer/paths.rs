@@ -129,6 +129,15 @@ pub fn system_locations() -> Vec<Location> {
         if let Some(home) = home_location() {
             locations.push(home);
         }
+        locations.extend(
+            crate::system::volumes::hfs_external_volumes()
+                .into_iter()
+                .map(|volume| Location {
+                    name: volume.name,
+                    path: volume.mount_point,
+                    kind: "hfs-volume".into(),
+                }),
+        );
         if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
             locations.extend(macos_cloud_locations(&home));
         }

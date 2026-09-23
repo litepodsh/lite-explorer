@@ -29,9 +29,9 @@ use tokio::sync::OnceCell;
 use super::write;
 use crate::{
     apply_text_extension_kind, classify_preview_bytes, media_preview_kind, now_secs,
-    preview::arrow, preview::avro, preview::calendar, preview::certificate, preview::data,
-    preview::dicom, preview::fb2, preview::geo, preview::iso, preview::mail, preview::mobi,
-    preview::msg, preview::notebook, preview::parquet, preview::pcap, preview::psd, preview::sheet,
+    preview::arrow, preview::avro, preview::calendar, preview::certificate, preview::dicom,
+    preview::fb2, preview::geo, preview::iso, preview::mail, preview::mobi, preview::msg,
+    preview::notebook, preview::parquet, preview::pcap, preview::psd, preview::sheet,
     preview::subtitle, preview::torrent, preview::vcard, Database, DirectoryEntry, FilePreview,
     Location, PreviewKind, PREVIEW_MAX_BYTES,
 };
@@ -499,6 +499,7 @@ async fn list_buckets(client: &Client, id: &str) -> Result<Vec<DirectoryEntry>, 
                 is_hidden: false,
                 size: None,
                 created: millis(bucket.creation_date()),
+                modified: None,
                 kind: Some("bucket"),
             })
         })
@@ -547,6 +548,7 @@ pub async fn list_directory(
                 is_hidden: name.starts_with('.'),
                 size: None,
                 created: None,
+                modified: None,
                 kind: None,
             });
         }
@@ -563,7 +565,8 @@ pub async fn list_directory(
                 is_directory: false,
                 is_hidden: name.starts_with('.'),
                 size: object.size().and_then(|size| u64::try_from(size).ok()),
-                created: millis(object.last_modified()),
+                created: None,
+                modified: millis(object.last_modified()),
                 kind: None,
             });
         }
@@ -789,10 +792,6 @@ pub async fn file_preview(
             preview.kind = PreviewKind::Torrent;
             return Ok(preview);
         }
-        if data::is_data_extension(extension) {
-            preview.kind = PreviewKind::Data;
-            return Ok(preview);
-        }
         if notebook::is_notebook_extension(extension) {
             preview.kind = PreviewKind::Notebook;
             return Ok(preview);
@@ -889,7 +888,11 @@ fn cache_file(root: &Path, id: &str, bucket: &str, key: &str) -> Option<PathBuf>
 /// Downloads an object into the app cache and returns the local file path, so the
 /// frontend can open it with the default app. Edits to the copy are not uploaded.
 #[tauri::command]
-#[tracing::instrument(skip_all, name = "download_remote_file", fields(sentry_op = "remote.download"))]
+#[tracing::instrument(
+    skip_all,
+    name = "download_remote_file",
+    fields(sentry_op = "remote.download")
+)]
 pub async fn download_remote_file(
     app: AppHandle,
     database: State<'_, Database>,

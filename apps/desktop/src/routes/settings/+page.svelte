@@ -1,6 +1,8 @@
 <script lang="ts">
   import { dev } from "$app/environment";
   import { invoke } from "@tauri-apps/api/core";
+  import { open } from "@tauri-apps/plugin-dialog";
+  import { isWithinFolder } from "$lib/settings/automatic-sizes.js";
   import { emit } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount, tick } from "svelte";
@@ -14,7 +16,7 @@
   import { settings } from "$lib/settings/settings.svelte.js";
   import { detectTerminals, type TerminalInfo } from "$lib/file-ops/open.js";
   import { analytics } from "$lib/analytics/analytics.svelte.js";
-  import type { ChordTimeout, KeyboardMode, TerminalApp } from "$lib/settings/settings.js";
+  import type { ChordTimeout, KeyboardMode, TerminalApp, WindowControlsMode } from "$lib/settings/settings.js";
   import { settingsKeyAction } from "$lib/settings/settings-keys.js";
   import { eventToken, toKeyPlatform } from "$lib/keyboard/keys.js";
   import { platformState } from "$lib/state/platform.svelte.js";
@@ -31,6 +33,8 @@
   let active = $state<SectionId>("keyboard");
   let platform = $state<"macos" | "windows" | "linux" | "unknown">("unknown");
   let navButtons = $state<HTMLButtonElement[]>([]);
+  let sizePathError = $state("");
+  let choosingSizePath = $state(false);
   let terminals = $state<TerminalInfo[]>([]);
   const current = $derived(settings.current);
 
@@ -85,6 +89,26 @@
     else {
       const index = sections.findIndex((section) => section.id === active);
       void selectSection((index + action.delta + sections.length) % sections.length);
+    }
+  }
+
+  async function addSizePath() {
+    choosingSizePath = true;
+    sizePathError = "";
+    try {
+      const selected = await open({ directory: true, multiple: true, title: "Automatically calculate folder sizes" });
+      if (!selected) return;
+      const paths = [...settings.current.automaticSizePaths];
+      for (const path of typeof selected === "string" ? [selected] : selected) {
+        if (!paths.some((existing) => isWithinFolder(path, existing) && isWithinFolder(existing, path))) {
+          paths.push(path);
+        }
+      }
+      settings.set("automaticSizePaths", paths);
+    } catch (error) {
+      sizePathError = `Couldn’t choose a folder: ${String(error)}`;
+    } finally {
+      choosingSizePath = false;
     }
   }
 
@@ -158,10 +182,48 @@
       {:else if active === "general"}
         <h1>General</h1>
         <div class="card"><div class="card-core">
+          {#if platform === "windows" || platform === "linux"}
+            <div class="field">
+              <div class="field-copy">
+                <label for="settings-window-controls">Window controls</label>
+                <p>Automatic reveals controls on hover in Hyprland and shows them elsewhere. Keyboard focus also reveals them.</p>
+              </div>
+              <select
+                id="settings-window-controls"
+                value={current.windowControls}
+                onchange={(event) => settings.set("windowControls", event.currentTarget.value as WindowControlsMode)}>
+                <option value="automatic">Automatic</option>
+                <option value="visible">Always visible</option>
+                <option value="hover">Reveal on hover</option>
+                <option value="hidden">Hidden</option>
+              </select>
+            </div>
+          {/if}
           <DialogSwitch
             label="Show hidden files"
             checked={current.showHiddenFiles}
             onchange={(checked) => settings.set("showHiddenFiles", checked)} />
+          <DialogSwitch
+            label="Automatically calculate folder sizes in Home"
+            description="Calculate recursive folder sizes whenever you open your user folder or any folder inside it. Keeps your current sort order."
+            checked={current.automaticSizesInHome}
+            onchange={(checked) => settings.set("automaticSizesInHome", checked)} />
+          <div class="size-paths">
+            <div class="reset-row size-paths-heading">
+              <div>
+                <span class="reset-label">Other folders with automatic sizes</span>
+                <p>Includes subfolders. File sizes are always shown, regardless of these settings.</p>
+              </div>
+              <button type="button" class="secondary-button" disabled={choosingSizePath} onclick={() => void addSizePath()}>Add folder…</button>
+            </div>
+            {#each current.automaticSizePaths as path (path)}
+              <div class="size-path-row">
+                <span class="size-path" title={path}>{path}</span>
+                <button type="button" class="secondary-button" aria-label={`Remove ${path}`} onclick={() => settings.set("automaticSizePaths", current.automaticSizePaths.filter((item) => item !== path))}>Remove</button>
+              </div>
+            {/each}
+            {#if sizePathError}<p class="size-path-error" role="alert">{sizePathError}</p>{/if}
+          </div>
           <DialogSwitch
             label="Send anonymous crash reports"
             description={analytics.locked
@@ -378,6 +440,11 @@
     outline: 2px solid rgb(229 72 77 / 0.6);
     outline-offset: 2px;
   }
+  .size-paths { display: flex; flex-direction: column; gap: 10px; }
+  .size-paths-heading, .size-path-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .size-path-row { padding-top: 8px; border-top: 1px solid rgb(255 255 255 / 6%); }
+  .size-path { min-width: 0; overflow-wrap: anywhere; color: #c3bfbc; font-size: 12px; }
+  .size-path-error { color: #ff8a8e; font-size: 12px; }
   .secondary-button {
     flex-shrink: 0;
     padding: 5px 12px;
@@ -422,6 +489,15 @@
     background: rgb(255 255 255 / 8%);
     font-size: 11px;
   }
+  .field select {
+    padding: 5px 8px;
+    border: 1px solid rgb(255 255 255 / 8%);
+    border-radius: 8px;
+    background: #1f1d1b;
+    color: #f2f1f0;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
   .field input {
     flex-shrink: 0;
     width: 220px;
@@ -434,6 +510,7 @@
     font-size: 12px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
+  .field select:focus-visible,
   .field input:focus-visible {
     outline: 2px solid rgb(10 155 255 / 0.6);
     outline-offset: 1px;

@@ -1,4 +1,7 @@
-use std::{fs, path::{Component, Path, PathBuf}};
+use std::{
+    fs,
+    path::{Component, Path, PathBuf},
+};
 
 const INVALID_PATH: &str = "Invalid local path";
 const INVALID_NAME: &str = "Invalid item name";
@@ -71,7 +74,10 @@ mod tests {
     #[test]
     fn accepts_an_absolute_real_child_name() {
         let root = std::env::temp_dir().canonicalize().unwrap();
-        assert_eq!(child_path(&root, "report.txt").unwrap(), root.join("report.txt"));
+        assert_eq!(
+            child_path(&root, "report.txt").unwrap(),
+            root.join("report.txt")
+        );
     }
 
     #[cfg(unix)]

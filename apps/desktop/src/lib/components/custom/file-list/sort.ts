@@ -1,7 +1,9 @@
 import type { DirectoryEntry } from "./list-item.svelte";
 
-export type SortColumn = "name" | "type" | "size" | "date";
+export type SortColumn = "name" | "type" | "size" | "date" | "modified";
 export type SortDir = "asc" | "desc";
+
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 /** Label for the Type column. */
 export function entryType(entry: DirectoryEntry): string {
@@ -13,11 +15,13 @@ export function entryType(entry: DirectoryEntry): string {
 function compare(a: DirectoryEntry, b: DirectoryEntry, column: SortColumn): number {
   switch (column) {
     case "name":
-      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+      return nameCollator.compare(a.name, b.name);
     case "type":
       return entryType(a).localeCompare(entryType(b));
     case "size":
       return (a.size ?? 0) - (b.size ?? 0);
+    case "modified":
+      return (a.modified ?? 0) - (b.modified ?? 0);
     case "date":
       return (a.created ?? 0) - (b.created ?? 0);
   }

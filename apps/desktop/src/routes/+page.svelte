@@ -335,6 +335,20 @@
     }
   }
 
+  async function ejectVolume(location: Location) {
+    try {
+      await invoke("eject_volume", { path: location.path });
+      locations = locations.filter((candidate) => candidate.path !== location.path);
+      for (const controller of controllers.values()) {
+        if (controller.listingPath === location.path || controller.listingPath.startsWith(`${location.path}/`)) {
+          controller.openLocation(OVERVIEW);
+        }
+      }
+    } catch (error) {
+      await message(error instanceof Error ? error.message : String(error), { title: `Couldn’t eject “${location.name}”`, kind: "error" });
+    }
+  }
+
   function removeLocation(location: Location) {
     confirmation.ask({
       title: `Remove “${location.name}”?`,
@@ -451,6 +465,16 @@
     const markKeyboard = () => (document.documentElement.dataset.keyboard = "");
     const markPointer = () => delete document.documentElement.dataset.keyboard;
     window.addEventListener("keydown", markKeyboard, true);
+    // Capture F5 before focused widgets or the webview can reload the whole app.
+    const refreshFolder = (event: KeyboardEvent) => {
+      if (event.key !== "F5") return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.repeat) return;
+      keyboard.cancel();
+      activeController.refresh();
+    };
+    window.addEventListener("keydown", refreshFolder, true);
     window.addEventListener("pointerdown", markPointer, true);
     const trackSwipePointer = (event: PointerEvent) => {
       const element = document.querySelector<HTMLElement>(
@@ -504,12 +528,6 @@
       listen<boolean>("show-hidden-files", ({ payload }) => settings.set("showHiddenFiles", payload)),
       listen<boolean>("show-fps", ({ payload }) => settings.set("showFps", payload)),
       listen<boolean>("dev-tools", ({ payload }) => settings.set("prototypeSwitcher", payload)),
-      listen<{ path: string; sizes: { path: string; size: number }[] }>(
-        "directory-sizes",
-        ({ payload }) => {
-          for (const controller of controllers.values()) controller.applyDirectorySizes(payload);
-        },
-      ),
       listen("request-create-folder", () => void activeController.createItem("folder")),
       listen("request-create-file", () => void activeController.createItem("file")),
       listen("request-open", (event) => void activeController.openPath(event.payload as string)),
@@ -560,6 +578,7 @@
     return () => {
       stopSettings();
       window.removeEventListener("keydown", markKeyboard, true);
+      window.removeEventListener("keydown", refreshFolder, true);
       window.removeEventListener("pointerdown", markPointer, true);
       window.removeEventListener("pointermove", trackSwipePointer);
       activity.publish = () => {};
@@ -964,6 +983,7 @@
     onEditLocation={editLocation}
     onCopyLocationAddress={copyLocationAddress}
     onDisconnectLocation={(location) => void disconnectLocation(location)}
+    onEjectLocation={(location) => void ejectVolume(location)}
     onAddFavorite={addToFavorites}
     onRemoveFavorite={(favorite) => removeFromFavorites(favorite.path)}
     onReorderFavorites={reorderFavoriteList}

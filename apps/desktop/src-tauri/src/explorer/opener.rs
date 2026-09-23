@@ -318,7 +318,7 @@ fn linux_app_info(app: gio::AppInfo) -> Option<AppInfo> {
         name: app.name().to_string(),
         path: id.clone(),
         bundle_id: id,
-        icon: None,
+        icon: app.icon().and_then(|icon| icons::gicon_data_url(&icon)),
     })
 }
 

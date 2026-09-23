@@ -113,3 +113,20 @@ describe("loadSettings", () => {
     expect(settings.showHiddenFiles).toBe(false);
   });
 });
+
+test("automatic size preferences persist and old settings keep them disabled", () => {
+  const defaults = defaultSettings({ dev: false });
+  expect(parseSettings("{}", defaults).settings.automaticSizesInHome).toBe(false);
+  expect(parseSettings("{}", defaults).settings.automaticSizePaths).toEqual([]);
+  const storage = memoryStorage({
+    [SETTINGS_STORAGE_KEY]: JSON.stringify({ automaticSizesInHome: true, automaticSizePaths: ["/data/work"] }),
+  });
+  const { settings, problems } = loadSettings(storage, defaults);
+  expect(settings.automaticSizesInHome).toBe(true);
+  expect(settings.automaticSizePaths).toEqual(["/data/work"]);
+  expect(problems).toEqual([]);
+  expect(isValidSetting("automaticSizePaths", [42])).toBe(false);
+  expect(isValidSetting("automaticSizePaths", [""])).toBe(false);
+  expect(isValidSetting("automaticSizePaths", "/data")).toBe(false);
+  expect(isValidSetting("automaticSizesInHome", "true")).toBe(false);
+});

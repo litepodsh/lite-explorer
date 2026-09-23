@@ -330,11 +330,9 @@ fn platform_icon(path: &str) -> Icon {
 #[cfg(target_os = "linux")]
 fn linux_icon(path: &str) -> Icon {
     use gio::glib::Cast;
-    use std::sync::Mutex;
 
     // gdk-pixbuf is not thread-safe: serialize concurrent batches.
-    static LOCK: Mutex<()> = Mutex::new(());
-    let _guard = LOCK.lock().ok();
+    let _guard = PIXBUF_LOCK.lock().ok();
 
     let (content_type, _) = gio::functions::content_type_guess(Some(path), &[]);
     let mut names = Vec::new();
@@ -354,6 +352,43 @@ fn linux_icon(path: &str) -> Icon {
     let bytes = pixbuf.save_to_bufferv("png", &[]).ok()?;
     Some(png_data_url(&bytes))
 }
+
+/// PNG data URL for a GIO icon (an application's `Icon=` entry), cached by its
+/// serialized form.
+#[cfg(target_os = "linux")]
+pub(crate) fn gicon_data_url(icon: &gio::Icon) -> Icon {
+    use gio::glib::Cast;
+    use gio::prelude::{FileExt, IconExt};
+
+    let key = format!("gicon:{}", IconExt::to_string(icon)?);
+    if let Some(cached) = cache().lock().ok().and_then(|c| c.get(&key).cloned()) {
+        return cached;
+    }
+
+    let file = if let Some(themed) = icon.downcast_ref::<gio::ThemedIcon>() {
+        let names: Vec<String> = themed.names().iter().map(|name| name.to_string()).collect();
+        find_icon_file(&names)
+    } else if let Some(file_icon) = icon.downcast_ref::<gio::FileIcon>() {
+        file_icon.file().path().filter(|path| path.is_file())
+    } else {
+        None
+    };
+    let encoded = file.and_then(|file| {
+        // gdk-pixbuf is not thread-safe: serialize with file-type icon batches.
+        let _guard = PIXBUF_LOCK.lock().ok();
+        let pixbuf = gdk_pixbuf::Pixbuf::from_file_at_scale(&file, 32, 32, true).ok()?;
+        let bytes = pixbuf.save_to_bufferv("png", &[]).ok()?;
+        Some(png_data_url(&bytes))
+    });
+
+    if let Ok(mut c) = cache().lock() {
+        c.insert(key, encoded.clone());
+    }
+    encoded
+}
+
+#[cfg(target_os = "linux")]
+static PIXBUF_LOCK: Mutex<()> = Mutex::new(());
 
 #[cfg(target_os = "linux")]
 const ICON_SIZES: &[&str] = &[

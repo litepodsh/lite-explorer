@@ -1,8 +1,11 @@
 pub mod archive;
 pub mod entries;
+pub mod exif;
 pub mod favorites;
 pub mod file_ops;
 pub mod file_transfer;
+pub mod info;
+mod info_formats;
 pub mod local_path;
 pub mod opener;
 pub mod paths;

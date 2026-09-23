@@ -16,7 +16,9 @@ use crate::app::db::Database;
 use crate::explorer::entries::{
     coordinated_read, coordinated_write, single_entry, unique_name, DirectoryEntry,
 };
-use crate::explorer::local_path::{child_path, validate_directory, validate_existing, ExpectedKind};
+use crate::explorer::local_path::{
+    child_path, validate_directory, validate_existing, ExpectedKind,
+};
 use crate::explorer::recents::{insert_recent, recent_kind};
 use crate::remote::transfer::{self, timestamp_ms, TransferEvent, TransferRegistry};
 use crate::system::volumes::device_id;
