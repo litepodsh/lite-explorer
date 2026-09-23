@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { activity } from "$lib/transfers/jobs.js";
 import type { Location } from "$lib/tabs/tabs.js";
 
 /** Every folder, including a connected share or remote folder, can be a favorite. */
@@ -53,13 +54,13 @@ export function fetchFavorites(): Promise<Location[]> {
 }
 
 export function addFavorite(path: string, index?: number): Promise<Location[]> {
-  return invoke<Location[]>("add_favorite", { path, index });
+  return activity.action("Add favorite", path, () => invoke<Location[]>("add_favorite", { path, index }));
 }
 
 export function removeFavorite(path: string): Promise<Location[]> {
-  return invoke<Location[]>("remove_favorite", { path });
+  return activity.action("Remove favorite", path, () => invoke<Location[]>("remove_favorite", { path }));
 }
 
 export function reorderFavorites(paths: string[]): Promise<Location[]> {
-  return invoke<Location[]>("reorder_favorites", { paths });
+  return activity.action("Reorder favorites", "", () => invoke<Location[]>("reorder_favorites", { paths }));
 }

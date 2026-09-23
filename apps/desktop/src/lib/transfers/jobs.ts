@@ -11,7 +11,8 @@ export type JobKind =
   | "extract"
   | "create"
   | "rename"
-  | "compress";
+  | "compress"
+  | "action";
 export type JobState = "active" | "paused" | "done" | "failed" | "cancelled";
 
 export type Job = {
@@ -174,6 +175,9 @@ export const activity = {
   },
   track<T>(kind: JobKind, label: string, destination: string, operation: () => Promise<T>) {
     return trackJob((event) => this.publish(event), kind, label, destination, operation);
+  },
+  action<T>(label: string, destination: string, operation: () => Promise<T>) {
+    return trackJob((event) => this.publish(event), "action", label, destination, operation);
   },
 };
 

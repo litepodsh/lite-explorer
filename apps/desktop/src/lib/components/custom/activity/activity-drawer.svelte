@@ -61,6 +61,7 @@
     compress: ArchiveIcon,
     create: FilePlusIcon,
     rename: PencilIcon,
+    action: RotateCwIcon,
   };
 
   function percent(job: Job): number {

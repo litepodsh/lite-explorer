@@ -105,7 +105,7 @@
     emptying = true;
     error = "";
     try {
-      const bytes = await activity.track("delete", "Empty Trash", "", () => invoke<number | null>("empty_trash"));
+      const bytes = await activity.action("Empty Trash", "", () => invoke<number | null>("empty_trash"));
       onEmptied(bytes);
     } catch (reason) {
       error = reason instanceof Error ? reason.message : String(reason);

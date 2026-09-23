@@ -142,6 +142,20 @@ test("file activities publish active and terminal states, preserving results and
   expect(visible(state, "failed").length).toBe(1);
 });
 
+test("generic actions publish active and terminal states", async () => {
+  const published: TransferEventPayload[] = [];
+  const original = activity.publish;
+  activity.publish = (event) => published.push(event);
+  expect(await activity.action("Eject: USB", "/Volumes/USB", async () => "ok")).toBe("ok");
+  const error = new Error("busy");
+  expect(await activity.action("Clear Recents", "", async () => { throw error; }).catch((reason) => reason)).toBe(error);
+  activity.publish = original;
+  expect(published.map((event) => [event.kind, event.state])).toEqual([
+    ["action", "active"], ["action", "done"], ["action", "active"], ["action", "failed"],
+  ]);
+  expect(published[3].error).toBe("busy");
+});
+
 test("activity timestamps cover every kind and freeze on every terminal state", () => {
   const kinds = [
     "copy",
@@ -155,6 +169,7 @@ test("activity timestamps cover every kind and freeze on every terminal state", 
     "download",
     "send",
     "receive",
+    "action",
   ] as const;
   for (const kind of kinds) {
     const first = upsert([], event({ kind, startedAt: 1000 }));

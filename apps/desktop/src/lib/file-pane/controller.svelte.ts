@@ -660,7 +660,7 @@ export class FilePaneController {
 
   async clearRecents() {
     this.recents = [];
-    await invoke("clear_recents").catch(() => {});
+    await activity.action("Clear Recents", "", () => invoke("clear_recents")).catch(() => {});
   }
 
   /** Returns true when the window should close. */

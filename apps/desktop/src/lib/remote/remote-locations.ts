@@ -1,4 +1,5 @@
 import { activity } from "$lib/transfers/jobs.js";
+import { baseName } from "$lib/file-ops/files.js";
 import { invoke } from "@tauri-apps/api/core";
 import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
 import type { Location } from "$lib/tabs/tabs.js";
@@ -103,16 +104,22 @@ export function testRemoteLocation(input: RemoteLocationInput): Promise<Connecti
 }
 
 export function addRemoteLocation(input: RemoteLocationInput): Promise<Location> {
-  return invoke<Location>("add_remote_location", { input });
+  return activity.action(`Add location: ${input.name}`, "", () =>
+    invoke<Location>("add_remote_location", { input }),
+  );
 }
 
 /** Downloads an object to the app cache and returns the local copy's path. */
 export function downloadRemoteFile(path: string): Promise<string> {
-  return invoke<string>("download_remote_file", { path });
+  return activity.action(`Download: ${baseName(path)}`, path, () =>
+    invoke<string>("download_remote_file", { path }),
+  );
 }
 
 export function removeRemoteLocation(location: Location): Promise<void> {
-  return invoke("remove_remote_location", { path: location.path });
+  return activity.action(`Remove location: ${location.name}`, location.path, () =>
+    invoke("remove_remote_location", { path: location.path }),
+  );
 }
 
 export type CreatedBucket = { bucket: DirectoryEntry; warning: string | null };
@@ -145,11 +152,15 @@ export function getBucketSettings(path: string): Promise<BucketSettings> {
 }
 
 export function setBucketVersioning(path: string, enabled: boolean): Promise<BucketSettings> {
-  return invoke<BucketSettings>("set_bucket_versioning", { path, enabled });
+  return activity.action(`${enabled ? "Enable" : "Disable"} bucket versioning`, path, () =>
+    invoke<BucketSettings>("set_bucket_versioning", { path, enabled }),
+  );
 }
 
 export function setBucketPublic(path: string, isPublic: boolean): Promise<BucketSettings> {
-  return invoke<BucketSettings>("set_bucket_public", { path, public: isPublic });
+  return activity.action(`Make bucket ${isPublic ? "public" : "private"}`, path, () =>
+    invoke<BucketSettings>("set_bucket_public", { path, public: isPublic }),
+  );
 }
 
 /** Deletes an empty bucket. */

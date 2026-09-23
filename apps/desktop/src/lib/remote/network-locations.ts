@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { activity } from "$lib/transfers/jobs.js";
 import type { Location } from "$lib/tabs/tabs.js";
 
 export type NetworkProtocol = "smb" | "nfs" | "webdav" | "sftp" | "ftp";
@@ -324,18 +325,24 @@ export function testNetworkLocation(input: NetworkLocationInput): Promise<Connec
 }
 
 export function addNetworkLocation(input: NetworkLocationInput): Promise<Location> {
-  return call<Location>("add_network_location", { input: toPayload(input) });
+  return activity.action(`Add location: ${input.name || fallbackName(input)}`, "", () =>
+    call<Location>("add_network_location", { input: toPayload(input) }),
+  );
 }
 
 export function updateNetworkLocation(
   path: string,
   input: NetworkLocationInput,
 ): Promise<Location> {
-  return call<Location>("update_network_location", { path, input: toPayload(input) });
+  return activity.action(`Update location: ${input.name || fallbackName(input)}`, path, () =>
+    call<Location>("update_network_location", { path, input: toPayload(input) }),
+  );
 }
 
 export function removeNetworkLocation(location: Location): Promise<void> {
-  return call<void>("remove_network_location", { path: location.path });
+  return activity.action(`Remove location: ${location.name}`, location.path, () =>
+    call<void>("remove_network_location", { path: location.path }),
+  );
 }
 
 /** Mounts a saved location (or reuses its mount). Without a password the saved one is used. */
@@ -343,12 +350,14 @@ export function connectNetworkLocation(
   path: string,
   options: { username?: string; password?: string; remember?: boolean } = {},
 ): Promise<NetworkConnection> {
-  return call<NetworkConnection>("connect_network_location", {
-    path,
-    username: options.username ?? null,
-    password: options.password ?? null,
-    remember: options.remember ?? null,
-  });
+  return activity.action("Connect location", path, () =>
+    call<NetworkConnection>("connect_network_location", {
+      path,
+      username: options.username ?? null,
+      password: options.password ?? null,
+      remember: options.remember ?? null,
+    }),
+  );
 }
 
 /** Mounts one share (`smb://<id>/<share>`) of an SMB location without a share. */
@@ -356,16 +365,20 @@ export function mountNetworkShare(
   path: string,
   options: { username?: string; password?: string; remember?: boolean } = {},
 ): Promise<NetworkConnection> {
-  return call<NetworkConnection>("mount_network_share", {
-    path,
-    username: options.username ?? null,
-    password: options.password ?? null,
-    remember: options.remember ?? null,
-  });
+  return activity.action("Connect share", path, () =>
+    call<NetworkConnection>("mount_network_share", {
+      path,
+      username: options.username ?? null,
+      password: options.password ?? null,
+      remember: options.remember ?? null,
+    }),
+  );
 }
 
 export function disconnectNetworkLocation(path: string): Promise<void> {
-  return call<void>("disconnect_network_location", { path });
+  return activity.action("Disconnect location", path, () =>
+    call<void>("disconnect_network_location", { path }),
+  );
 }
 
 /** Starts a scan; results arrive as `network-server` events tagged with `scan`. */

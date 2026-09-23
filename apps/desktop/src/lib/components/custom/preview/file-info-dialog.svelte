@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { activity } from "$lib/transfers/jobs.js";
   import DialogShell from "$lib/components/custom/dialog/dialog-shell.svelte";
   import DialogButton from "$lib/components/custom/dialog/dialog-button.svelte";
   import EntryIcon from "$lib/file-icons/entry-icon.svelte";
@@ -42,7 +43,7 @@
     const path = entry.path, revision = exif.revision;
     removing = true; exifError = "";
     try {
-      await invoke("remove_file_exif", { path, revision });
+      await activity.action("Remove metadata", path, () => invoke("remove_file_exif", { path, revision }));
       onChanged?.();
       const [nextInfo, nextExif] = await Promise.all([
         invoke<FileInfo>("read_file_info", { path }), invoke<ExifInfo>("read_file_exif", { path }),

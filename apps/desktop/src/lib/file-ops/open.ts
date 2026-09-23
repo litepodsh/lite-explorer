@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { activity } from "$lib/transfers/jobs.js";
+import { baseName } from "./files.js";
 
 export interface OpenWithApp {
   name: string;
@@ -15,7 +17,7 @@ export interface TerminalInfo {
 }
 
 export async function openTarget(path: string): Promise<void> {
-  await invoke("open_path", { path });
+  await activity.action(`Open: ${baseName(path)}`, path, () => invoke("open_path", { path }));
 }
 
 export function fetchOpenWithApps(path: string): Promise<OpenWithApp[]> {
@@ -28,17 +30,19 @@ export function fetchDefaultApp(path: string): Promise<OpenWithApp | null> {
 }
 
 export function openWithTarget(path: string, appPath: string): Promise<void> {
-  return invoke("open_with", { path, appPath });
+  return activity.action(`Open: ${baseName(path)}`, path, () => invoke("open_with", { path, appPath }));
 }
 
 /** Reveals `path` in the system file manager (Finder, File Explorer, …). */
 export function revealPath(path: string): Promise<void> {
-  return invoke("reveal_path", { path });
+  return activity.action(`Reveal: ${baseName(path)}`, path, () => invoke("reveal_path", { path }));
 }
 
 /** Opens the operating system's terminal in the folder `path`. */
 export function openTerminal(path: string, terminal: string, command = ""): Promise<void> {
-  return invoke("open_terminal", { path, terminal, customCommand: command });
+  return activity.action("Open terminal", path, () =>
+    invoke("open_terminal", { path, terminal, customCommand: command }),
+  );
 }
 
 /** Terminals installed on this machine, for the settings dropdown. */

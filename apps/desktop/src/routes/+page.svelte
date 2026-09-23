@@ -337,7 +337,9 @@
 
   async function ejectVolume(location: Location) {
     try {
-      await invoke("eject_volume", { path: location.path });
+      await activity.action(`Eject: ${location.name}`, location.path, () =>
+        invoke("eject_volume", { path: location.path }),
+      );
       locations = locations.filter((candidate) => candidate.path !== location.path);
       for (const controller of controllers.values()) {
         if (controller.listingPath === location.path || controller.listingPath.startsWith(`${location.path}/`)) {
