@@ -22,15 +22,15 @@ jobs:
           - name: macOS (universal)
             runner: macos-latest
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
-            args: --target universal-apple-darwin --bundles app,dmg
+            args: --target universal-apple-darwin
           - name: Linux (x86_64)
             runner: ubuntu-22.04
             rust-targets: ""
-            args: --bundles deb,rpm,appimage
+            args: ""
           - name: Windows (x86_64)
             runner: windows-latest
             rust-targets: ""
-            args: --bundles nsis
+            args: ""
     steps:
       - uses: actions/checkout@v4
 
@@ -63,8 +63,10 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: bun install --frozen-lockfile
 
-      - name: Build installers
+      # Compile-only validation: --no-bundle skips installers, updater
+      # artifacts and signing, so no TAURI_SIGNING_PRIVATE_KEY is needed.
+      - name: Build app (no bundle)
         working-directory: ${{ env.APP_DIR }}
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-        run: bun run tauri build ${{ matrix.args }}
+        run: bun run tauri build --no-bundle ${{ matrix.args }}

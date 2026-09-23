@@ -17,6 +17,8 @@ export type ListActions = {
   remote(): boolean;
   moveFocus(key: NavKey, modifiers: NavModifiers): boolean;
   moveHalfPage(direction: 1 | -1): boolean;
+  /** Jumps to the first entry whose name starts with the letters typed so far. */
+  typeSelect(char: string): boolean;
   enterFocused(): boolean;
   enterOrOpenFocused(): boolean;
   openParent(): boolean;

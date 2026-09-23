@@ -67,6 +67,9 @@ import {
   type VisualState,
 } from "$lib/selection/selection.js";
 import { settings } from "$lib/settings/settings.svelte.js";
+import { platformState } from "$lib/state/platform.svelte.js";
+import { isAppBundle } from "$lib/file-ops/bundles.js";
+import { TypeSelectBuffer, typeSelectTarget } from "$lib/keyboard/type-select.js";
 import type { SortColumn, SortDir } from "$lib/components/custom/file-list/sort.js";
 import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
 import type { CopyTextKind } from "$lib/keyboard/context.js";
@@ -237,6 +240,7 @@ export class FilePaneController {
   /** Registered by the mounted file list. */
   navigator: ListNavigator | null = null;
   #previewTimer: ReturnType<typeof setTimeout> | undefined;
+  #typeSelect = new TypeSelectBuffer();
   /** Directory listings of adjacent history locations, keyed by path. */
   #listingCache = new Map<string, DirectoryEntry[]>();
   #prefetchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -742,7 +746,7 @@ export class FilePaneController {
       this.openShare(entry.path, options);
       return;
     }
-    if (entry.is_directory) {
+    if (entry.is_directory && !isAppBundle(entry, platformState.current)) {
       this.openLocation({ name: entry.name, path: entry.path, kind: "folder" }, options);
       return;
     }
@@ -1082,6 +1086,13 @@ export class FilePaneController {
     }
   }
 
+  /** Browses inside an app bundle instead of launching it, like Finder's "Show Package Contents". */
+  showContextTargetPackageContents() {
+    const entry = this.contextTarget;
+    if (!entry?.is_directory) return;
+    this.openLocation({ name: entry.name, path: entry.path, kind: "folder" });
+  }
+
   openContextTargetInApp() {
     if (this.contextTarget) this.openEntryInApp(this.contextTarget);
   }
@@ -1321,6 +1332,26 @@ export class FilePaneController {
     const index = navTarget(paths.indexOf(this.focusPath), key, this.navLayout(paths.length));
     if (index === null) return false;
     this.moveTo(paths, index, modifiers);
+    return true;
+  }
+
+  /** Finder-style type-to-select: jumps to the first entry whose name starts with the typed text. */
+  typeSelect(char: string, showHidden: boolean): boolean {
+    if (this.selected === "Overview" || this.visual) return false;
+    const entries = this.keyboardOrder(showHidden);
+    const query = this.#typeSelect.push(char, Date.now());
+    const current = entries.findIndex((entry) => entry.path === this.focusPath);
+    const index = typeSelectTarget(
+      entries.map((entry) => entry.name),
+      query,
+      current,
+    );
+    if (index === null) return true;
+    this.moveTo(
+      entries.map((entry) => entry.path),
+      index,
+      { shift: false, primary: false },
+    );
     return true;
   }
 

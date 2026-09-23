@@ -12,7 +12,8 @@
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
   import { canDragOut } from "$lib/file-drag/native-drag.js";
   import { formatSize, formatDate } from "$lib/components/custom/preview/format.js";
-  import { isPrimaryModifier } from "$lib/state/platform.svelte.js";
+  import { isPrimaryModifier, platformState } from "$lib/state/platform.svelte.js";
+  import { isAppBundle } from "$lib/file-ops/bundles.js";
   import SelectionCheckbox from "./selection-checkbox.svelte";
   import { checkboxReveal } from "./checkbox-reveal.js";
   let {
@@ -166,7 +167,7 @@
       onContextMenu?.(entry);
     }}
     ondblclick={handleDblClick}>
-    <div role="gridcell" class="flex items-center gap-2 px-2">{#if checkboxes}<span class="flex" transition:checkboxReveal={{ delay: revealDelay }}><SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} /></span>{/if}{#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else if entry.is_directory}<FolderIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} />{/if}</div>
+    <div role="gridcell" class="flex items-center gap-2 px-2">{#if checkboxes}<span class="flex" transition:checkboxReveal={{ delay: revealDelay }}><SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} /></span>{/if}{#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else if entry.is_directory && !isAppBundle(entry, platformState.current)}<FolderIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} />{/if}</div>
     {#each columns as column (column)}
     {#if column === "name"}
     <div role="gridcell" class:column-source={draggedColumn === column} class="flex min-w-0 items-center gap-2 px-2">
@@ -237,7 +238,7 @@
       </span>
     {/if}
     <span class="flex items-center gap-1.5">
-    {#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else if entry.is_directory}<FolderIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} />{/if}
+    {#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else if entry.is_directory && !isAppBundle(entry, platformState.current)}<FolderIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} />{/if}
     {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </span>
     {#if renaming}

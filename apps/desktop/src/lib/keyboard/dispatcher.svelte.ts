@@ -20,6 +20,8 @@ export type DispatcherOptions<C> = {
   modalOpen: () => boolean;
   context: (scope: Scope) => C;
   onError: (title: string, error: unknown) => void;
+  /** Keys no binding claims, outside a chord. True when handled. */
+  fallback?: (event: KeyboardEvent, scope: Scope) => boolean;
 };
 
 /**
@@ -55,9 +57,12 @@ export class KeyboardDispatcher<C> {
       timeoutMs: this.options.timeoutMs(),
     });
     switch (resolution.kind) {
-      case "none":
+      case "none": {
+        const inChord = this.pending !== null;
         this.cancel();
+        if (!inChord && this.options.fallback?.(event, scope)) event.preventDefault();
         return;
+      }
       case "cancel":
         event.preventDefault();
         this.cancel();

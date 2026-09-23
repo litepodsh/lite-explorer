@@ -30,9 +30,12 @@
   import UnplugIcon from "@lucide/svelte/icons/unplug";
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
   import InfoIcon from "@lucide/svelte/icons/info";
+  import PackageOpenIcon from "@lucide/svelte/icons/package-open";
   import type { Location } from "$lib/tabs/tabs.js";
   import { networkStatus } from "$lib/remote/network-status.svelte.js";
   import { isArchive } from "$lib/file-ops/archive.js";
+  import { isAppBundle } from "$lib/file-ops/bundles.js";
+  import { platformState } from "$lib/state/platform.svelte.js";
   import { drag } from "$lib/file-drag/drag.svelte.js";
   import type { DraggedEntry } from "$lib/file-drag/drag.svelte.js";
   import { isNetworkPath } from "$lib/remote/network-locations.js";
@@ -336,6 +339,12 @@
                 </ContextMenu.Shortcut>
               {/if}
             </ContextMenu.Item>
+            {#if isAppBundle(target, platformState.current)}
+              <ContextMenu.Item onSelect={() => controller.showContextTargetPackageContents()}>
+                <PackageOpenIcon class="size-4" />
+                Show Package Contents
+              </ContextMenu.Item>
+            {/if}
             {#if !controller.remoteListing && !controller.serverRoot}
               <ContextMenu.Sub>
                 <ContextMenu.SubTrigger>

@@ -778,6 +778,7 @@
         remote: () => controller.remoteListing,
         moveFocus: (key, modifiers) => controller.moveFocus(key, modifiers, showHidden),
         moveHalfPage: (direction) => controller.moveHalfPage(direction, showHidden),
+        typeSelect: (char) => controller.typeSelect(char, showHidden),
         enterFocused: () => controller.enterFocused(showHidden),
         enterOrOpenFocused: () => controller.enterOrOpenFocused(showHidden),
         openParent: () => controller.openParentFromKeyboard(),
@@ -894,7 +895,17 @@
     modalOpen: () => confirmation.open || activeController.contextMenuOpen,
     context: keyboardContext,
     onError: reportCommandError,
+    fallback: typeSelect,
   });
+
+  /** Standard mode: letters no shortcut claims jump to matching names, like Finder and Explorer. */
+  function typeSelect(event: KeyboardEvent, scope: Scope): boolean {
+    if (scope !== "list" || settings.current.keyboardMode !== "standard") return false;
+    if (event.metaKey || event.ctrlKey || event.altKey) return false;
+    if ([...event.key].length !== 1 || !event.key.trim()) return false;
+    const { list } = keyboardContext(scope);
+    return !list.blocked() && list.typeSelect(event.key);
+  }
 
   // Switching keyboard mode drops a half-typed chord and any visual selection.
   $effect(() => {
