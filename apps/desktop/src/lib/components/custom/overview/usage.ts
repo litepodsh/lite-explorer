@@ -43,7 +43,7 @@ export function summarizeFolders(
   const limit = options.limit ?? 6;
   const top = entries
     .filter((entry) => options.showHidden || !entry.is_hidden)
-    .toSorted((a, b) => b.bytes - a.bytes)
+    .sort((a, b) => b.bytes - a.bytes)
     .slice(0, limit);
   const shown = top.reduce((sum, entry) => sum + entry.bytes, 0);
   return {
@@ -58,7 +58,7 @@ export function upsertEntry(
   entries: FolderUsageEntry[],
   entry: FolderUsageEntry,
 ): FolderUsageEntry[] {
-  return [...entries.filter((item) => item.path !== entry.path), entry].toSorted(
+  return [...entries.filter((item) => item.path !== entry.path), entry].sort(
     (a, b) => b.bytes - a.bytes,
   );
 }
