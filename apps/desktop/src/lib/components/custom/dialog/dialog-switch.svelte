@@ -49,13 +49,13 @@
     min-width: 0;
   }
   label {
-    color: #eceae8;
+    color: var(--app-fg);
     font-size: 12.5px;
     font-weight: 500;
   }
   p {
     margin: 3px 0 0;
-    color: #8f8b88;
+    color: var(--app-fg-muted);
     font-size: 11.5px;
     line-height: 1.4;
   }
@@ -68,7 +68,7 @@
     padding: 0;
     border: 0;
     border-radius: 999px;
-    background: #474341;
+    background: var(--app-surface-raised);
     transition: background-color 180ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   .switch span {
@@ -78,25 +78,25 @@
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: #f2f1f0;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    background: var(--app-fg);
+    box-shadow: 0 1px 2px var(--app-overlay);
     transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   .switch[aria-checked="true"] {
-    background: #0a9bff;
+    background: var(--app-accent);
   }
   .switch[aria-checked="true"] span {
     transform: translateX(12px);
   }
   .switch:focus-visible {
-    outline: 2px solid rgb(10 155 255 / 0.6);
+    outline: 2px solid var(--app-accent);
     outline-offset: 2px;
   }
   .switch:disabled {
     opacity: 0.5;
   }
   .row.disabled label {
-    color: #a8a4a1;
+    color: var(--app-fg-muted);
   }
   @media (prefers-reduced-motion: reduce) {
     .switch,

@@ -54,7 +54,7 @@
     position: fixed;
     inset: 0;
     z-index: 60;
-    background: rgb(14 13 12 / 0.45);
+    background: var(--app-overlay);
     animation: app-dialog-fade 220ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   :global(.app-dialog) {
@@ -65,26 +65,26 @@
     z-index: 61;
     width: min(var(--app-dialog-width), calc(100vw - 32px));
     translate: -50% -50%;
-    color: #eceae8;
+    color: var(--app-fg);
     font-size: 13px;
     outline: none;
     animation: app-dialog-in 260ms var(--app-dialog-ease);
   }
   .shell {
     padding: 5px;
-    border-radius: 16px;
+    border-radius: var(--app-radius);
     /* Opaque: the listing must not show through the footer. */
-    background: #1f1d1c;
+    background: var(--app-input);
     box-shadow:
       0 0 0 1px rgb(255 255 255 / 0.08),
-      0 24px 64px -12px rgb(10 8 6 / 0.7);
+      var(--app-shadow);
   }
   .core {
     display: grid;
     gap: 8px;
     padding: 18px 18px 16px;
-    border-radius: 11px;
-    background: #2b2927;
+    border-radius: calc(var(--app-radius) - 4px);
+    background: var(--app-surface);
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
   }
   :global(.app-dialog-title) {
@@ -94,7 +94,7 @@
   }
   :global(.app-dialog-description) {
     margin: 0;
-    color: #a8a4a1;
+    color: var(--app-fg-muted);
     font-size: 12.5px;
     line-height: 1.45;
   }

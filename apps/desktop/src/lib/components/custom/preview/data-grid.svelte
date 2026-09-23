@@ -225,11 +225,11 @@
 
 <div bind:this={root} class="relative h-full min-h-0">
   {#if rows.length === 0 && !hasHeader}
-    <div class="grid h-full place-items-center text-[13px] text-[#9c9895]">{emptyLabel}</div>
+    <div class="grid h-full place-items-center text-[13px] text-[var(--app-fg-muted)]">{emptyLabel}</div>
   {:else}
     <div class="flex h-full min-h-0 flex-col">
       {#if notice}
-        <p class="shrink-0 border-b border-[#3a3734] px-3 py-1 text-[11px] text-[#9c9895]">
+        <p class="shrink-0 border-b border-[var(--app-border)] px-3 py-1 text-[11px] text-[var(--app-fg-muted)]">
           {notice}
         </p>
       {/if}
@@ -240,9 +240,9 @@
         class="min-h-0 flex-1 overflow-auto">
         <div class="min-h-full" style="min-width: {contentWidth}">
           {#if hasHeader}
-            <div class="grid-head sticky top-0 z-20 grid bg-[#2a2825]" style={gridStyle}>
+            <div class="grid-head sticky top-0 z-20 grid bg-[var(--app-surface)]" style={gridStyle}>
               <div
-                class="sticky left-0 z-30 bg-[#2a2825] px-3 py-1.5 text-[11px] font-medium text-[#9c9895]"
+                class="sticky left-0 z-30 bg-[var(--app-surface)] px-3 py-1.5 text-[11px] font-medium text-[var(--app-fg-muted)]"
                 >#</div>
               {#each header ?? [] as cell, column}
                 <div
@@ -263,11 +263,11 @@
                 {@const rowIndex = start + index}
                 <div class="grid-row grid" style={gridStyle}>
                   <div
-                    class="grid-gutter sticky left-0 z-10 bg-[#1f1d1b] px-2 text-right text-[11px] text-[#67635f]">
+                    class="grid-gutter sticky left-0 z-10 bg-[var(--app-input)] px-2 text-right text-[11px] text-[var(--app-fg-faint)]">
                     <span class="grid-gutter-number">{firstRowNumber + rowIndex}</span>
                     <button
                       type="button"
-                      class="grid-row-copy size-5 place-items-center rounded border-0 bg-transparent text-[#9c9895] hover:bg-[#3b3836] hover:text-[#e8e5e2]"
+                      class="grid-row-copy size-5 place-items-center rounded border-0 bg-transparent text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)]"
                       aria-label="Copy row {firstRowNumber + rowIndex}"
                       title="Copy row"
                       onclick={() => void copyRow(rowIndex)}>
@@ -299,7 +299,7 @@
   {#if selection}
     <button
       type="button"
-      class="absolute z-30 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgb(48_45_43/0.96)] px-3 py-1.5 text-[11.5px] font-medium text-[#f2f1f0] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.1),0_14px_30px_-12px_rgb(0_0_0/0.8)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[rgb(62_58_55/0.98)] active:scale-[0.96]"
+      class="absolute z-30 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--app-surface-raised)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--app-fg)] shadow-[var(--app-shadow)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--app-surface)] active:scale-[0.96]"
       style="left: {selection.x}px; top: {selection.y}px;"
       onmousedown={(event) => event.preventDefault()}
       onclick={() => void copySelection()}>
@@ -316,12 +316,12 @@
 
 <style>
   .grid-head {
-    box-shadow: inset 0 -1px 0 #3a3734;
+    box-shadow: inset 0 -1px 0 var(--app-border);
   }
   .grid-row {
     /* An inset line instead of a border keeps rows exactly ROW_HEIGHT tall, which
        the windowing math relies on. */
-    box-shadow: inset 0 -1px 0 #2f2c29;
+    box-shadow: inset 0 -1px 0 var(--app-border);
   }
   .grid-row:hover :global(div:not(.sticky)) {
     background-color: rgb(255 255 255 / 0.035);

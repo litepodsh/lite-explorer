@@ -582,7 +582,7 @@
           role="row"
           aria-rowindex={1}
           style={`${gridTemplate}; min-width: ${minimumWidth}px`}
-          class="list-header sticky z-10 grid h-8 items-center text-[11px] font-semibold uppercase tracking-wide text-[#9c9895]">
+          class="list-header sticky z-10 grid h-8 items-center text-[11px] font-semibold uppercase tracking-wide text-[var(--app-fg-muted)]">
           <div role="columnheader" class="flex items-center px-2">
             <!-- First click turns on checkbox selection; after that it selects or deselects everything. -->
             <SelectionCheckbox
@@ -595,7 +595,7 @@
           <div role="columnheader" data-list-column={column} aria-sort={sortColumn === column ? sortDir === "asc" ? "ascending" : "descending" : "none"} class="relative flex h-full items-center px-2" class:column-source={columnGhost?.column === column}
             class:column-target-before={columnTarget === column && columnGhost && columns.indexOf(columnGhost.column) > columns.indexOf(column)}
             class:column-target-after={columnTarget === column && columnGhost && columns.indexOf(columnGhost.column) < columns.indexOf(column)}>
-            <button type="button" class="flex cursor-grab items-center gap-1 uppercase hover:text-[#e8e5e2] active:cursor-grabbing" class:ml-auto={column !== "name" && column !== "type"}
+            <button type="button" class="flex cursor-grab items-center gap-1 uppercase hover:text-[var(--app-fg)] active:cursor-grabbing" class:ml-auto={column !== "name" && column !== "type"}
               onpointerdown={(event) => startColumnDrag(event, column)}
               onclick={() => toggleSort(column)}
               onkeydown={(event) => {
@@ -624,7 +624,7 @@
       {/if}
         {#if view === "list"}
           {#if visibleEntries.length === 0}
-            <p class="p-4 text-center text-[13px] text-[#9c9895]">This folder is empty.</p>
+            <p class="p-4 text-center text-[13px] text-[var(--app-fg-muted)]">This folder is empty.</p>
           {:else}
             <div role="rowgroup" class="relative" style="height: {rows.totalSize}px;">
               {#each rows.virtualItems as v (visibleEntries[v.index]?.path ?? v.key)}
@@ -662,7 +662,7 @@
             </div>
           {/if}
         {:else if visibleEntries.length === 0}
-          <p class="mt-2 p-4 text-center text-[13px] text-[#9c9895]">This folder is empty.</p>
+          <p class="mt-2 p-4 text-center text-[13px] text-[var(--app-fg-muted)]">This folder is empty.</p>
         {:else}
           <div class="relative mt-2" style="height: {rows.totalSize}px;">
             {#each rows.virtualItems as v (v.key)}
@@ -726,7 +726,7 @@
   .column-source { opacity: 0.35; }
   .column-target-before { box-shadow: inset 2px 0 #70b7ff; }
   .column-target-after { box-shadow: inset -2px 0 #70b7ff; }
-  .column-ghost { position: fixed; top: 0; left: 0; z-index: 40; pointer-events: none; padding: 4px; border-radius: 10px; background: #34312f; color: #e8e5e2; box-shadow: 0 12px 36px rgb(0 0 0 / 18%), inset 0 0 0 1px rgb(160 204 255 / 28%); }
+  .column-ghost { position: fixed; top: 0; left: 0; z-index: 40; pointer-events: none; padding: 4px; border-radius: var(--app-radius); background: var(--app-surface-raised); color: var(--app-fg); box-shadow: var(--app-shadow), inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 28%, transparent); }
   .ghost-title { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 9px; border-radius: 6px 6px 0 0; background: #45413d; color: #c0dfff; font-size: 11px; font-weight: 600; text-transform: uppercase; }
   .ghost-cell { padding: 7px 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; background: #2b2826; box-shadow: inset 0 1px rgb(255 255 255 / 5%); }
   .ghost-cell:last-child { border-radius: 0 0 6px 6px; }
@@ -752,9 +752,7 @@
     position: absolute;
     inset: calc(-1 * var(--content-overlap, 0px)) 0 0;
     z-index: -1;
-    background: linear-gradient(to top, rgb(36 34 32 / 62%), rgb(37 35 34 / 42%));
-    -webkit-backdrop-filter: blur(24px) saturate(140%);
-    backdrop-filter: blur(24px) saturate(140%);
+    background: var(--app-bg);
     content: "";
     pointer-events: none;
   }
@@ -767,9 +765,7 @@
 
   @media (prefers-reduced-transparency: reduce) {
     .list-header::before {
-      background: #242220;
-      -webkit-backdrop-filter: none;
-      backdrop-filter: none;
+      background: var(--app-bg);
     }
   }
 </style>

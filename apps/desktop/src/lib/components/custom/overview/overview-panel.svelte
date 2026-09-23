@@ -77,20 +77,20 @@
 
 {#snippet stat(Icon: typeof HardDriveIcon, value: string, unit: string, label: string, sub: string, highlight = "")}
   <div class="grid grid-cols-[34px_minmax(0,1fr)] gap-x-3 px-1 py-1.5">
-    <Icon class="mt-1.5 size-[26px] stroke-[1.5] {highlight ? 'text-[#0a9bff]' : 'text-[#9c9895]'}" />
+    <Icon class="mt-1.5 size-[26px] stroke-[1.5] {highlight ? 'text-[var(--app-accent)]' : 'text-[var(--app-fg-muted)]'}" />
     <div class="min-w-0">
-      <p class="text-[30px] leading-[1.1] font-semibold tracking-[-0.02em] tabular-nums text-[#f2f1f0]">
-        {value}{#if unit}<small class="ml-1 text-[15px] font-medium tracking-normal text-[#9c9895]">{unit}</small>{/if}
+      <p class="text-[30px] leading-[1.1] font-semibold tracking-[-0.02em] tabular-nums text-[var(--app-fg)]">
+        {value}{#if unit}<small class="ml-1 text-[15px] font-medium tracking-normal text-[var(--app-fg-muted)]">{unit}</small>{/if}
       </p>
-      <p class="mt-1.5 text-[13px] text-[#d9d6d3]">{label}</p>
-      <p class="mt-0.5 truncate text-xs tabular-nums text-[#9c9895]">
-        {#if highlight}<b class="font-medium text-[#0a9bff]">{highlight}</b>{/if} {sub}
+      <p class="mt-1.5 text-[13px] text-[var(--app-fg)]">{label}</p>
+      <p class="mt-0.5 truncate text-xs tabular-nums text-[var(--app-fg-muted)]">
+        {#if highlight}<b class="font-medium text-[var(--app-accent)]">{highlight}</b>{/if} {sub}
       </p>
     </div>
   </div>
 {/snippet}
 
-<section class="@container min-h-0 flex-1 overflow-auto" aria-label="Overview">
+<section class="overview-panel @container min-h-0 flex-1 overflow-auto" aria-label="Overview">
   <div class="grid content-start gap-6 px-7 pt-6 pb-8">
     {#if loadError}
       <p class="text-[13px] text-[#ff8a80]">Couldn’t read your disks: {loadError}</p>
@@ -98,8 +98,8 @@
       <div class="grid grid-cols-2 gap-2 @3xl:grid-cols-4" aria-hidden="true">
         {#each [0, 1, 2, 3] as item (item)}
           <div class="grid gap-2 px-1 py-1.5 pl-[46px]">
-            <span class="h-8 w-28 animate-pulse rounded bg-[#2d2a28] motion-reduce:animate-none"></span>
-            <span class="h-3 w-20 rounded bg-[#2d2a28]"></span>
+            <span class="h-8 w-28 animate-pulse rounded bg-[var(--app-surface)] motion-reduce:animate-none"></span>
+            <span class="h-3 w-20 rounded bg-[var(--app-surface)]"></span>
           </div>
         {/each}
       </div>

@@ -25,7 +25,7 @@
     if (typeof value === "string") return "text-[#a3c9a8]";
     if (typeof value === "number") return "text-[#e0af68]";
     if (typeof value === "boolean") return "text-[#7aa2f7]";
-    return "text-[#9c9895]";
+    return "text-[var(--app-fg-muted)]";
   }
 
   $effect(() => {
@@ -56,16 +56,16 @@
     {#if isArray || isObject}
       <button
         type="button"
-        class="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-white/5"
+        class="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-[var(--app-surface-raised)]"
         style="padding-left: {depth * 14 + 4}px"
         onclick={() => toggle(id)}>
         {#if collapsed[id]}
-          <ChevronRight class="size-3.5 shrink-0 text-[#67635f]" />
+          <ChevronRight class="size-3.5 shrink-0 text-[var(--app-fg-faint)]" />
         {:else}
-          <ChevronDown class="size-3.5 shrink-0 text-[#67635f]" />
+          <ChevronDown class="size-3.5 shrink-0 text-[var(--app-fg-faint)]" />
         {/if}
-        <span class="text-[#9fb8e8]">{label}</span>
-        <span class="text-[11px] text-[#67635f]">{isArray ? `[${entries.length}]` : `{${entries.length}}`}</span>
+        <span class="text-[var(--app-accent)]">{label}</span>
+        <span class="text-[11px] text-[var(--app-fg-faint)]">{isArray ? `[${entries.length}]` : `{${entries.length}}`}</span>
       </button>
       {#if !collapsed[id]}
         {#each entries as [key, child] (key)}
@@ -74,22 +74,22 @@
       {/if}
     {:else}
       <div class="flex items-baseline gap-1.5 rounded px-1 py-0.5" style="padding-left: {depth * 14 + 22}px">
-        <span class="shrink-0 text-[#9fb8e8]">{label}</span>
-        <span class="text-[#67635f]">:</span>
+        <span class="shrink-0 text-[var(--app-accent)]">{label}</span>
+        <span class="text-[var(--app-fg-faint)]">:</span>
         <span class="min-w-0 break-words {valueClass(value)}">{format(value)}</span>
       </div>
     {/if}
   </div>
 {/snippet}
 
-<div class="h-full min-h-0 overflow-auto bg-[#1f1d1b] font-mono text-[12.5px] leading-relaxed text-[#e8e5e2]" aria-label={`Data preview of ${name}`}>
+<div class="h-full min-h-0 overflow-auto bg-[var(--app-input)] font-mono text-[12.5px] leading-relaxed text-[var(--app-fg)]" aria-label={`Data preview of ${name}`}>
   {#if error}
     <div class="grid h-full place-content-center justify-items-center px-4 text-center">
-      <p class="font-sans text-[13px] text-[#9c9895]">{error}</p>
+      <p class="font-sans text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if data}
     <div class="p-3">
-      <div class="mb-2 flex items-center gap-2 text-[11px] text-[#9c9895]">
+      <div class="mb-2 flex items-center gap-2 text-[11px] text-[var(--app-fg-muted)]">
         <span class="rounded bg-white/5 px-1.5 py-0.5 uppercase">{data.format}</span>
         {#if data.truncated}<span>truncado</span>{/if}
       </div>

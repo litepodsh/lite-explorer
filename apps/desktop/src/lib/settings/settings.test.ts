@@ -32,6 +32,9 @@ describe("defaultSettings", () => {
     expect(defaultSettings({ dev: false }).terminalApp).toBe("system");
     expect(defaultSettings({ dev: false }).terminalCommand).toBe("");
     expect(defaultSettings({ dev: false }).previewOpenByDefault).toBe(false);
+    expect(defaultSettings({ dev: false }).theme).toBe("dark");
+    expect(defaultSettings({ dev: false }).themeMode).toBe("manual");
+    expect(defaultSettings({ dev: false }).radius).toBe("soft");
   });
 });
 
@@ -52,6 +55,10 @@ describe("validation", () => {
     expect(isValidSetting("terminalApp", 42)).toBe(false);
     expect(isValidSetting("terminalCommand", "kitty --directory {path}")).toBe(true);
     expect(isValidSetting("terminalCommand", 42)).toBe(false);
+    expect(isValidSetting("theme", "oled")).toBe(true);
+    expect(isValidSetting("theme", "black")).toBe(false);
+    expect(isValidSetting("radius", "round")).toBe(true);
+    expect(isValidSetting("radius", "square")).toBe(false);
   });
 });
 
@@ -64,6 +71,22 @@ describe("parseSettings", () => {
     expect(settings.keyboardMode).toBe("yazi");
     expect(settings.panesLayout).toBe("row");
     expect(problems).toEqual(["Invalid setting “panesLayout”; using the default"]);
+  });
+
+  test("keeps valid appearance values and replaces invalid ones", () => {
+    const { settings, problems } = parseSettings(
+      JSON.stringify({ theme: "oled", themeMode: "system", radius: "round", elevation: "flat", texture: "paper" }),
+      defaults,
+    );
+    expect(settings.theme).toBe("oled");
+    expect(settings.themeMode).toBe("system");
+    expect(settings.radius).toBe("round");
+    expect(settings.elevation).toBe("flat");
+    expect(settings.texture).toBe("paper");
+
+    const invalid = parseSettings(JSON.stringify({ theme: "black" }), defaults);
+    expect(invalid.settings.theme).toBe("dark");
+    expect(invalid.problems).toEqual(["Invalid setting “theme”; using the default"]);
   });
 
   test("corrupt JSON falls back to defaults", () => {

@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import type * as Monaco from "monaco-editor/editor/editor.api";
   import { DEFAULT_FONT_SIZE, lineHeightFor } from "./font-size.js";
-  import { ensureLanguage, loadMonaco, modelFor, PREVIEW_THEME, type CachedModel, type MonacoApi } from "./monaco.js";
+  import { ensureLanguage, loadMonaco, modelFor, previewTheme, type CachedModel, type MonacoApi } from "./monaco.js";
   import { detectDelimiter, sampleLines, visibleDecorations } from "./rainbow-csv.js";
 
   type Props = {
@@ -76,13 +76,15 @@
       frame = requestAnimationFrame(() => editor?.layout());
     });
     observer.observe(host);
+    const themeObserver = new MutationObserver(() => api?.editor.setTheme(previewTheme()));
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
     loadMonaco()
       .then((monaco) => {
         if (disposed) return;
         api = monaco;
         const instance = monaco.editor.create(host, {
-          theme: PREVIEW_THEME,
+          theme: previewTheme(),
           readOnly: true,
           domReadOnly: true,
           minimap: { enabled: false },
@@ -117,6 +119,7 @@
     return () => {
       disposed = true;
       observer.disconnect();
+      themeObserver.disconnect();
       cancelAnimationFrame(frame);
       cancelAnimationFrame(rainbowFrame);
       for (const listener of listeners) listener.dispose();
@@ -169,7 +172,7 @@
   <div bind:this={host} class="absolute inset-0" class:invisible={!editor}></div>
   {#if !editor}
     <pre
-      class="absolute inset-0 m-0 overflow-auto p-3 font-mono whitespace-pre-wrap break-words text-[#e8e5e2]"
+      class="absolute inset-0 m-0 overflow-auto p-3 font-mono whitespace-pre-wrap break-words text-[var(--app-fg)]"
       style="font-size: {fontSize}px; line-height: {lineHeightFor(fontSize)}px">{value}</pre>
   {/if}
 </div>

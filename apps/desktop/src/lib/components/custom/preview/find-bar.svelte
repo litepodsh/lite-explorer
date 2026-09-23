@@ -128,7 +128,7 @@
 </script>
 
 <div
-  class="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-md border border-[#3a3734] bg-[#2d2a28] py-1 pr-1 pl-2 text-[12px] text-[#e8e5e2] shadow-[0_6px_20px_rgb(0_0_0/0.35)]"
+  class="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] py-1 pr-1 pl-2 text-[12px] text-[var(--app-fg)] shadow-[var(--app-shadow)]"
   role="search">
   <input
     bind:this={input}
@@ -137,18 +137,18 @@
     onkeydown={handleKeydown}
     aria-label="Find in file"
     placeholder="Find"
-    class="w-36 border-0 bg-transparent text-[12px] text-[#e8e5e2] outline-none placeholder:text-[#9c9895]" />
-  <span class="min-w-10 text-right text-[#9c9895] tabular-nums" aria-live="polite">{countLabel}</span>
+    class="w-36 border-0 bg-transparent text-[12px] text-[var(--app-fg)] outline-none placeholder:text-[var(--app-fg-muted)]" />
+  <span class="min-w-10 text-right text-[var(--app-fg-muted)] tabular-nums" aria-live="polite">{countLabel}</span>
   <button
-    class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#9c9895] hover:bg-[#3b3836] hover:text-[#e8e5e2]"
+    class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)]"
     aria-label="Previous match"
     onclick={() => move(-1)}><ChevronUpIcon class="size-3.5" /></button>
   <button
-    class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#9c9895] hover:bg-[#3b3836] hover:text-[#e8e5e2]"
+    class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)]"
     aria-label="Next match"
     onclick={() => move(1)}><ChevronDownIcon class="size-3.5" /></button>
   <button
-    class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#9c9895] hover:bg-[#3b3836] hover:text-[#e8e5e2]"
+    class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)]"
     aria-label="Close find"
     onclick={close}><XIcon class="size-3.5" /></button>
 </div>
