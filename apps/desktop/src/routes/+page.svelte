@@ -39,7 +39,7 @@
   import { FilePane } from "$lib/file-pane/index.js";
   import { FilePaneController } from "$lib/file-pane/controller.svelte.js";
   import { PanesStore } from "$lib/panes/panes.svelte.js";
-  import { removeRemoteLocation } from "$lib/remote/remote-locations.js";
+  import { downloadRemoteItems, removeRemoteLocation, uploadRemoteFiles } from "$lib/remote/remote-locations.js";
   import { formatLocationUrl } from "$lib/remote/location-url.js";
   import {
     describeError,
@@ -54,9 +54,10 @@
   } from "$lib/remote/network-locations.js";
   import { remapMountPath } from "$lib/remote/network-paths.js";
   import { networkStatus, type ConnectOutcome } from "$lib/remote/network-status.svelte.js";
-  import { baseName, copyItems, moveItems, parentPath } from "$lib/file-ops/files.js";
+  import { baseName, copyItem, copyItems, moveItems, parentPath } from "$lib/file-ops/files.js";
   import { message } from "@tauri-apps/plugin-dialog";
   import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
+  import type { DraggedEntry } from "$lib/file-drag/drag.svelte.js";
   import ActivityDrawer from "$lib/components/custom/activity/activity-drawer.svelte";
   import TransferToast from "$lib/transfers/transfer-toast.svelte";
   import { applyDownloadProgress, fileDownloads } from "$lib/transfers/download-progress.svelte.js";
@@ -337,7 +338,9 @@
 
   async function ejectVolume(location: Location) {
     try {
-      await invoke("eject_volume", { path: location.path });
+      await activity.action(`Eject: ${location.name}`, location.path, () =>
+        invoke("eject_volume", { path: location.path }),
+      );
       locations = locations.filter((candidate) => candidate.path !== location.path);
       for (const controller of controllers.values()) {
         if (controller.listingPath === location.path || controller.listingPath.startsWith(`${location.path}/`)) {
@@ -415,13 +418,24 @@
     setTimeout(() => (pastedPaths = new Set([...pastedPaths].filter((path) => !paths.includes(path)))), 2800);
   }
 
-  async function handleExternalDrop(targetPaneId: string, paths: string[], options: { move: boolean }) {
+  async function handleExternalDrop(targetPaneId: string, entries: DraggedEntry[], folder?: string) {
     const target = controllerFor(targetPaneId);
-    const destination = target.listingPath;
-    if (!destination || target.remoteListing) return;
+    const source = entries[0] ? controllerFor(entries[0].paneId) : null;
+    const destination = folder ?? target.listingPath;
+    const paths = entries.map((entry) => entry.path);
+    if (!source || !destination || paths.length === 0 || paths.includes(destination)) return;
+    const sourceRemote = source.remoteListing || isNetworkPath(source.listingPath);
+    const targetRemote = target.remoteListing || isNetworkPath(target.listingPath);
     try {
-      if (options.move) await moveItems(paths, destination, `Move: ${paths.length} items`);
-      else await copyItems(paths, destination, `Copy: ${paths.length} items`);
+      if (!sourceRemote && !targetRemote) {
+        await moveItems(paths, destination, `Move: ${paths.length} items`);
+      } else if (!sourceRemote && targetRemote) {
+        await uploadRemoteFiles(destination, paths);
+      } else if (sourceRemote && !targetRemote) {
+        await downloadRemoteItems(paths, destination);
+      } else {
+        for (const path of paths) await copyItem(path, destination);
+      }
     } catch (error) {
       await message(error instanceof Error ? error.message : String(error), {
         title: "Couldn’t transfer",

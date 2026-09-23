@@ -127,6 +127,7 @@ pub fn run() {
             explorer::entries::read_directory,
             explorer::entries::read_directory_progressively,
             explorer::entries::cancel_directory_listing,
+            explorer::entries::entry_details,
             explorer::entries::resolve_path,
             explorer::entries::path_exists,
             explorer::entries::search_directory,

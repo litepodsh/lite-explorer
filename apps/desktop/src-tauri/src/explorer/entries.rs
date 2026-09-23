@@ -6,7 +6,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, OnceLock,
     },
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use serde::Serialize;
@@ -32,7 +32,12 @@ pub struct DirectoryEntry {
 }
 
 const PROGRESSIVE_LISTING_THRESHOLD: usize = 1_000;
-const PROGRESSIVE_LISTING_BATCH: usize = 10_000;
+const PROGRESSIVE_LISTING_BATCH: usize = 1_000;
+/// A partial listing is sent at least this often, so huge folders keep growing on screen
+/// instead of waiting for a full batch of slow network entries.
+const PROGRESSIVE_FLUSH_EVERY: Duration = Duration::from_millis(150);
+/// Threads used to read sizes and dates of the rows a pane shows.
+const DETAIL_WORKERS: usize = 8;
 
 fn is_progressive_listing(count: usize) -> bool {
     count > PROGRESSIVE_LISTING_THRESHOLD
@@ -237,6 +242,7 @@ fn stream_directory_entries(
     }
     let mut entries = Vec::with_capacity(PROGRESSIVE_LISTING_BATCH);
     let mut progressive = false;
+    let mut flushed_at = Instant::now();
     for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
         if cancelled.load(Ordering::Relaxed) {
             break;
@@ -247,33 +253,85 @@ fn stream_directory_entries(
             Err(_) => continue,
         };
         let name = entry.file_name().to_string_lossy().into_owned();
-        let Ok(metadata) = entry.metadata() else {
-            continue;
-        };
+        // No metadata here: on an SMB share every size and date is another round trip,
+        // which turns a million entries into hours. `entry_details` reads them per shown row.
         entries.push(DirectoryEntry {
             is_hidden: name.starts_with('.'),
             name,
             path: entry.path().to_string_lossy().into_owned(),
             is_directory,
-            size: (!is_directory).then(|| metadata.len()),
-            created: epoch_millis(metadata.created()),
-            modified: epoch_millis(metadata.modified()),
+            size: None,
+            created: None,
+            modified: None,
             kind: None,
         });
-        let just_became_progressive = !progressive && is_progressive_listing(entries.len());
-        if just_became_progressive {
+        if !progressive && is_progressive_listing(entries.len()) {
             progressive = true;
         }
-        if just_became_progressive || (progressive && entries.len() >= PROGRESSIVE_LISTING_BATCH) {
+        let batch_full = entries.len() >= PROGRESSIVE_LISTING_BATCH;
+        if progressive && (batch_full || flushed_at.elapsed() >= PROGRESSIVE_FLUSH_EVERY) {
+            flushed_at = Instant::now();
             if !send_listing(on_progress, std::mem::take(&mut entries), false, None) {
                 break;
             }
         }
     }
-    if !cancelled.load(Ordering::Relaxed) {
-        send_listing(on_progress, entries, true, None);
-    }
+    // A cancelled scan still reports done, so the caller's listing promise settles.
+    send_listing(on_progress, entries, true, None);
     Ok(())
+}
+
+/// Size and dates of one entry, read after its row is on screen.
+#[derive(Serialize, Clone)]
+pub struct EntryDetails {
+    path: String,
+    size: Option<u64>,
+    created: Option<u64>,
+    modified: Option<u64>,
+}
+
+fn entry_details_for(path: &str) -> EntryDetails {
+    let metadata = fs::metadata(Path::new(path)).ok();
+    EntryDetails {
+        path: path.to_string(),
+        size: metadata
+            .as_ref()
+            .and_then(|metadata| (!metadata.is_dir()).then(|| metadata.len())),
+        created: metadata
+            .as_ref()
+            .and_then(|metadata| epoch_millis(metadata.created())),
+        modified: metadata
+            .as_ref()
+            .and_then(|metadata| epoch_millis(metadata.modified())),
+    }
+}
+
+/// Reads sizes and dates for the given paths. Network shares answer one stat at a time,
+/// so the paths are split over a few threads.
+#[tauri::command]
+#[tracing::instrument(skip_all, name = "entry_details", fields(sentry_op = "file.list"))]
+pub async fn entry_details(paths: Vec<String>) -> Result<Vec<EntryDetails>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if paths.is_empty() {
+            return Vec::new();
+        }
+        let chunk = paths.len().div_ceil(DETAIL_WORKERS).max(1);
+        std::thread::scope(|scope| {
+            let workers: Vec<_> = paths
+                .chunks(chunk)
+                .map(|chunk| {
+                    scope.spawn(move || chunk.iter().map(|path| entry_details_for(path)).collect::<Vec<_>>())
+                })
+                .collect();
+            workers
+                .into_iter()
+                .filter_map(|worker| worker.join().ok())
+                .flatten()
+                .collect()
+        })
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -454,6 +512,21 @@ mod tests {
         assert!(entries
             .iter()
             .any(|entry| entry.name == ".hidden" && entry.is_hidden));
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn entry_details_read_size_and_dates() {
+        let directory = std::env::temp_dir().join(format!("liteexplorer-details-{}", nanos()));
+        fs::create_dir_all(&directory).unwrap();
+        let file = directory.join("file.txt");
+        fs::write(&file, "test").unwrap();
+
+        let details = entry_details_for(file.to_str().unwrap());
+
+        assert_eq!(details.size, Some(4));
+        assert!(details.modified.is_some());
+        assert_eq!(entry_details_for(directory.to_str().unwrap()).size, None);
         fs::remove_dir_all(directory).unwrap();
     }
 

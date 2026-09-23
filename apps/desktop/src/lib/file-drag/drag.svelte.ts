@@ -35,9 +35,11 @@ class DragState {
   overEntryPath = $state<string | null>(null);
   ghost = $state<DragGhost | null>(null);
   /** Drop handlers of the mounted file lists, by pane id. */
-  readonly paneDrops = new Map<string, (paths: string[], options: { move: boolean }) => void>();
+  readonly paneDrops = new Map<string, (entries: DraggedEntry[], destination?: string) => void>();
   /** Current folders of the mounted panes, for drops that extract archive entries. */
   readonly paneFolders = new Map<string, PaneFolder>();
+  /** Folder lookup for an internal drop target, including remote listings. */
+  readonly paneEntryFolders = new Map<string, (path: string) => boolean>();
   /** Drop handler of the sidebar favorites. */
   favoritesDrop: ((path: string, index: number) => void) | null = null;
 }

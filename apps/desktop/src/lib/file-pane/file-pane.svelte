@@ -34,6 +34,7 @@
   import { networkStatus } from "$lib/remote/network-status.svelte.js";
   import { isArchive } from "$lib/file-ops/archive.js";
   import { drag } from "$lib/file-drag/drag.svelte.js";
+  import type { DraggedEntry } from "$lib/file-drag/drag.svelte.js";
   import { isNetworkPath } from "$lib/remote/network-locations.js";
   import { canFavorite } from "$lib/favorites/favorites.js";
   import PathStatusBar from "$lib/components/custom/status-bar/path-status-bar.svelte";
@@ -42,7 +43,7 @@
   import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
   import { folderScan, OverviewPanel } from "$lib/components/custom/overview/index.js";
   import { TabBar } from "$lib/components/custom/tabs/index.js";
-  import { formatSize } from "$lib/components/custom/preview/format.js";
+  import { formatCount, formatSize } from "$lib/components/custom/preview/format.js";
   import { swipeTransforms } from "$lib/swipe/gesture.js";
   import type { FilePaneController } from "./controller.svelte.js";
 
@@ -59,7 +60,7 @@
     onOpenBucketSettings = (_entry: DirectoryEntry) => {},
     onNewBucket = () => {},
     onReconnect = (_location: Location) => {},
-    onExternalDrop = (_paths: string[], _options: { move: boolean }) => {},
+    onExternalDrop = (_entries: DraggedEntry[], _destination?: string) => {},
     onCrossPaneDrop = (_from: string, _to: string, _fromIndex: number, _toIndex: number) => {},
     favoritePaths = new Set<string>(),
     pastedPaths = new Set<string>(),
@@ -80,7 +81,7 @@
     onOpenBucketSettings?: (entry: DirectoryEntry) => void;
     onNewBucket?: () => void;
     onReconnect?: (location: Location) => void;
-    onExternalDrop?: (paths: string[], options: { move: boolean }) => void;
+    onExternalDrop?: (entries: DraggedEntry[], destination?: string) => void;
     onCrossPaneDrop?: (fromPaneId: string, toPaneId: string, fromIndex: number, toIndex: number) => void;
     /** Paths of the sidebar favorites, to offer adding or removing a folder. */
     favoritePaths?: Set<string>;
@@ -109,8 +110,11 @@
         localListing() && controller.entries.some((entry) => entry.path === path && entry.is_directory && !entry.kind),
     };
     drag.paneFolders.set(id, handle);
+    const isFolder = (path: string) => controller.entries.some((entry) => entry.path === path && entry.is_directory);
+    drag.paneEntryFolders.set(id, isFolder);
     return () => {
       if (drag.paneFolders.get(id) === handle) drag.paneFolders.delete(id);
+      if (drag.paneEntryFolders.get(id) === isFolder) drag.paneEntryFolders.delete(id);
     };
   });
   let reconnecting = $derived(
@@ -277,6 +281,7 @@
       <ContextMenu.Trigger class={`flex min-h-0 min-w-0 flex-1${controller.remoteDropActive ? " remote-drop-active" : ""}`}>
         <ListPanel
           onFilesChanged={() => void controller.refreshListing(controller.listingPath)}
+          onNeedDetails={(paths: string[]) => controller.requestDetails(paths)}
           entries={controller.visibleEntries}
           searchQuery={controller.searchMode === "content" ? controller.searchQuery.trim() : ""}
           sortKey={controller.listingPath}
@@ -501,7 +506,9 @@
     activity={transferActivity ??
       (folderScan.scanning
         ? `Analyzing ${folderScan.rootName}… ${formatSize(folderScan.scannedBytes)}`
-        : null)} />
+        : controller.listingPartial
+          ? `Loading ${controller.selected}… ${formatCount(controller.entries.length)} items so far`
+          : null)} />
   <CompressDialog
     bind:open={controller.compressDialogOpen}
     targets={controller.compressTargets}
