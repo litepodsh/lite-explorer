@@ -144,7 +144,15 @@ function fitText(context: CanvasRenderingContext2D, text: string, maxWidth: numb
 /** Hands a drag of local files or folders to the OS, so they can be dropped in other apps. */
 export function startNativeDrag(paths: string[], name: string, icon: DragIcon) {
   const label = paths.length > 1 ? `${paths.length} items` : name;
-  startDrag({ item: paths, icon: dragCardImage(label, icon, paths.length), mode: "copy" }).catch(
-    (error) => console.error("Couldn't start dragging out of the app", error),
+  const options = {
+    item: paths,
+    icon: dragCardImage(label, icon, paths.length),
+    mode: "copy" as const,
+  };
+  // DoDragDrop pumps Windows messages, so leave the pointer-message handler first.
+  setTimeout(() =>
+    startDrag(options).catch((error) =>
+      console.error("Couldn't start dragging out of the app", error),
+    ),
   );
 }
