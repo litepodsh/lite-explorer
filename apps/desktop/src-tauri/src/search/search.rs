@@ -99,6 +99,7 @@ fn entry(path: &Path) -> Option<DirectoryEntry> {
         is_hidden: name.starts_with('.'),
         size: (!metadata.is_dir()).then_some(metadata.len()),
         created: epoch_millis(metadata.created()),
+        modified: epoch_millis(metadata.modified()),
         kind: None,
     })
 }

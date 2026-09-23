@@ -451,6 +451,16 @@
     const markKeyboard = () => (document.documentElement.dataset.keyboard = "");
     const markPointer = () => delete document.documentElement.dataset.keyboard;
     window.addEventListener("keydown", markKeyboard, true);
+    // Capture F5 before focused widgets or the webview can reload the whole app.
+    const refreshFolder = (event: KeyboardEvent) => {
+      if (event.key !== "F5") return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.repeat) return;
+      keyboard.cancel();
+      activeController.refresh();
+    };
+    window.addEventListener("keydown", refreshFolder, true);
     window.addEventListener("pointerdown", markPointer, true);
     const trackSwipePointer = (event: PointerEvent) => {
       const element = document.querySelector<HTMLElement>(
@@ -560,6 +570,7 @@
     return () => {
       stopSettings();
       window.removeEventListener("keydown", markKeyboard, true);
+      window.removeEventListener("keydown", refreshFolder, true);
       window.removeEventListener("pointerdown", markPointer, true);
       window.removeEventListener("pointermove", trackSwipePointer);
       activity.publish = () => {};

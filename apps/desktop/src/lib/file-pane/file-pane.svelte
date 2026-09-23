@@ -1,4 +1,8 @@
 <script lang="ts">
+  import FileInfoDialog from "$lib/components/custom/preview/file-info-dialog.svelte";
+  let infoOpen = $state(false);
+  let infoEntry = $state<DirectoryEntry | null>(null);
+  function showInfo(entry: DirectoryEntry) { infoEntry = { ...entry }; infoOpen = true; }
   import CalculatorIcon from "@lucide/svelte/icons/calculator";
   import { onDestroy } from "svelte";
   import Clock3Icon from "@lucide/svelte/icons/clock-3";
@@ -25,6 +29,7 @@
   import FolderOutputIcon from "@lucide/svelte/icons/folder-output";
   import UnplugIcon from "@lucide/svelte/icons/unplug";
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
+  import InfoIcon from "@lucide/svelte/icons/info";
   import type { Location } from "$lib/tabs/tabs.js";
   import { networkStatus } from "$lib/remote/network-status.svelte.js";
   import { isArchive } from "$lib/file-ops/archive.js";
@@ -120,6 +125,8 @@
   );
 </script>
 
+<FileInfoDialog bind:open={infoOpen} entry={infoEntry} onChanged={() => void controller.refreshListing(controller.listingPath)} />
+
 {#snippet favoriteItem(target: DirectoryEntry)}
   {#if canFavorite(target)}
     {#if favoritePaths.has(target.path)}
@@ -136,7 +143,7 @@
   {/if}
 {/snippet}
 
-<section class="file-pane" class:active onmouseenter={onActivate}>
+<section class="file-pane" aria-label="File pane" class:active onmouseenter={onActivate}>
   <TabBar
     tabs={controller.tabs.tabs}
     activeId={controller.tabs.activeId}
@@ -234,6 +241,10 @@
               Copy {controller.contextTargets.length} Paths
             </ContextMenu.Item>
           {:else if controller.contextTarget}
+            <ContextMenu.Item onSelect={() => showInfo(controller.contextTarget!)}>
+              <InfoIcon class="size-4" />
+              Get Info
+            </ContextMenu.Item>
             <ContextMenu.Item onSelect={() => controller.openContextTargetInApp()}>
               <FolderOpenIcon class="size-4" />
               {controller.contextTarget.is_directory ? "Open Folder" : "Open File"}
@@ -306,6 +317,10 @@
             {@render favoriteItem(target)}
           {/if}
           {#if target}
+            <ContextMenu.Item onSelect={() => showInfo(target)}>
+              <InfoIcon class="size-4" />
+              Get Info
+            </ContextMenu.Item>
             <ContextMenu.Item onSelect={() => controller.openContextTarget()}>
               <FolderOpenIcon class="size-4" />
               Open
@@ -427,7 +442,7 @@
         {#if controller.contextTargets.length || controller.canCalculateSizes}
           <ContextMenu.Separator />
         {/if}
-        <ContextMenu.Item onSelect={() => void controller.refreshListing(controller.listingPath)}>
+        <ContextMenu.Item onSelect={() => controller.refresh()}>
           <RefreshCwIcon class="size-4" />
           Refresh
         </ContextMenu.Item>
@@ -474,6 +489,8 @@
     {pendingKeys}
     visual={Boolean(controller.visual)}
     path={statusPath ? controller.displayPath(statusPath) : ""}
+    location={statusPath}
+    onNavigate={(path) => controller.openBreadcrumb(path)}
     network={Boolean(statusPath && networkStatus.ownerOf(statusPath))}
     entries={controller.selected === "Recents"
       ? controller.recentEntries

@@ -4,9 +4,9 @@
 
 use sqlx::SqlitePool;
 
+use crate::explorer::local_path::{validate_existing, ExpectedKind};
 use crate::search::text;
 use crate::{network, remote};
-use crate::explorer::local_path::{validate_existing, ExpectedKind};
 
 /// Default cap for in-memory preview reads; keeps huge files out of the parser.
 pub(crate) const SOURCE_MAX_BYTES: usize = 32 * 1024 * 1024;
@@ -33,8 +33,7 @@ pub(crate) fn read_local_bytes(path: &str, max_bytes: usize) -> Result<Vec<u8>, 
     if metadata.len() > max_bytes as u64 {
         return Err(format!(
             "{} is larger than {} MB",
-            path
-                .file_name()
+            path.file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_else(|| path.to_string_lossy().into_owned()),
             max_bytes / (1024 * 1024)

@@ -55,7 +55,7 @@
   import { fetchMediaUrl, openViewer } from "./media.js";
   import ArchiveView from "$lib/archive/archive-view.svelte";
   import { fontSizeForShortcut, lineHeightFor, parseFontSize } from "./font-size.js";
-  import { isCsvName, isHtmlName, isMarkdownName, isMediaKind, languageFor } from "./languages.js";
+  import { isCsvName, isDataName, isHtmlName, isMarkdownName, isMediaKind, languageFor } from "./languages.js";
   import { analyzeHtmlSafety } from "./html-safety.js";
   import type { FilePreview } from "./types.js";
   import { fetchDefaultApp, type OpenWithApp } from "$lib/file-ops/open.js";
@@ -94,11 +94,13 @@
   const previewIsMarkdown = $derived(preview ? isMarkdownName(preview.name) : false);
   const previewIsHtml = $derived(preview ? isHtmlName(preview.name) : false);
   const previewIsCsv = $derived(preview ? isCsvName(preview.name) : false);
-  const showViewToggle = $derived(previewIsMarkdown || previewIsHtml || previewIsCsv);
+  const previewIsData = $derived(preview ? isDataName(preview.name) : false);
+  const showViewToggle = $derived(previewIsMarkdown || previewIsHtml || previewIsCsv || previewIsData);
   const showRendered = $derived(
     (previewIsMarkdown && viewMode === "render" && !markdownFailed) ||
       (previewIsHtml && viewMode === "render") ||
-      (previewIsCsv && viewMode === "render"),
+      (previewIsCsv && viewMode === "render") ||
+      (previewIsData && viewMode === "render"),
   );
   const htmlSafety = $derived(
     previewIsHtml && preview?.content ? analyzeHtmlSafety(preview.content) : null,
@@ -269,8 +271,6 @@
       <CalendarView path={previewPath} name={preview.name} />
     {:else if preview.kind === "torrent"}
       <TorrentView path={previewPath} name={preview.name} />
-    {:else if preview.kind === "data"}
-      <DataView path={previewPath} name={preview.name} />
     {:else if preview.kind === "diff"}
       <DiffView content={preview.content ?? ""} />
     {:else if preview.kind === "log"}
@@ -318,7 +318,7 @@
     {:else if !preview.content}
       <div class="grid flex-1 place-items-center text-[13px] text-[#9c9895]">Empty file</div>
     {:else}
-      {#if preview.truncated}
+      {#if preview.truncated && !(previewIsData && showRendered)}
         <p class="shrink-0 border-b border-[#3a3734] px-3 py-1 text-[11px] text-[#9c9895]">
           Large file - showing first 2 MB
         </p>
@@ -333,6 +333,8 @@
           <HtmlView source={preview.content ?? ""} zoom={htmlZoom} />
         {:else if showRendered && previewIsCsv}
           <CsvView content={preview.content ?? ""} />
+        {:else if showRendered && previewIsData}
+          <DataView path={previewPath} name={preview.name} />
         {:else}
           <CodeView
             bind:this={codeView}
@@ -385,7 +387,7 @@
               ? 'bg-[#3b3836] text-[#e8e5e2]'
               : 'bg-transparent text-[#9c9895] hover:text-[#e8e5e2]'}"
             aria-pressed={viewMode === "render"}
-            onclick={() => setViewMode("render")}>{previewIsCsv ? "Table" : "Render"}</button>
+            onclick={() => setViewMode("render")}>{previewIsData ? "Tree" : previewIsCsv ? "Table" : "Render"}</button>
           <button
             class="rounded border-0 px-2 py-0.5 {viewMode === 'code'
               ? 'bg-[#3b3836] text-[#e8e5e2]'

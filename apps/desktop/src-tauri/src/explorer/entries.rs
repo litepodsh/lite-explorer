@@ -8,8 +8,8 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::app::db::Database;
-use crate::explorer::paths::expand_tilde;
 use crate::explorer::local_path::validate_directory;
+use crate::explorer::paths::expand_tilde;
 use crate::{network, remote, search};
 
 #[derive(Serialize)]
@@ -20,6 +20,7 @@ pub struct DirectoryEntry {
     pub(crate) is_hidden: bool,
     pub(crate) size: Option<u64>,
     pub(crate) created: Option<u64>,
+    pub(crate) modified: Option<u64>,
     /// Set for entries that aren't plain files or folders, like `"bucket"`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) kind: Option<&'static str>,
@@ -149,6 +150,7 @@ pub fn directory_entries(path: &Path) -> Result<Vec<DirectoryEntry>, String> {
                 is_directory,
                 size: None,
                 created: epoch_millis(metadata.created()),
+                modified: epoch_millis(metadata.modified()),
                 kind: None,
             })
         })
@@ -228,6 +230,7 @@ pub fn single_entry(path: &Path) -> Result<DirectoryEntry, String> {
         is_directory: metadata.is_dir(),
         size: None,
         created: epoch_millis(metadata.created()),
+        modified: epoch_millis(metadata.modified()),
         kind: None,
     })
 }

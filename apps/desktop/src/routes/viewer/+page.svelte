@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { settings } from "$lib/settings/settings.svelte.js";
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
@@ -14,6 +15,8 @@
   import type { FilePreview } from "$lib/components/custom/preview/types.js";
   import type { Platform } from "$lib/state/platform.svelte.js";
   import { openTarget } from "$lib/file-ops/open.js";
+
+  settings.load();
 
   let preview = $state.raw<FilePreview | null>(null);
   let mediaUrl = $state("");
@@ -75,8 +78,12 @@
     void fetchViewerTarget().then((target) => {
       if (target) void load(target);
     });
+    const stopSettings = settings.listen();
     const unlisten = listen<{ path: string }>("viewer-open", (event) => void load(event.payload.path));
-    return () => void unlisten.then((stop) => stop());
+    return () => {
+      stopSettings();
+      void unlisten.then((stop) => stop());
+    };
   });
 </script>
 

@@ -1,11 +1,12 @@
 <script lang="ts" module>
-  export type DirectoryEntry = { name: string; path: string; is_directory: boolean; is_hidden: boolean; size?: number; sizeComplete?: boolean; opened_at?: number; created?: number; kind?: "bucket" | "share"; relative_path?: string; snippet?: string; inner_path?: string };
+  export type DirectoryEntry = { name: string; path: string; is_directory: boolean; is_hidden: boolean; size?: number; sizeComplete?: boolean; opened_at?: number; created?: number; modified?: number; kind?: "bucket" | "share"; relative_path?: string; snippet?: string; inner_path?: string };
 </script>
 
 <script lang="ts">
   import DownloadIndicator from "$lib/transfers/download-indicator.svelte";
   import type { DownloadSnapshot } from "$lib/transfers/download-progress.js";
   import EntryIcon from "$lib/file-icons/entry-icon.svelte";
+  import { DEFAULT_COLUMNS, type ListColumn } from "./columns.js";
   import { entryType } from "./sort.js";
   import FolderIcon from "@lucide/svelte/icons/folder";
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
@@ -18,6 +19,8 @@
     entry,
     downloadSnapshot,
     view = "list",
+    columns = DEFAULT_COLUMNS,
+    draggedColumn,
     selected = false,
     focused = false,
     joinPrev = false,
@@ -42,6 +45,8 @@
     entry: DirectoryEntry;
     downloadSnapshot?: DownloadSnapshot;
     view?: "list" | "grid";
+    columns?: ListColumn[];
+    draggedColumn?: ListColumn;
     selected?: boolean;
     /** Keyboard focus is on this item. */
     focused?: boolean;
@@ -162,7 +167,9 @@
     }}
     ondblclick={handleDblClick}>
     <div role="gridcell" class="flex items-center gap-2 px-2">{#if checkboxes}<span class="flex" transition:checkboxReveal={{ delay: revealDelay }}><SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} /></span>{/if}{#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else if entry.is_directory}<FolderIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} />{/if}</div>
-    <div role="gridcell" class="flex min-w-0 items-center gap-2 px-2">
+    {#each columns as column (column)}
+    {#if column === "name"}
+    <div role="gridcell" class:column-source={draggedColumn === column} class="flex min-w-0 items-center gap-2 px-2">
       <span class="min-w-0 flex-1 truncate">
       {#if renaming}
         <span class="relative flex w-full items-center gap-0.5 overflow-hidden rounded-sm border border-[#0a84ff]/60 bg-[#1f1d1b] pr-1 transition-colors duration-300 motion-reduce:transition-none">
@@ -194,11 +201,15 @@
       </span>
       {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </div>
-    <div role="gridcell" class="px-2 text-xs text-[#9c9895]">{entryType(entry)}</div>
-    <div role="gridcell" class="px-2 text-right text-xs tabular-nums text-[#9c9895]">
-      {@render sizeLabel()}
-    </div>
-    <div role="gridcell" class="px-2 text-right text-xs tabular-nums text-[#9c9895]">{entry.created == null ? "—" : formatDate(entry.created)}</div>
+    {:else if column === "type"}
+    <div role="gridcell" class:column-source={draggedColumn === column} class="px-2 text-xs text-[#9c9895]">{entryType(entry)}</div>
+    {:else if column === "size"}
+    <div role="gridcell" class:column-source={draggedColumn === column} class="px-2 text-right text-xs tabular-nums text-[#9c9895]">{@render sizeLabel()}</div>
+    {:else}
+    {@const date = column === "date" ? entry.created : entry.modified}
+    <div role="gridcell" class:column-source={draggedColumn === column} class="truncate px-2 text-right text-xs tabular-nums text-[#9c9895]" title={date == null ? "Unavailable" : new Date(date).toLocaleString()}>{date == null ? "—" : formatDate(date)}</div>
+    {/if}
+    {/each}
   </div>
 {:else}
   <button
@@ -252,6 +263,7 @@
 {/if}
 
 <style>
+  .column-source { opacity: 0.35; }
   .measured-size {
     display: inline-block;
     animation: size-reveal 240ms cubic-bezier(0.2, 0, 0, 1) both;
@@ -269,8 +281,7 @@
     box-shadow: inset 0 -1px 0 rgb(58 55 52 / 0.6);
     transition:
       transform 240ms cubic-bezier(0.2, 0, 0, 1),
-      background-color 140ms var(--ease),
-      grid-template-columns 260ms var(--ease);
+      background-color 140ms var(--ease);
   }
 
   .file-row[data-zebra] {

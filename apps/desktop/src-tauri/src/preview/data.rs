@@ -23,7 +23,7 @@ const MAX_NDJSON_LINES: usize = 5000;
 pub(crate) fn is_data_extension(extension: &str) -> bool {
     matches!(
         extension.to_ascii_lowercase().as_str(),
-        "json" | "ndjson" | "jsonl" | "yaml" | "yml" | "toml"
+        "json" | "jsonc" | "ndjson" | "jsonl" | "yaml" | "yml" | "toml"
     )
 }
 
@@ -52,6 +52,68 @@ fn yaml_to_json(value: serde_yaml::Value) -> Result<serde_json::Value, String> {
     serde_json::to_value(value).map_err(|error| error.to_string())
 }
 
+/// Strips `//`/`/* */` comments and trailing commas so JSONC parses as JSON.
+/// Only ASCII structural bytes are removed, so UTF-8 content stays intact.
+fn strip_jsonc(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    let mut in_string = false;
+    let mut escaped = false;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        if in_string {
+            out.push(byte);
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        match byte {
+            b'"' => {
+                in_string = true;
+                out.push(byte);
+                i += 1;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                i += 2;
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(bytes.len());
+            }
+            b',' => {
+                let mut next = i + 1;
+                while next < bytes.len() && bytes[next].is_ascii_whitespace() {
+                    next += 1;
+                }
+                if next < bytes.len() && (bytes[next] == b'}' || bytes[next] == b']') {
+                    i += 1;
+                } else {
+                    out.push(byte);
+                    i += 1;
+                }
+            }
+            _ => {
+                out.push(byte);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(out).unwrap_or_else(|_| text.to_string())
+}
+
 pub(crate) fn parse_data(text: &str, extension: &str) -> Result<DataPreview, String> {
     match extension {
         "json" => {
@@ -59,6 +121,15 @@ pub(crate) fn parse_data(text: &str, extension: &str) -> Result<DataPreview, Str
                 serde_json::from_str(text).map_err(|error| format!("Invalid JSON: {error}"))?;
             Ok(DataPreview {
                 format: "json".to_string(),
+                value,
+                truncated: false,
+            })
+        }
+        "jsonc" => {
+            let value: serde_json::Value = serde_json::from_str(&strip_jsonc(text))
+                .map_err(|error| format!("Invalid JSON: {error}"))?;
+            Ok(DataPreview {
+                format: "jsonc".to_string(),
                 value,
                 truncated: false,
             })
@@ -117,6 +188,30 @@ mod tests {
         let preview = parse_data(r#"{"a": 1, "b": [true, null]}"#, "json").unwrap();
         assert_eq!(preview.format, "json");
         assert_eq!(preview.value["a"], 1);
+    }
+
+    #[test]
+    fn parses_jsonc_with_comments_and_trailing_commas() {
+        let preview = parse_data(
+            "{\n  // line comment\n  \"a\": 1,\n  /* block */ \"b\": [true, false,],\n}\n",
+            "jsonc",
+        )
+        .unwrap();
+        assert_eq!(preview.format, "jsonc");
+        assert_eq!(preview.value["a"], 1);
+        assert_eq!(preview.value["b"][0], true);
+    }
+
+    #[test]
+    fn keeps_comment_like_text_inside_strings() {
+        let preview = parse_data(r#"{"url": "https://example.com//x"}"#, "jsonc").unwrap();
+        assert_eq!(preview.value["url"], "https://example.com//x");
+    }
+
+    #[test]
+    fn recognizes_jsonc_as_data() {
+        assert!(is_data_extension("jsonc"));
+        assert!(is_data_extension("JSONC"));
     }
 
     #[test]

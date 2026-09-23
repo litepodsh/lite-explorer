@@ -9,14 +9,22 @@
   import { formatSize } from "$lib/components/custom/preview/format.js";
   import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
   import FpsMeter from "./fps-meter.svelte";
-  import { openCommandPalette } from "$lib/state/command-palette.svelte";
-  import SearchIcon from "@lucide/svelte/icons/search";
+  import { openCommandPaletteWith } from "$lib/state/command-palette.svelte";
+  import PencilIcon from "@lucide/svelte/icons/pencil";
+  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
+  import { isRemotePath } from "$lib/remote/remote-locations.js";
+  import { isNetworkPath } from "$lib/remote/network-locations.js";
+  import { breadcrumbSegments, collapseSegments } from "./breadcrumb.js";
 
-  let { path = "", network = false, entries = [], selectedEntries = [], showFps = false, activity = null, keyboardMode = "standard", visual = false, pendingKeys = "", sizeScanning = false, sizeScanMessage = "", onCancelSizeScan } = $props<{
+  let { path = "", location = "", onNavigate, network = false, entries = [], selectedEntries = [], showFps = false, activity = null, keyboardMode = "standard", visual = false, pendingKeys = "", sizeScanning = false, sizeScanMessage = "", onCancelSizeScan } = $props<{
     sizeScanning?: boolean;
     sizeScanMessage?: string;
     onCancelSizeScan?: () => void;
+    /** The path as shown, like an `s3://bucket` URI or a share's server address. */
     path?: string;
+    /** The internal path of the listing that `path` describes; breadcrumb segments open folders of it. */
+    location?: string;
+    onNavigate?: (path: string) => void;
     /** The path is inside a network location, shown as its server address. */
     network?: boolean;
     entries?: DirectoryEntry[];
@@ -55,6 +63,16 @@
     bytes.target = targetBytes;
   });
 
+  const segments = $derived(breadcrumbSegments(location, path));
+  const crumbs = $derived(collapseSegments(segments));
+  // The palette completes local folders only; S3, SFTP/FTP and unmounted shares can't be typed there.
+  const editable = $derived(Boolean(location) && !isRemotePath(location) && !isNetworkPath(location));
+
+  function editPath() {
+    const separator = location.includes("\\") && !location.includes("/") ? "\\" : "/";
+    openCommandPaletteWith(/[\\/]$/.test(location) ? location : location + separator);
+  }
+
   async function copyPath() {
     if (!path) return;
     await navigator.clipboard.writeText(path);
@@ -63,6 +81,15 @@
     copiedTimer = setTimeout(() => (copied = false), 1500);
   }
 </script>
+
+{#snippet crumb(segment: { label: string; path: string }, current: boolean)}
+  {#if current}
+    <span class="crumb crumb-current min-w-0 truncate select-text" aria-current="location">{segment.label}</span>
+  {:else}
+    <button type="button" class="crumb max-w-48 shrink-0 truncate" title={segment.path} onclick={() => onNavigate?.(segment.path)}>{segment.label}</button>
+    <span class="crumb-separator" aria-hidden="true">›</span>
+  {/if}
+{/snippet}
 
 <footer
   class="group relative flex h-7 shrink-0 items-center gap-1.5 border-t border-[#3a3734] bg-[#242220] px-3 text-[11px] text-[#9c9895]"
@@ -73,14 +100,40 @@
   {:else}
     <FolderIcon class="size-3.5 shrink-0 text-blue-400 stroke-[1.7]" />
   {/if}
-  <span class="min-w-0 truncate select-text" title={path}>{path || "No location selected"}</span>
-  <button
-    class="grid size-5 shrink-0 place-items-center rounded border-0 bg-transparent text-[#9c9895] opacity-0 transition-opacity hover:bg-[#353230] hover:text-[#e8e5e2] focus-visible:opacity-100 group-hover:opacity-100"
-    aria-label="Go to Folder"
-    title="Go to Folder (⇧⌘P)"
-    onclick={openCommandPalette}>
-    <SearchIcon class="size-3.5" />
-  </button>
+  {#if segments.length}
+    <nav class="flex min-w-0 items-center overflow-hidden" aria-label="Path" title={path}>
+      {#each crumbs.head as segment, index (segment.path)}
+        {@render crumb(segment, index === segments.length - 1)}
+      {/each}
+      {#if crumbs.hidden.length}
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger class="crumb shrink-0" aria-label="Show hidden folders">…</DropdownMenu.Trigger>
+          <DropdownMenu.Content side="top" class="w-auto max-w-80">
+            {#each crumbs.hidden as segment (segment.path)}
+              <DropdownMenu.Item onSelect={() => onNavigate?.(segment.path)}>
+                <FolderIcon class="text-blue-400" /><span class="truncate">{segment.label}</span>
+              </DropdownMenu.Item>
+            {/each}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+        <span class="crumb-separator" aria-hidden="true">›</span>
+      {/if}
+      {#each crumbs.tail as segment, index (segment.path)}
+        {@render crumb(segment, index === crumbs.tail.length - 1)}
+      {/each}
+    </nav>
+  {:else}
+    <span class="min-w-0 truncate">No location selected</span>
+  {/if}
+  {#if editable}
+    <button
+      class="grid size-5 shrink-0 place-items-center rounded border-0 bg-transparent text-[#9c9895] opacity-0 transition-opacity hover:bg-[#353230] hover:text-[#e8e5e2] focus-visible:opacity-100 group-hover:opacity-100"
+      aria-label="Edit path"
+      title="Edit path"
+      onclick={editPath}>
+      <PencilIcon class="size-3.5" />
+    </button>
+  {/if}
   {#if path}
     <button
       class="grid size-5 shrink-0 place-items-center rounded border-0 bg-transparent text-[#9c9895] opacity-0 transition-opacity hover:bg-[#353230] hover:text-[#e8e5e2] focus-visible:opacity-100 group-hover:opacity-100 {copied ? 'opacity-100 text-green-400' : ''}"
@@ -150,6 +203,31 @@
   @media (prefers-reduced-motion: reduce) {
     .size-scan-status, .size-scan-track span { animation: none; }
     .size-scan-track span { width: 100%; opacity: 0.6; }
+  }
+
+  footer :global(.crumb) {
+    padding: 0 4px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 18px;
+  }
+  footer :global(button.crumb:hover),
+  footer :global(button.crumb[data-state="open"]) {
+    background: #353230;
+    color: #e8e5e2;
+  }
+  footer :global(button.crumb:focus-visible) {
+    outline: 1px solid #5cb9ff;
+  }
+  .crumb-current {
+    color: #e8e5e2;
+  }
+  .crumb-separator {
+    flex-shrink: 0;
+    color: #5c5854;
   }
 
   .key-pill {

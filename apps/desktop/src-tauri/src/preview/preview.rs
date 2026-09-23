@@ -210,8 +210,6 @@ pub(crate) fn preview_kind_for_extension(extension: &str) -> Option<PreviewKind>
         Some(PreviewKind::Calendar)
     } else if crate::preview::torrent::is_torrent_extension(extension) {
         Some(PreviewKind::Torrent)
-    } else if crate::preview::data::is_data_extension(extension) {
-        Some(PreviewKind::Data)
     } else if crate::preview::comic::is_comic_extension(extension) {
         Some(PreviewKind::Comic)
     } else if crate::preview::notebook::is_notebook_extension(extension) {
@@ -292,6 +290,10 @@ pub(crate) fn apply_text_extension_kind(preview: &mut FilePreview, name: &str) {
         .and_then(|extension| extension.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
+    if crate::preview::data::is_data_extension(&extension) {
+        preview.kind = PreviewKind::Data;
+        return;
+    }
     match extension.as_str() {
         "diff" | "patch" => preview.kind = PreviewKind::Diff,
         "log" => preview.kind = PreviewKind::Log,
@@ -387,7 +389,11 @@ pub fn file_preview(path: &Path) -> Result<FilePreview, String> {
 }
 
 #[tauri::command]
-#[tracing::instrument(skip_all, name = "read_file_preview", fields(sentry_op = "file.preview"))]
+#[tracing::instrument(
+    skip_all,
+    name = "read_file_preview",
+    fields(sentry_op = "file.preview")
+)]
 pub async fn read_file_preview(
     database: State<'_, Database>,
     clients: State<'_, remote::RemoteClients>,
@@ -452,6 +458,21 @@ mod tests {
         assert!(!preview.truncated);
         assert!(preview.modified.is_some());
         fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_preview_reads_data_files_with_content() {
+        let json = preview_fixture("config.json", b"{\"a\":1}");
+        let preview = file_preview(&json).unwrap();
+        assert_eq!(preview.kind, PreviewKind::Data);
+        assert_eq!(preview.content.as_deref(), Some("{\"a\":1}"));
+        fs::remove_dir_all(json.parent().unwrap()).unwrap();
+
+        let yaml = preview_fixture("config.yaml", b"name: demo\n");
+        let preview = file_preview(&yaml).unwrap();
+        assert_eq!(preview.kind, PreviewKind::Data);
+        assert_eq!(preview.content.as_deref(), Some("name: demo\n"));
+        fs::remove_dir_all(yaml.parent().unwrap()).unwrap();
     }
 
     #[test]

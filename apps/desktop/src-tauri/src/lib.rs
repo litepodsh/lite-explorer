@@ -17,9 +17,9 @@ pub(crate) use preview::{
 
 use app::db::open_database;
 use app::swipe_nav;
+use app::window::{paint_black, restore_window_state, save_window_state};
 #[cfg(target_os = "macos")]
 use app::window::{set_webview_background, unlock_webview_frame_rate};
-use app::window::{paint_black, restore_window_state, save_window_state};
 use system::folder_usage::FolderScans;
 use tauri::{Manager, WindowEvent};
 
@@ -78,6 +78,7 @@ pub fn run() {
         .on_menu_event(|app, event| app::menu::handle(app, event.id().as_ref()))
         .invoke_handler(tauri::generate_handler![
             app::general::os_detection,
+            app::general::is_hyprland,
             app::analytics::analytics_prefs,
             app::analytics::save_analytics,
             app::icons::file_icons,
@@ -147,6 +148,9 @@ pub fn run() {
             explorer::sizes::compute_directory_sizes,
             explorer::sizes::scan_directory_sizes,
             explorer::sizes::cancel_directory_size_scan,
+            explorer::info::read_file_info,
+            explorer::exif::read_file_exif,
+            explorer::exif::remove_file_exif,
             preview::read_file_preview,
             preview::epub::open_epub,
             preview::epub::read_epub_chapter,

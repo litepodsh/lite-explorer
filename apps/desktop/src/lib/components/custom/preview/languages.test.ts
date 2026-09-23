@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { GRAMMAR_LOADERS } from "./grammars.js";
 import {
   isAudioName,
+  isDataName,
   isHtmlName,
   isMarkdownName,
   isMediaKind,
@@ -71,6 +72,20 @@ describe("isHtmlName", () => {
     expect(isHtmlName("page.HTM")).toBe(true);
     expect(isHtmlName("main.rs")).toBe(false);
     expect(isHtmlName("html")).toBe(false);
+  });
+});
+
+describe("isDataName", () => {
+  test("detects structured-data extensions case-insensitively", () => {
+    expect(isDataName("package.json")).toBe(true);
+    expect(isDataName("settings.JSONC")).toBe(true);
+    expect(isDataName("events.NDJSON")).toBe(true);
+    expect(isDataName("log.jsonl")).toBe(true);
+    expect(isDataName("config.yaml")).toBe(true);
+    expect(isDataName("config.YML")).toBe(true);
+    expect(isDataName("Cargo.toml")).toBe(true);
+    expect(isDataName("notes.md")).toBe(false);
+    expect(isDataName("json")).toBe(false);
   });
 });
 

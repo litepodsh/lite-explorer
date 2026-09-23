@@ -249,6 +249,13 @@ export function isCsvName(name: string): boolean {
   return CSV_EXTENSIONS.includes(extensionOf(name));
 }
 
+// Structured data parsed into a tree by `open_data` (see preview/data.rs).
+const DATA_EXTENSIONS = ["json", "jsonc", "ndjson", "jsonl", "yaml", "yml", "toml"];
+
+export function isDataName(name: string): boolean {
+  return DATA_EXTENSIONS.includes(extensionOf(name));
+}
+
 const SPREADSHEET_EXTENSIONS = [
   "xlsx",
   "xlsm",

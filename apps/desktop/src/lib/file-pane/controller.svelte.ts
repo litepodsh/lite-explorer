@@ -1,4 +1,6 @@
 import { activity } from "$lib/transfers/jobs.js";
+import { homeDir } from "@tauri-apps/api/path";
+import { shouldCalculateSizes } from "$lib/settings/automatic-sizes.js";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { message, open } from "@tauri-apps/plugin-dialog";
 import {
@@ -132,7 +134,7 @@ export class FilePaneController {
     );
   }
 
-  async calculateSizes() {
+  async calculateSizes({ preserveSort = false }: { preserveSort?: boolean } = {}) {
     if (!this.canCalculateSizes || this.sizeScanning) return;
     const path = this.listingPath;
     const requestId = crypto.randomUUID();
@@ -145,7 +147,7 @@ export class FilePaneController {
         entry.sizeComplete = false;
       }
     }
-    this.navigator?.sort("size", "desc");
+    if (!preserveSort) this.navigator?.sort("size", "desc");
     const channel = new Channel<{
       sizes: { path: string; size: number; complete: boolean }[];
       done: boolean;
@@ -532,6 +534,13 @@ export class FilePaneController {
       !networkStatus.mountFor(location.path)
     ) {
       void invoke("compute_directory_sizes", { path: location.path }).catch(() => {});
+      const home = settings.current.automaticSizesInHome
+        ? await homeDir().catch(() => "")
+        : "";
+      if (token !== this.loadToken) return;
+      if (shouldCalculateSizes(location.path, home, settings.current)) {
+        void this.calculateSizes({ preserveSort: true });
+      }
     }
   }
 
@@ -540,6 +549,20 @@ export class FilePaneController {
   /** Lists the active tab's folder again, for example after reconnecting its share. */
   reload() {
     void this.loadLocation(this.tabs.active.location);
+  }
+
+  /** User-requested refresh. Local folders fold in a fresh read; S3, SFTP/FTP and SMB
+   *  folders are listed again from scratch with the loading state, clearing any error. */
+  refresh() {
+    const path = this.listingPath;
+    const remote =
+      isRemoteLike(path) || isNetworkPath(path) || Boolean(networkStatus.mountFor(path));
+    if (this.isBrowsableFolder() && !remote && !this.listingError && !this.disconnected) {
+      void this.refreshListing(path);
+      return;
+    }
+    this.#listingCache.delete(path);
+    this.reload();
   }
 
   /** Reads the adjacent history folders ahead of a swipe, so the incoming list can slide in.
@@ -836,7 +859,13 @@ export class FilePaneController {
       this.openLocation(server);
       return;
     }
-    const name = toS3Uri(path).split("/").filter(Boolean).at(-1) ?? path;
+    this.openBreadcrumb(path);
+  }
+
+  /** Opens a folder containing the listing, picked from the status bar's path. */
+  openBreadcrumb(path: string) {
+    if (path === this.listingPath) return;
+    const name = toS3Uri(path).split(/[\\/]/).filter(Boolean).at(-1) ?? path;
     this.openLocation({ name, path, kind: "folder" });
   }
 

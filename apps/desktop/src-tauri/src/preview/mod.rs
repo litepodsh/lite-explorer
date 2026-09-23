@@ -27,6 +27,6 @@ pub(crate) mod source;
 pub(crate) mod subtitle;
 pub(crate) mod torrent;
 pub(crate) mod vcard;
-mod xml;
+pub(crate) mod xml;
 
 pub use preview::*;

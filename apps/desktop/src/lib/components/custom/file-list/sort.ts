@@ -1,6 +1,6 @@
 import type { DirectoryEntry } from "./list-item.svelte";
 
-export type SortColumn = "name" | "type" | "size" | "date";
+export type SortColumn = "name" | "type" | "size" | "date" | "modified";
 export type SortDir = "asc" | "desc";
 
 /** Label for the Type column. */
@@ -18,6 +18,8 @@ function compare(a: DirectoryEntry, b: DirectoryEntry, column: SortColumn): numb
       return entryType(a).localeCompare(entryType(b));
     case "size":
       return (a.size ?? 0) - (b.size ?? 0);
+    case "modified":
+      return (a.modified ?? 0) - (b.modified ?? 0);
     case "date":
       return (a.created ?? 0) - (b.created ?? 0);
   }

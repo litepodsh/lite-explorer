@@ -21,7 +21,9 @@ use ruzstd::decoding::StreamingDecoder;
 use serde::{Deserialize, Serialize};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
-use crate::explorer::local_path::{child_path, validate_directory, validate_existing, ExpectedKind};
+use crate::explorer::local_path::{
+    child_path, validate_directory, validate_existing, ExpectedKind,
+};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Format {
@@ -929,7 +931,11 @@ pub fn extract_targets(
 }
 
 #[tauri::command]
-#[tracing::instrument(skip_all, name = "create_archive", fields(sentry_op = "archive.create"))]
+#[tracing::instrument(
+    skip_all,
+    name = "create_archive",
+    fields(sentry_op = "archive.create")
+)]
 pub async fn create_archive(paths: Vec<String>, destination: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let paths: Result<Vec<PathBuf>, String> = paths
@@ -938,7 +944,10 @@ pub async fn create_archive(paths: Vec<String>, destination: String) -> Result<(
             .collect();
         let destination = PathBuf::from(destination);
         let parent = destination.parent().ok_or("Invalid local path")?;
-        let name = destination.file_name().and_then(|name| name.to_str()).ok_or("Invalid item name")?;
+        let name = destination
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or("Invalid item name")?;
         create(&paths?, &child_path(parent, name)?)
     })
     .await
@@ -958,8 +967,8 @@ pub async fn list_archive(path: String) -> Result<ArchiveListing, String> {
         let path = validate_existing(Path::new(&path), ExpectedKind::File)?;
         read_listing(&path, Some(LIST_LIMIT))
     })
-        .await
-        .map_err(to_string)?
+    .await
+    .map_err(to_string)?
 }
 
 #[tauri::command]
@@ -972,11 +981,7 @@ pub async fn plan_extraction(
     tauri::async_runtime::spawn_blocking(move || {
         let archive = validate_existing(Path::new(&archive), ExpectedKind::File)?;
         let destination = validate_directory(Path::new(&destination))?;
-        plan(
-            &archive,
-            &destination,
-            entries.as_deref(),
-        )
+        plan(&archive, &destination, entries.as_deref())
     })
     .await
     .map_err(to_string)?
@@ -985,7 +990,11 @@ pub async fn plan_extraction(
 /// Extracts under a job id chosen by the frontend and resolves when the job ends.
 /// Progress goes out as `transfer-progress` events; `cancel_transfer` stops it.
 #[tauri::command]
-#[tracing::instrument(skip_all, name = "extract_archive", fields(sentry_op = "archive.extract"))]
+#[tracing::instrument(
+    skip_all,
+    name = "extract_archive",
+    fields(sentry_op = "archive.extract")
+)]
 pub async fn extract_archive(
     app: tauri::AppHandle,
     registry: tauri::State<'_, crate::remote::transfer::TransferRegistry>,
