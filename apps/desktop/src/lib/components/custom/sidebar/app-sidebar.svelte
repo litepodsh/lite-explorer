@@ -55,6 +55,7 @@
     onEditLocation,
     onCopyLocationAddress,
     onDisconnectLocation,
+    onEjectLocation,
     onAddFavorite,
     onRemoveFavorite,
     onReorderFavorites,
@@ -78,6 +79,7 @@
     onEditLocation?: (location: Location) => void;
     onCopyLocationAddress?: (location: Location) => void;
     onDisconnectLocation?: (location: Location) => void;
+    onEjectLocation?: (location: Location) => void;
     /** Adds a local folder to the favorites at `index`. */
     onAddFavorite?: (path: string, index: number) => void;
     onRemoveFavorite?: (location: Location) => void;
@@ -372,12 +374,27 @@
             </ContextMenu.Content>
           </ContextMenu.Root>
         {:else}
-          <button
-            aria-label={location.name} data-sidebar-item
-            title={location.path}
-            class:active={selected === location.name}
-            onclick={() => onOpen?.(location)}
-            >{#if location.kind === "home"}<HouseIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span></button>
+          {#if location.kind === "hfs-volume"}
+            <div class="location-row">
+              <button
+                aria-label={location.name} data-sidebar-item
+                title={location.path}
+                class:active={selected === location.name}
+                onclick={() => onOpen?.(location)}><HardDriveIcon /><span>{location.name}</span></button>
+              <button
+                class="location-trail"
+                aria-label={`Eject ${location.name}`}
+                title="Eject"
+                onclick={() => onEjectLocation?.(location)}><EjectIcon /></button>
+            </div>
+          {:else}
+            <button
+              aria-label={location.name} data-sidebar-item
+              title={location.path}
+              class:active={selected === location.name}
+              onclick={() => onOpen?.(location)}
+              >{#if location.kind === "home"}<HouseIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span></button>
+          {/if}
         {/if}
       {/each}
     </nav>

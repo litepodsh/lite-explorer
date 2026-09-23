@@ -18,7 +18,6 @@
   import HtmlView from "./html-view.svelte";
   import ImageView from "./image-view.svelte";
   import BinaryView from "./binary-view.svelte";
-  import PdfView from "./pdf-view.svelte";
   import MediaView from "./media-view.svelte";
   import FontView from "./font-view.svelte";
   import EpubView from "./epub-view.svelte";
@@ -39,7 +38,6 @@
   import DatabaseView from "./database-view.svelte";
   import SubtitleView from "./subtitle-view.svelte";
   import CertificateView from "./certificate-view.svelte";
-  import ModelView from "./model-view.svelte";
   import GeoView from "./geo-view.svelte";
   import Fb2View from "./fb2-view.svelte";
   import PcapView from "./pcap-view.svelte";
@@ -62,9 +60,11 @@
   import { isRemotePath } from "$lib/remote/remote-locations.js";
 
   type Props = { entry: DirectoryEntry };
+  type PdfViewComponent = typeof import("./pdf-view.svelte").default;
+  type ModelViewComponent = typeof import("./model-view.svelte").default;
   let { entry }: Props = $props();
 
-  const DEBOUNCE_MS = 40;
+  const DEBOUNCE_MS = 150;
   const SLOW_MS = 150;
   const FONT_SIZE_KEY = "preview-font-size";
   const MIN_HTML_ZOOM = 0.5;
@@ -83,7 +83,9 @@
   let htmlZoom = $state(1);
   let contentRoot = $state<HTMLElement | null>(null);
   let codeView = $state<ReturnType<typeof CodeView> | null>(null);
-  let pdfView = $state<ReturnType<typeof PdfView> | null>(null);
+  let PdfView = $state<PdfViewComponent | null>(null);
+  let ModelView = $state<ModelViewComponent | null>(null);
+  let pdfView = $state<ReturnType<PdfViewComponent> | null>(null);
   let mediaView = $state<ReturnType<typeof MediaView> | null>(null);
   let findBar = $state<ReturnType<typeof FindBar> | null>(null);
   let token = 0;
@@ -105,6 +107,22 @@
   const htmlSafety = $derived(
     previewIsHtml && preview?.content ? analyzeHtmlSafety(preview.content) : null,
   );
+
+  $effect(() => {
+    const kind = preview?.kind;
+    let cancelled = false;
+    if (kind === "pdf" && !PdfView) {
+      void import("./pdf-view.svelte").then(({ default: View }) => {
+        if (!cancelled) PdfView = View;
+      });
+    }
+    if (kind === "model" && !ModelView) {
+      void import("./model-view.svelte").then(({ default: View }) => {
+        if (!cancelled) ModelView = View;
+      });
+    }
+    return () => { cancelled = true; };
+  });
 
   $effect(() => {
     const path = entry.path;
@@ -215,7 +233,7 @@
     {:else if preview.kind === "binary"}
       <BinaryView name={preview.name} />
     {:else if preview.kind === "pdf"}
-      {#if mediaUrl}
+      {#if mediaUrl && PdfView}
         <PdfView
           bind:this={pdfView}
           src={mediaUrl}
@@ -286,7 +304,7 @@
     {:else if preview.kind === "certificate"}
       <CertificateView path={previewPath} name={preview.name} />
     {:else if preview.kind === "model"}
-      {#if mediaUrl}
+      {#if mediaUrl && ModelView}
         <ModelView src={mediaUrl} name={preview.name} />
       {:else}
         {@render mediaSpinner()}

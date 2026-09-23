@@ -3,6 +3,8 @@ import type { DirectoryEntry } from "./list-item.svelte";
 export type SortColumn = "name" | "type" | "size" | "date" | "modified";
 export type SortDir = "asc" | "desc";
 
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
 /** Label for the Type column. */
 export function entryType(entry: DirectoryEntry): string {
   if (entry.kind === "bucket") return "Bucket";
@@ -13,7 +15,7 @@ export function entryType(entry: DirectoryEntry): string {
 function compare(a: DirectoryEntry, b: DirectoryEntry, column: SortColumn): number {
   switch (column) {
     case "name":
-      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+      return nameCollator.compare(a.name, b.name);
     case "type":
       return entryType(a).localeCompare(entryType(b));
     case "size":

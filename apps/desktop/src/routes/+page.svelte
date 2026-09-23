@@ -335,6 +335,20 @@
     }
   }
 
+  async function ejectVolume(location: Location) {
+    try {
+      await invoke("eject_volume", { path: location.path });
+      locations = locations.filter((candidate) => candidate.path !== location.path);
+      for (const controller of controllers.values()) {
+        if (controller.listingPath === location.path || controller.listingPath.startsWith(`${location.path}/`)) {
+          controller.openLocation(OVERVIEW);
+        }
+      }
+    } catch (error) {
+      await message(error instanceof Error ? error.message : String(error), { title: `Couldn’t eject “${location.name}”`, kind: "error" });
+    }
+  }
+
   function removeLocation(location: Location) {
     confirmation.ask({
       title: `Remove “${location.name}”?`,
@@ -514,12 +528,6 @@
       listen<boolean>("show-hidden-files", ({ payload }) => settings.set("showHiddenFiles", payload)),
       listen<boolean>("show-fps", ({ payload }) => settings.set("showFps", payload)),
       listen<boolean>("dev-tools", ({ payload }) => settings.set("prototypeSwitcher", payload)),
-      listen<{ path: string; sizes: { path: string; size: number }[] }>(
-        "directory-sizes",
-        ({ payload }) => {
-          for (const controller of controllers.values()) controller.applyDirectorySizes(payload);
-        },
-      ),
       listen("request-create-folder", () => void activeController.createItem("folder")),
       listen("request-create-file", () => void activeController.createItem("file")),
       listen("request-open", (event) => void activeController.openPath(event.payload as string)),
@@ -975,6 +983,7 @@
     onEditLocation={editLocation}
     onCopyLocationAddress={copyLocationAddress}
     onDisconnectLocation={(location) => void disconnectLocation(location)}
+    onEjectLocation={(location) => void ejectVolume(location)}
     onAddFavorite={addToFavorites}
     onRemoveFavorite={(favorite) => removeFromFavorites(favorite.path)}
     onReorderFavorites={reorderFavoriteList}

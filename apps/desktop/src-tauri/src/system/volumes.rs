@@ -22,6 +22,40 @@ pub struct VolumeInfo {
     is_primary: bool,
 }
 
+fn is_hfs_external(volume: &VolumeInfo) -> bool {
+    !volume.is_primary && volume.file_system.as_deref() == Some("HFS")
+}
+
+/// HFS volumes that macOS mounted under `/Volumes`, excluding the startup disk.
+pub(crate) fn hfs_external_volumes() -> Vec<VolumeInfo> {
+    volumes().into_iter().filter(is_hfs_external).collect()
+}
+
+#[tauri::command]
+pub fn eject_volume(path: String) -> Result<(), String> {
+    if !hfs_external_volumes()
+        .iter()
+        .any(|volume| volume.mount_point == path)
+    {
+        return Err("That mounted HFS volume is no longer available.".into());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let output = Command::new("diskutil")
+            .args(["eject", &path])
+            .output()
+            .map_err(|error| error.to_string())?;
+        if output.status.success() {
+            return Ok(());
+        }
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_owned());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    Err("Ejecting HFS volumes is available only on macOS.".into())
+}
+
 #[derive(Serialize)]
 pub struct DiskOverview {
     device: DeviceInfo,
@@ -489,6 +523,23 @@ pub fn device_id(_metadata: &fs::Metadata) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_non_primary_hfs_volumes_are_external() {
+        let external = VolumeInfo {
+            name: "Gitru".into(),
+            mount_point: "/Volumes/Gitru".into(),
+            file_system: Some("HFS".into()),
+            total_bytes: 1,
+            free_bytes: 1,
+            is_primary: false,
+        };
+        assert!(is_hfs_external(&external));
+        assert!(!is_hfs_external(&VolumeInfo {
+            is_primary: true,
+            ..external
+        }));
+    }
 
     #[cfg(target_os = "windows")]
     #[test]

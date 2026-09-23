@@ -181,7 +181,7 @@
     <OverviewPanel
       showHidden={showHiddenFiles}
       onOpen={(entry) => controller.openLocation({ name: entry.name, path: entry.path, kind: "folder" })} />
-  {:else if controller.listing}
+  {:else if controller.listing && controller.entries.length === 0}
     <section class="finder-empty" aria-live="polite"><p>Loading {controller.selected}…</p></section>
   {:else if controller.disconnected}
     <section class="finder-empty network-disconnected" aria-live="polite">

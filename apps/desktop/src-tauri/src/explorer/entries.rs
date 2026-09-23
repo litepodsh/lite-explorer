@@ -1,18 +1,23 @@
 use std::{
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, OnceLock,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::Serialize;
-use tauri::State;
+use tauri::{ipc::Channel, State};
 
 use crate::app::db::Database;
 use crate::explorer::local_path::validate_directory;
 use crate::explorer::paths::expand_tilde;
 use crate::{network, remote, search};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct DirectoryEntry {
     pub(crate) name: String,
     pub(crate) path: String,
@@ -24,6 +29,55 @@ pub struct DirectoryEntry {
     /// Set for entries that aren't plain files or folders, like `"bucket"`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) kind: Option<&'static str>,
+}
+
+const PROGRESSIVE_LISTING_THRESHOLD: usize = 1_000;
+const PROGRESSIVE_LISTING_BATCH: usize = 10_000;
+
+fn is_progressive_listing(count: usize) -> bool {
+    count > PROGRESSIVE_LISTING_THRESHOLD
+}
+
+pub struct DirectoryListingScans(Mutex<HashMap<String, Arc<AtomicBool>>>);
+
+impl DirectoryListingScans {
+    fn register(&self, request_id: &str) -> Option<Arc<AtomicBool>> {
+        let mut scans = self.0.lock().unwrap();
+        if scans.contains_key(request_id) {
+            return None;
+        }
+        let cancelled = Arc::new(AtomicBool::new(false));
+        scans.insert(request_id.to_string(), Arc::clone(&cancelled));
+        Some(cancelled)
+    }
+
+    fn unregister(&self, request_id: &str) {
+        self.0.lock().unwrap().remove(request_id);
+    }
+
+    fn cancel(&self, request_id: &str) {
+        if let Some(cancelled) = self.0.lock().unwrap().get(request_id) {
+            cancelled.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
+impl Default for DirectoryListingScans {
+    fn default() -> Self {
+        Self(Mutex::new(HashMap::new()))
+    }
+}
+
+fn listing_scans() -> &'static DirectoryListingScans {
+    static SCANS: OnceLock<DirectoryListingScans> = OnceLock::new();
+    SCANS.get_or_init(DirectoryListingScans::default)
+}
+
+#[derive(Serialize, Clone)]
+pub struct DirectoryListingProgress {
+    entries: Vec<DirectoryEntry>,
+    done: bool,
+    error: Option<String>,
 }
 
 #[cfg(target_os = "macos")]
@@ -142,13 +196,13 @@ pub fn directory_entries(path: &Path) -> Result<Vec<DirectoryEntry>, String> {
         .filter_map(|entry| {
             let is_directory = entry.file_type().ok()?.is_dir();
             let name = entry.file_name().to_string_lossy().into_owned();
-            let metadata = fs::metadata(entry.path()).ok()?;
+            let metadata = entry.metadata().ok()?;
             Some(DirectoryEntry {
                 is_hidden: name.starts_with('.'),
                 name,
                 path: entry.path().to_string_lossy().into_owned(),
                 is_directory,
-                size: None,
+                size: (!is_directory).then(|| metadata.len()),
                 created: epoch_millis(metadata.created()),
                 modified: epoch_millis(metadata.modified()),
                 kind: None,
@@ -156,6 +210,70 @@ pub fn directory_entries(path: &Path) -> Result<Vec<DirectoryEntry>, String> {
         })
         .collect();
     Ok(entries)
+}
+
+fn send_listing(
+    on_progress: &Channel<DirectoryListingProgress>,
+    entries: Vec<DirectoryEntry>,
+    done: bool,
+    error: Option<String>,
+) -> bool {
+    on_progress
+        .send(DirectoryListingProgress {
+            entries,
+            done,
+            error,
+        })
+        .is_ok()
+}
+
+fn stream_directory_entries(
+    path: &Path,
+    cancelled: &AtomicBool,
+    on_progress: &Channel<DirectoryListingProgress>,
+) -> Result<(), String> {
+    if !path.is_dir() {
+        return Err(format!("{} is not a directory", path.display()));
+    }
+    let mut entries = Vec::with_capacity(PROGRESSIVE_LISTING_BATCH);
+    let mut progressive = false;
+    for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
+        if cancelled.load(Ordering::Relaxed) {
+            break;
+        }
+        let Ok(entry) = entry else { continue };
+        let is_directory = match entry.file_type() {
+            Ok(kind) => kind.is_dir(),
+            Err(_) => continue,
+        };
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        entries.push(DirectoryEntry {
+            is_hidden: name.starts_with('.'),
+            name,
+            path: entry.path().to_string_lossy().into_owned(),
+            is_directory,
+            size: (!is_directory).then(|| metadata.len()),
+            created: epoch_millis(metadata.created()),
+            modified: epoch_millis(metadata.modified()),
+            kind: None,
+        });
+        let just_became_progressive = !progressive && is_progressive_listing(entries.len());
+        if just_became_progressive {
+            progressive = true;
+        }
+        if just_became_progressive || (progressive && entries.len() >= PROGRESSIVE_LISTING_BATCH) {
+            if !send_listing(on_progress, std::mem::take(&mut entries), false, None) {
+                break;
+            }
+        }
+    }
+    if !cancelled.load(Ordering::Relaxed) {
+        send_listing(on_progress, entries, true, None);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -182,6 +300,38 @@ pub async fn read_directory(
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+#[tracing::instrument(
+    skip_all,
+    name = "read_directory_progressively",
+    fields(sentry_op = "file.list")
+)]
+pub fn read_directory_progressively(
+    path: String,
+    request_id: String,
+    on_progress: Channel<DirectoryListingProgress>,
+) -> Result<(), String> {
+    let path = validate_directory(&expand_tilde(&path))?;
+    let cancelled = listing_scans()
+        .register(&request_id)
+        .ok_or("Duplicate directory listing request")?;
+    std::thread::spawn(move || {
+        let result = coordinated_read(&path, || {
+            stream_directory_entries(&path, &cancelled, &on_progress)
+        });
+        if let Err(error) = result {
+            send_listing(&on_progress, Vec::new(), true, Some(error));
+        }
+        listing_scans().unregister(&request_id);
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub fn cancel_directory_listing(request_id: String) {
+    listing_scans().cancel(&request_id);
 }
 
 /// Expands a leading `~` and returns the absolute local path.
@@ -297,13 +447,20 @@ mod tests {
         assert!(entries
             .iter()
             .any(|entry| entry.name == "folder" && entry.is_directory));
-        assert!(entries
-            .iter()
-            .any(|entry| entry.name == "file.txt" && !entry.is_directory && !entry.is_hidden));
+        assert!(entries.iter().any(|entry| entry.name == "file.txt"
+            && !entry.is_directory
+            && !entry.is_hidden
+            && entry.size == Some(4)));
         assert!(entries
             .iter()
             .any(|entry| entry.name == ".hidden" && entry.is_hidden));
         fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn large_listings_start_after_one_thousand_entries() {
+        assert!(!is_progressive_listing(1_000));
+        assert!(is_progressive_listing(1_001));
     }
 
     fn nanos() -> u128 {

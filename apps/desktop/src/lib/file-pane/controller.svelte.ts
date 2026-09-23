@@ -81,6 +81,7 @@ export type SearchEntry = DirectoryEntry & {
   inner_path?: string;
 };
 type SearchResponse = { results: SearchEntry[]; skipped: number; limited: boolean };
+type DirectoryListingProgress = { entries: DirectoryEntry[]; done: boolean; error: string | null };
 
 /** What the mounted file list exposes so keyboard selection follows its visible order and layout. */
 export type ListNavigator = {
@@ -121,6 +122,7 @@ export class FilePaneController {
   sizeScanning = $state(false);
   sizeScanMessage = $state("");
   #sizeRequest = "";
+  #listingRequest = "";
 
   get canCalculateSizes() {
     return (
@@ -469,6 +471,7 @@ export class FilePaneController {
 
   async loadLocation(location: Location) {
     this.cancelSizeScan();
+    this.cancelDirectoryListing();
     this.sizeScanMessage = "";
     this.#endSwipe();
     this.clearSearch();
@@ -492,6 +495,10 @@ export class FilePaneController {
       this.entries = [];
       return;
     }
+    const smbMount =
+      !isNetworkPath(location.path) &&
+      Boolean(networkStatus.mountFor(location.path)) &&
+      networkStatus.ownerOf(location.path)?.kind === "smb";
     // Going back or forward to a prefetched folder shows it right away, then refreshes.
     const cached = this.#listingCache.get(location.path);
     if (cached) {
@@ -499,6 +506,16 @@ export class FilePaneController {
       this.listing = false;
     } else {
       this.listing = true;
+    }
+    if (smbMount) {
+      try {
+        await this.loadSmbListing(location.path, token);
+      } catch (error) {
+        if (token === this.loadToken) this.listingError = error instanceof Error ? error.message : String(error);
+      } finally {
+        if (token === this.loadToken) this.listing = false;
+      }
+      return;
     }
     try {
       const result = await invoke<DirectoryEntry[]>("read_directory", { path: location.path });
@@ -533,7 +550,6 @@ export class FilePaneController {
       !isNetworkPath(location.path) &&
       !networkStatus.mountFor(location.path)
     ) {
-      void invoke("compute_directory_sizes", { path: location.path }).catch(() => {});
       const home = settings.current.automaticSizesInHome
         ? await homeDir().catch(() => "")
         : "";
@@ -545,6 +561,34 @@ export class FilePaneController {
   }
 
   private loadToken = 0;
+
+  private cancelDirectoryListing() {
+    const requestId = this.#listingRequest;
+    this.#listingRequest = "";
+    if (requestId) void invoke("cancel_directory_listing", { requestId }).catch(() => {});
+  }
+
+  private async loadSmbListing(path: string, token: number) {
+    const requestId = crypto.randomUUID();
+    this.#listingRequest = requestId;
+    this.entries = [];
+    await new Promise<void>((resolve, reject) => {
+      const channel = new Channel<DirectoryListingProgress>();
+      channel.onmessage = (update) => {
+        if (requestId !== this.#listingRequest || token !== this.loadToken || path !== this.listingPath) return;
+        if (update.entries.length) this.entries = [...this.entries, ...update.entries];
+        if (!update.done) return;
+        this.#listingRequest = "";
+        if (update.error) reject(new Error(update.error));
+        else {
+          this.#listingCache.set(path, this.entries);
+          this.pruneSelection();
+          resolve();
+        }
+      };
+      invoke("read_directory_progressively", { path, requestId, onProgress: channel }).catch(reject);
+    });
+  }
 
   /** Lists the active tab's folder again, for example after reconnecting its share. */
   reload() {
@@ -670,15 +714,6 @@ export class FilePaneController {
         title: "Couldn’t open file",
         kind: "error",
       });
-    }
-  }
-
-  applyDirectorySizes(payload: { path: string; sizes: { path: string; size: number }[] }) {
-    if (payload.path !== this.listingPath) return;
-    for (const item of payload.sizes) {
-      const index = this.entryIndex.get(item.path);
-      if (index !== undefined && this.entries[index].sizeComplete == null)
-        this.entries[index].size = item.size;
     }
   }
 

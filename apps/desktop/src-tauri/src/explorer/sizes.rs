@@ -11,15 +11,9 @@ use std::{
 };
 
 use serde::Serialize;
-use tauri::{ipc::Channel, AppHandle, Emitter};
+use tauri::ipc::Channel;
 
 use crate::system::volumes::device_id;
-
-#[derive(Serialize, Clone)]
-pub struct DirectorySizeEntry {
-    path: String,
-    size: u64,
-}
 
 pub const DIRECTORY_SIZE_SCAN_INTERVAL: Duration = Duration::from_millis(120);
 const DIRECTORY_SIZE_BATCH: usize = 64;
@@ -73,12 +67,6 @@ impl Default for DirectorySizeScans {
 fn scan_registry() -> &'static DirectorySizeScans {
     static REGISTRY: OnceLock<DirectorySizeScans> = OnceLock::new();
     REGISTRY.get_or_init(DirectorySizeScans::default)
-}
-
-#[derive(Serialize, Clone)]
-pub struct DirectorySizeUpdate {
-    path: String,
-    sizes: Vec<DirectorySizeEntry>,
 }
 
 #[derive(Serialize, Clone)]
@@ -266,44 +254,6 @@ pub fn scan_directory_sizes(
         });
     });
     Ok(())
-}
-
-#[tauri::command]
-pub fn compute_directory_sizes(path: String, app: AppHandle) {
-    std::thread::spawn(move || {
-        let folder = Path::new(&path);
-        let mut batch: Vec<DirectorySizeEntry> = Vec::with_capacity(64);
-        let flush = |batch: &mut Vec<DirectorySizeEntry>, app: &AppHandle, path: &str| {
-            if batch.is_empty() {
-                return;
-            }
-            let payload = DirectorySizeUpdate {
-                path: path.to_string(),
-                sizes: std::mem::take(batch),
-            };
-            let _ = app.emit("directory-sizes", payload);
-        };
-        if let Ok(read) = fs::read_dir(folder) {
-            for entry in read.filter_map(Result::ok) {
-                let child_path = entry.path().to_string_lossy().into_owned();
-                let Ok(metadata) = fs::symlink_metadata(entry.path()) else {
-                    continue;
-                };
-                if metadata.is_dir() {
-                    continue;
-                }
-                let size = metadata.len();
-                batch.push(DirectorySizeEntry {
-                    path: child_path,
-                    size,
-                });
-                if batch.len() >= 64 {
-                    flush(&mut batch, &app, &path);
-                }
-            }
-        }
-        flush(&mut batch, &app, &path);
-    });
 }
 
 #[cfg(test)]
