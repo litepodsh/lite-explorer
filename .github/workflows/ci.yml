@@ -19,10 +19,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: macOS (universal)
+          - name: macOS (Apple Silicon)
             runner: macos-latest
-            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
-            args: --target universal-apple-darwin
+            target: aarch64-apple-darwin
+            rust-targets: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin
+          - name: macOS (Intel)
+            runner: macos-latest
+            target: x86_64-apple-darwin
+            rust-targets: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin
           - name: Linux (x86_64)
             runner: ubuntu-22.04
             rust-targets: ""
@@ -53,7 +59,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri -> target
-          key: ci-${{ matrix.runner }}
+          key: ci-${{ matrix.runner }}-${{ matrix.target }}
 
       - uses: oven-sh/setup-bun@v2
         with:
