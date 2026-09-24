@@ -201,12 +201,27 @@ jobs:
             exit 1
           fi
 
+      # Same for the Google OAuth client: without it Google Drive sign-in is disabled.
+      - name: Check the Google OAuth client
+        shell: bash
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          if [ -z "$GOOGLE_OAUTH_CLIENT_ID" ] || [ -z "$GOOGLE_OAUTH_CLIENT_SECRET" ]; then
+            echo "::error::GOOGLE_OAUTH_CLIENT_ID or GOOGLE_OAUTH_CLIENT_SECRET secret is empty; the release would ship with Google Drive disabled."
+            exit 1
+          fi
+
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Anonymous crash reporting. Read by src-tauri/build.rs and baked into the binary.
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          # Google Drive OAuth client. Read by src-tauri/build.rs and baked into the binary.
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
           # Signs the update packages the in-app updater downloads. The public key is in
           # tauri.conf.json. The password secret can stay unset for a key without one.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
