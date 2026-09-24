@@ -1,5 +1,5 @@
 ---
-import { hostLink, site } from '../../lib/content';
+import { hostLink, legal, site } from '../../lib/content';
 import Icon from '../ui/Icon.astro';
 
 const links = [
@@ -7,6 +7,11 @@ const links = [
 	{ href: `${site.repo}#install-on-macos`, label: 'Install' },
 	{ href: site.releases, label: 'Releases' },
 	{ href: site.licenseUrl, label: 'License' },
+];
+
+const legalLinks = [
+	{ href: legal.privacyPath, label: 'Privacy' },
+	{ href: legal.termsPath, label: 'Terms' },
 ];
 ---
 
@@ -16,6 +21,7 @@ const links = [
 			<img src="/logo.svg" alt="" width="18" height="18" />
 			<span>{site.name}</span>
 		</div>
+		<p class="font-mono text-xs">© {new Date().getFullYear()} {legal.publisher}</p>
 		<p class="font-mono text-xs">{site.stack}</p>
 		<p class="font-mono text-xs">{site.license}</p>
 		<a
@@ -36,7 +42,7 @@ const links = [
 			</span>
 			<Icon name="arrow-up-right" size={12} />
 		</a>
-		<nav class="ml-auto flex gap-5" aria-label="Links">
+		<nav class="ml-auto flex flex-wrap gap-5" aria-label="Links">
 			{
 				links.map((link) => (
 					<a
@@ -45,6 +51,13 @@ const links = [
 						target="_blank"
 						rel="noreferrer"
 					>
+						{link.label}
+					</a>
+				))
+			}
+			{
+				legalLinks.map((link) => (
+					<a class="ease-glass transition-colors duration-200 hover:text-foreground" href={link.href}>
 						{link.label}
 					</a>
 				))
