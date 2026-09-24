@@ -1,6 +1,6 @@
 # Builds the desktop app on macOS, Linux and Windows and publishes the installers to a
 # GitHub release:
-#   macOS    universal .dmg (Apple Silicon and Intel)
+#   macOS    .dmg for Apple Silicon (aarch64) and Intel (x86_64), one per architecture
 #   Linux    .deb, .rpm and .AppImage (x86_64)
 #   Windows  .exe setup (NSIS, x86_64), installed for the current user without admin rights
 #
@@ -93,10 +93,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: macOS (universal)
+          - name: macOS (Apple Silicon)
             runner: macos-latest
-            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
-            args: --target universal-apple-darwin --bundles app,dmg
+            target: aarch64-apple-darwin
+            rust-targets: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --bundles app,dmg
+          - name: macOS (Intel)
+            runner: macos-latest
+            target: x86_64-apple-darwin
+            rust-targets: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --bundles app,dmg
           - name: Linux (x86_64)
             runner: ubuntu-22.04
             rust-targets: ""
@@ -128,7 +134,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri -> target
-          key: ${{ matrix.runner }}
+          key: ${{ matrix.runner }}-${{ matrix.target }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -216,8 +222,8 @@ jobs:
       - name: Verify macOS app signature
         if: runner.os == 'macOS'
         run: |
-          codesign --verify --deep --strict --verbose=2 "$APP_DIR/src-tauri/target/universal-apple-darwin/release/bundle/macos/liteexplorer.app"
-          codesign -d -r- "$APP_DIR/src-tauri/target/universal-apple-darwin/release/bundle/macos/liteexplorer.app"
+          codesign --verify --deep --strict --verbose=2 "$APP_DIR/src-tauri/target/${{ matrix.target }}/release/bundle/macos/liteexplorer.app"
+          codesign -d -r- "$APP_DIR/src-tauri/target/${{ matrix.target }}/release/bundle/macos/liteexplorer.app"
 
       - name: Remove macOS signing certificate
         if: always() && runner.os == 'macOS'
