@@ -20,6 +20,18 @@ export const site = {
   },
 };
 
+/**
+ * Legal pages (privacy, terms) and the Google OAuth consent screen point here.
+ * Keep `effectiveDate` in sync whenever the policy text changes.
+ */
+export const legal = {
+  publisher: "Litepod Studio",
+  email: "info@litepod.sh",
+  effectiveDate: "September 23, 2026",
+  privacyPath: "/privacy",
+  termsPath: "/terms",
+};
+
 export const hostLink = `${site.host.url}/?utm_source=lite-explorer&utm_medium=referral&utm_campaign=hosted-on-litepod`;
 
 export const marquee = [

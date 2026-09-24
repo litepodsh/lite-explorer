@@ -1,0 +1,69 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from './Header.astro';
+import Footer from './Footer.astro';
+import Eyebrow from '../ui/Eyebrow.astro';
+import { legal } from '../../lib/content';
+
+interface Props {
+	title: string;
+	description: string;
+	eyebrow: string;
+	/** Section anchors listed in the sidebar, in reading order. */
+	toc: { id: string; label: string }[];
+}
+
+const { title, description, eyebrow, toc } = Astro.props;
+---
+
+<Layout title={`${title} — Lite Explorer`} description={description}>
+	<div class="grain" aria-hidden="true"></div>
+
+	<Header />
+
+	<main class="shell pt-16 pb-24 md:pt-24">
+		<div class="max-w-[760px]">
+			<Eyebrow dot>{eyebrow}</Eyebrow>
+			<h1 class="mt-4 text-[clamp(2.2rem,5vw,3.4rem)]">{title}</h1>
+			<p class="mt-5 text-lg text-muted">{description}</p>
+			<p class="mt-6 font-mono text-xs text-muted-dim">
+				Effective {legal.effectiveDate} · Published by {legal.publisher}
+			</p>
+		</div>
+
+		<div class="mt-14 grid gap-12 lg:grid-cols-[220px_minmax(0,760px)]">
+			<nav class="hidden lg:block" aria-label="On this page">
+				<div class="sticky top-24">
+					<p class="mb-3 text-[12px] font-semibold tracking-[0.06em] text-muted-dim uppercase">
+						On this page
+					</p>
+					<ol class="space-y-2 text-[13.5px]">
+						{
+							toc.map((item) => (
+								<li>
+									<a
+										class="ease-glass text-muted transition-colors duration-200 hover:text-foreground"
+										href={`#${item.id}`}
+									>
+										{item.label}
+									</a>
+								</li>
+							))
+						}
+					</ol>
+				</div>
+			</nav>
+
+			<article class="legal">
+				<slot />
+			</article>
+		</div>
+	</main>
+
+	<Footer />
+</Layout>
+
+<script>
+	// The header uses the scroll-reveal class; legal pages show it right away.
+	document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-visible'));
+</script>

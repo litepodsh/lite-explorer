@@ -1,0 +1,229 @@
+---
+import LegalPage from '../components/site/LegalPage.astro';
+import { legal, site } from '../lib/content';
+
+const toc = [
+	{ id: 'agreement', label: 'Agreement' },
+	{ id: 'license', label: 'License' },
+	{ id: 'use', label: 'Acceptable use' },
+	{ id: 'your-data', label: 'Your files and data' },
+	{ id: 'third-party', label: 'Third-party services' },
+	{ id: 'google', label: 'Google Drive' },
+	{ id: 'updates', label: 'Updates and beta software' },
+	{ id: 'trademarks', label: 'Name and trademarks' },
+	{ id: 'warranty', label: 'No warranty' },
+	{ id: 'liability', label: 'Limitation of liability' },
+	{ id: 'termination', label: 'Termination' },
+	{ id: 'changes', label: 'Changes to these terms' },
+	{ id: 'general', label: 'General' },
+	{ id: 'contact', label: 'Contact' },
+];
+---
+
+<LegalPage
+	title="Terms of Service"
+	eyebrow="Legal"
+	description="The rules for using Lite Explorer and this website. Lite Explorer is free, open-source software, and these terms keep it that way."
+	toc={toc}
+>
+	<section id="agreement">
+		<h2>Agreement</h2>
+		<p>
+			These Terms of Service ("Terms") are an agreement between you and
+			{' '}<strong>{legal.publisher}</strong> ("we", "us", "our"). They cover your use of the
+			{site.name} desktop application (the "App") and the website at
+			{' '}<a href="https://explorer.litepod.sh">explorer.litepod.sh</a> (the "Website").
+		</p>
+		<p>
+			By downloading, installing or using the App, or by using the Website, you agree to these
+			Terms and to our <a href={legal.privacyPath}>Privacy Policy</a>. If you do not agree, do not
+			use the App or the Website.
+		</p>
+	</section>
+
+	<section id="license">
+		<h2>License</h2>
+		<p>
+			The App is open-source software released under the
+			{' '}<a href={site.licenseUrl} target="_blank" rel="noreferrer">{site.license} License</a>. You
+			may use, copy, modify and distribute the source code under that license. If these Terms
+			conflict with the {site.license} License for the source code, the license wins.
+		</p>
+		<p>
+			The App is free. We do not charge for it, and it does not include in-app purchases or
+			advertising.
+		</p>
+	</section>
+
+	<section id="use">
+		<h2>Acceptable use</h2>
+		<p>You are responsible for how you use the App. You agree not to use it to:</p>
+		<ul>
+			<li>Break any applicable law or regulation.</li>
+			<li>
+				Access files, accounts, buckets or storage services that you do not own or are not
+				authorized to use.
+			</li>
+			<li>
+				Store, transfer or distribute malware, or content that infringes the rights of others.
+			</li>
+			<li>
+				Break the terms of any third-party service that you connect, including Google's API terms.
+			</li>
+			<li>
+				Overload, disrupt or attack any service, including by sending automated excessive requests
+				through the App.
+			</li>
+		</ul>
+	</section>
+
+	<section id="your-data">
+		<h2>Your files and data</h2>
+		<p>
+			Your files remain yours. We do not claim any ownership of, or license to, the files and data
+			that you manage with the App. The App processes them on your device and sends them only to
+			the storage providers that you choose.
+		</p>
+		<p>
+			The App performs real file operations, including permanent deletion, overwriting and moving
+			files between locations. Some of these actions cannot be undone, especially on cloud
+			storage. <strong>Keep backups of important data</strong>, and review each action before you
+			confirm it.
+		</p>
+	</section>
+
+	<section id="third-party">
+		<h2>Third-party services</h2>
+		<p>
+			The App can connect to services that we do not own or control, such as Google Drive, Amazon
+			S3, Cloudflare R2, Azure Blob Storage and other S3-compatible services. When you use them:
+		</p>
+		<ul>
+			<li>You need your own account with that provider, and you are responsible for it.</li>
+			<li>
+				The provider's own terms, pricing and privacy policy apply. Requests and data transfers
+				can create charges on your provider account (for example storage, request or egress
+				fees). You are responsible for those charges.
+			</li>
+			<li>
+				We are not responsible for the availability, security or behavior of third-party
+				services, or for changes to their APIs.
+			</li>
+		</ul>
+	</section>
+
+	<section id="google">
+		<h2>Google Drive</h2>
+		<p>
+			If you connect Google Drive, you authorize the App to access your Drive under the
+			permissions shown on Google's consent screen. The App uses this access only to provide its
+			file-management features to you. See the
+			{' '}<a href={`${legal.privacyPath}#google`}>Google user data</a> section of our Privacy Policy.
+		</p>
+		<p>
+			You can revoke access at any time at
+			{' '}<a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer"
+				>myaccount.google.com/permissions</a
+			>. Google Drive is a trademark of Google LLC. {site.name} is not affiliated with or endorsed
+			by Google.
+		</p>
+	</section>
+
+	<section id="updates">
+		<h2>Updates and beta software</h2>
+		<p>
+			Versions below 1.0 are beta software. They can contain bugs, features can change or be
+			removed, and data formats can change between releases.
+		</p>
+		<p>
+			The App can download and install updates automatically. Updates are signed by us and are
+			published through GitHub. We may stop supporting older versions at any time.
+		</p>
+	</section>
+
+	<section id="trademarks">
+		<h2>Name and trademarks</h2>
+		<p>
+			"{site.name}", "Litepod", "{legal.publisher}" and their logos belong to {legal.publisher}.
+			The open-source license gives you rights to the code, not to our names or logos. If you
+			distribute a modified version, please give it a different name and logo so users do not
+			confuse it with the official App.
+		</p>
+		<p>
+			All other product names and trademarks, such as Google Drive, Amazon S3, Cloudflare R2 and
+			Azure, belong to their owners. We use them only to identify compatible services.
+		</p>
+	</section>
+
+	<section id="warranty">
+		<h2>No warranty</h2>
+		<p>
+			THE APP AND THE WEBSITE ARE PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTIES OF ANY
+			KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+			PURPOSE AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE APP WILL BE ERROR-FREE OR
+			UNINTERRUPTED, OR THAT IT WILL NOT CAUSE LOSS OF DATA.
+		</p>
+	</section>
+
+	<section id="liability">
+		<h2>Limitation of liability</h2>
+		<p>
+			TO THE MAXIMUM EXTENT PERMITTED BY LAW, {legal.publisher.toUpperCase()} AND ITS CONTRIBUTORS
+			ARE NOT LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL OR PUNITIVE DAMAGES, OR
+			FOR ANY LOSS OF DATA, FILES, PROFITS OR REVENUE, OR FOR THIRD-PARTY SERVICE CHARGES,
+			RESULTING FROM YOUR USE OF, OR INABILITY TO USE, THE APP OR THE WEBSITE.
+		</p>
+		<p>
+			Because the App is free, our total liability for any claim relating to it is limited to
+			zero US dollars (USD $0), or the lowest amount allowed by applicable law. Some jurisdictions
+			do not allow these limitations, so they may not apply to you in full.
+		</p>
+	</section>
+
+	<section id="termination">
+		<h2>Termination</h2>
+		<p>
+			You can stop using the App at any time by uninstalling it. If you break these Terms, your
+			permission to use the App and the Website under these Terms ends. Your rights to the source
+			code under the {site.license} License are not affected. The sections on your data, no warranty,
+			limitation of liability and general terms continue to apply after termination.
+		</p>
+	</section>
+
+	<section id="changes">
+		<h2>Changes to these terms</h2>
+		<p>
+			We may update these Terms from time to time. We will change the effective date at the top
+			of this page, and we will announce significant changes in the App's release notes. If you
+			continue to use the App after a change, the updated Terms apply.
+		</p>
+	</section>
+
+	<section id="general">
+		<h2>General</h2>
+		<ul>
+			<li>
+				If a court finds any part of these Terms unenforceable, the rest of the Terms stay in
+				effect.
+			</li>
+			<li>If we do not enforce a right immediately, we do not waive it.</li>
+			<li>
+				These Terms and the Privacy Policy are the complete agreement between you and us about
+				the App and the Website.
+			</li>
+			<li>
+				These Terms are governed by the laws of the country where {legal.publisher} is
+				established, without regard to its conflict-of-law rules, except where the consumer
+				protection laws of your country of residence require otherwise.
+			</li>
+		</ul>
+	</section>
+
+	<section id="contact">
+		<h2>Contact</h2>
+		<p>
+			For questions about these Terms, contact {legal.publisher} at
+			{' '}<a href={`mailto:${legal.email}`}>{legal.email}</a>.
+		</p>
+	</section>
+</LegalPage>

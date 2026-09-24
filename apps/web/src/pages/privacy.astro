@@ -1,0 +1,419 @@
+---
+import LegalPage from '../components/site/LegalPage.astro';
+import { legal, site } from '../lib/content';
+
+const toc = [
+	{ id: 'summary', label: 'Summary' },
+	{ id: 'scope', label: 'Who we are and scope' },
+	{ id: 'local-files', label: 'Your local files' },
+	{ id: 'cloud-storage', label: 'Cloud storage connections' },
+	{ id: 'google', label: 'Google user data' },
+	{ id: 'credentials', label: 'Credentials and tokens' },
+	{ id: 'crash-reports', label: 'Crash reports' },
+	{ id: 'updates', label: 'Software updates' },
+	{ id: 'website', label: 'This website' },
+	{ id: 'sharing', label: 'Sharing and selling' },
+	{ id: 'retention', label: 'Retention and deletion' },
+	{ id: 'security', label: 'Security' },
+	{ id: 'rights', label: 'Your rights and choices' },
+	{ id: 'children', label: 'Children' },
+	{ id: 'changes', label: 'Changes to this policy' },
+	{ id: 'contact', label: 'Contact' },
+];
+---
+
+<LegalPage
+	title="Privacy Policy"
+	eyebrow="Legal"
+	description="How Lite Explorer handles your files, your cloud storage accounts, and the little data it sends back to us. Short version: your files stay yours."
+	toc={toc}
+>
+	<section id="summary">
+		<h2>Summary</h2>
+		<div class="callout">
+			<ul>
+				<li>
+					{site.name} is a desktop app. It runs on your computer and works with your files there.
+				</li>
+				<li>
+					We do <strong>not</strong> run a server that receives your files, file names, or folder
+					contents. We do not have user accounts.
+				</li>
+				<li>
+					When you connect Google Drive, Amazon S3, Cloudflare R2, Azure Blob Storage or another
+					S3-compatible service, the app talks <strong>directly</strong> from your computer to that
+					provider. Your data never passes through Litepod Studio.
+				</li>
+				<li>
+					Passwords, access keys and sign-in tokens are stored in your operating system's secure
+					credential store (Keychain, Credential Manager or Secret Service).
+				</li>
+				<li>
+					The app can send anonymous crash and error reports so we can fix bugs. They never
+					include file contents.
+				</li>
+				<li>We never sell your data, and we never use it for advertising.</li>
+			</ul>
+		</div>
+	</section>
+
+	<section id="scope">
+		<h2>Who we are and scope</h2>
+		<p>
+			{site.name} is developed and published by <strong>{legal.publisher}</strong> ("we", "us",
+			"our"). This Privacy Policy explains what information the {site.name} desktop application
+			for macOS, Windows and Linux (the "App") and the website at
+			{' '}<a href="https://explorer.litepod.sh">explorer.litepod.sh</a> (the "Website") collect, how we
+			use it, and the choices you have.
+		</p>
+		<p>
+			The App is open-source software. You can review exactly what it does in its
+			{' '}<a href={site.repo} target="_blank" rel="noreferrer">public source code</a>.
+		</p>
+		<p>
+			This policy does not cover third-party services that you choose to connect to the App, such
+			as Google Drive or Amazon S3. Those services are governed by their own privacy policies.
+		</p>
+	</section>
+
+	<section id="local-files">
+		<h2>Your local files</h2>
+		<p>
+			The App reads the folders you open so it can list, preview, search, copy, move, rename,
+			compress, extract and delete files on your behalf. All of this happens on your device.
+		</p>
+		<p>
+			To remember your preferences, the App stores a small amount of data in its local
+			application-data folder on your computer, for example:
+		</p>
+		<ul>
+			<li>Settings such as theme, layout, sidebar width and keyboard mode.</li>
+			<li>Your favorites, recent locations and open tabs.</li>
+			<li>
+				The list of cloud storage locations you added (name, provider, bucket or container, region
+				or endpoint, and folder prefix). Secrets are not stored here; see
+				{' '}<a href="#credentials">Credentials and tokens</a>.
+			</li>
+			<li>A random installation identifier, used only for crash reports.</li>
+		</ul>
+		<p>
+			This data stays on your device. We cannot see it. Uninstalling the App and removing its
+			application-data folder deletes it.
+		</p>
+	</section>
+
+	<section id="cloud-storage">
+		<h2>Cloud storage connections</h2>
+		<p>
+			You can add remote locations from supported providers: Amazon S3, Cloudflare R2, Azure Blob
+			Storage, other S3-compatible services, and Google Drive. When you browse or transfer files in
+			one of these locations:
+		</p>
+		<ul>
+			<li>
+				The App sends requests directly from your computer to the provider's API, using the
+				credentials you supplied.
+			</li>
+			<li>
+				File names, metadata and file contents move only between your computer and your provider.
+				Litepod Studio does not operate any proxy or intermediate server, and we never receive
+				this data.
+			</li>
+			<li>
+				The App only performs the actions you request: listing folders, previewing, downloading,
+				uploading, renaming, moving and deleting.
+			</li>
+		</ul>
+		<p>
+			Your use of each provider is subject to that provider's own terms and privacy policy.
+		</p>
+	</section>
+
+	<section id="google">
+		<h2>Google user data</h2>
+		<p>
+			This section describes how the App accesses, uses, stores and shares data from your Google
+			account when you choose to connect Google Drive.
+		</p>
+
+		<h3>What we access</h3>
+		<p>When you select "Connect Google Drive", the App asks Google for this permission:</p>
+		<div class="table-wrap">
+			<table>
+				<thead>
+					<tr>
+						<th>Scope</th>
+						<th>Why the App needs it</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><code>https://www.googleapis.com/auth/drive</code></td>
+						<td>
+							Lite Explorer is a file manager. It shows your whole Drive as a folder tree, so you
+							can browse, preview, download, upload, rename, move and delete your own files and
+							folders, the same way you manage files on your computer.
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+		<p>
+			With this permission the App can read the names, folder structure, metadata and contents of
+			files in your Google Drive, and create, change or delete them when you ask it to. The App does
+			not request access to your Gmail, contacts, calendar or any other Google service.
+		</p>
+
+		<h3>How we use it</h3>
+		<ul>
+			<li>
+				Google Drive data is used <strong>only</strong> to provide the file-management features you
+				see in the App, and only in response to your actions.
+			</li>
+			<li>
+				The App does not use Google user data for advertising, profiling, analytics, or to train
+				artificial intelligence or machine learning models.
+			</li>
+			<li>
+				Nobody at Litepod Studio reads your Google Drive data. The data never reaches our servers.
+			</li>
+		</ul>
+
+		<h3>How we store it</h3>
+		<ul>
+			<li>
+				Sign-in uses Google's OAuth 2.0 flow with PKCE, in your web browser. The App never sees
+				your Google password.
+			</li>
+			<li>
+				After you sign in, Google returns a refresh token. The App stores it only in your operating
+				system's secure credential store on your device.
+			</li>
+			<li>
+				File contents are downloaded to your computer only when you open, preview or copy them, and
+				are saved only where you choose.
+			</li>
+		</ul>
+
+		<h3>How we share it</h3>
+		<p>
+			We do not share, transfer, sell or disclose Google user data to anyone. Because the App talks
+			directly to Google's API from your computer, there is no Litepod Studio server in between.
+		</p>
+
+		<h3>Limited Use</h3>
+		<p>
+			{site.name}'s use and transfer to any other app of information received from Google APIs will
+			adhere to the
+			{' '}<a
+				href="https://developers.google.com/terms/api-services-user-data-policy"
+				target="_blank"
+				rel="noreferrer">Google API Services User Data Policy</a
+			>, including the Limited Use requirements.
+		</p>
+
+		<h3>Removing access</h3>
+		<p>You can disconnect Google Drive at any time:</p>
+		<ul>
+			<li>
+				Remove the Google Drive location in the App. This deletes the stored token from your
+				device.
+			</li>
+			<li>
+				Revoke the App's access from your Google account at
+				{' '}<a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer"
+					>myaccount.google.com/permissions</a
+				>. The token then stops working immediately.
+			</li>
+		</ul>
+	</section>
+
+	<section id="credentials">
+		<h2>Credentials and tokens</h2>
+		<p>
+			Access keys, secret keys, account keys and OAuth refresh tokens are saved in the secure
+			credential store of your operating system:
+		</p>
+		<ul>
+			<li><strong>macOS:</strong> Keychain.</li>
+			<li><strong>Windows:</strong> Credential Manager.</li>
+			<li><strong>Linux:</strong> Secret Service (for example GNOME Keyring or KWallet).</li>
+		</ul>
+		<p>
+			Credentials never leave your device except when they are sent to the matching provider to
+			authenticate your requests. They are never included in crash reports and never sent to
+			Litepod Studio. Removing a location in the App deletes its credentials.
+		</p>
+	</section>
+
+	<section id="crash-reports">
+		<h2>Crash reports</h2>
+		<p>
+			To find and fix bugs on each operating system, the App can send crash and error reports to
+			our error-monitoring service, powered by Sentry. A report can include:
+		</p>
+		<ul>
+			<li>The App version, operating system, OS version and CPU architecture.</li>
+			<li>
+				Technical details of the error: the error message, stack trace, and a short trail of the
+				App's recent internal events.
+			</li>
+			<li>Basic performance timings for internal operations.</li>
+			<li>
+				A random installation identifier, created on first launch. It is not linked to your name,
+				email, or any account, and it only lets us count how many installations a problem
+				affects.
+			</li>
+		</ul>
+		<p>
+			Reports never include file contents, credentials or tokens. An error message can
+			occasionally contain a file or folder path, for example when a file cannot be opened. We use
+			this only to diagnose the bug.
+		</p>
+		<p>
+			On first launch the App explains crash reporting. While the App is in its pre-1.0 beta
+			period, crash reporting stays on so we can stabilize it. From version 1.0 onward you can
+			turn it off at any time in <strong>Settings</strong>. We keep crash reports for a limited
+			time (normally up to 90 days) and then delete them.
+		</p>
+	</section>
+
+	<section id="updates">
+		<h2>Software updates</h2>
+		<p>
+			The App checks for new versions by downloading a small release manifest from GitHub, where
+			our releases are published. Like any web request, GitHub receives your IP address and basic
+			request information, under
+			{' '}<a
+				href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+				target="_blank"
+				rel="noreferrer">GitHub's privacy statement</a
+			>. Updates are cryptographically signed, and the App verifies each signature before
+			installing.
+		</p>
+	</section>
+
+	<section id="website">
+		<h2>This website</h2>
+		<p>
+			The Website is hosted on Litepod. To understand how visitors use it, we use a self-hosted
+			instance of Umami, a privacy-focused analytics tool. Umami:
+		</p>
+		<ul>
+			<li>Does not use cookies and does not track you across other websites.</li>
+			<li>
+				Collects aggregate information such as pages visited, referrer, browser, device type,
+				country and page performance.
+			</li>
+			<li>
+				May record anonymized interaction sessions (clicks and scrolling on this site) to help us
+				improve the layout.
+			</li>
+		</ul>
+		<p>
+			The Website stores your theme preference (light or dark) in your browser's local storage.
+			We do not use advertising or tracking cookies.
+		</p>
+	</section>
+
+	<section id="sharing">
+		<h2>Sharing and selling</h2>
+		<p>We do not sell, rent or trade personal information. We share limited data only with:</p>
+		<ul>
+			<li>
+				<strong>Service providers</strong> that run infrastructure for us: our error-monitoring
+				service (crash reports) and our hosting provider (the Website). They process data only
+				on our behalf.
+			</li>
+			<li>
+				<strong>Authorities</strong>, when the law requires it, to respond to valid legal
+				process or to protect the rights and safety of our users or others.
+			</li>
+		</ul>
+		<p>Google user data is never shared with anyone, as described in <a href="#google">Google user data</a>.</p>
+	</section>
+
+	<section id="retention">
+		<h2>Retention and deletion</h2>
+		<ul>
+			<li>
+				<strong>Local data and credentials</strong> stay on your device until you remove the
+				location, delete the App's data folder, or uninstall the App.
+			</li>
+			<li>
+				<strong>Crash reports</strong> are kept for a limited time, normally up to 90 days, and
+				then deleted.
+			</li>
+			<li><strong>Website analytics</strong> are kept in aggregate form.</li>
+			<li>We keep no Google Drive data or other cloud storage data, because we never receive it.</li>
+		</ul>
+		<p>
+			To ask us to delete crash reports linked to your installation, email us and include your
+			installation identifier if you can.
+		</p>
+	</section>
+
+	<section id="security">
+		<h2>Security</h2>
+		<p>
+			We design the App so that as little data as possible leaves your device. Connections to
+			cloud providers and to our crash-reporting service use HTTPS/TLS. Secrets live in the OS
+			credential store, not in plain-text files. Updates are signed. No method of storage or
+			transmission is completely secure, but we work to protect your information and to fix
+			security issues quickly.
+		</p>
+		<p>
+			If you find a security vulnerability, please report it privately to
+			{' '}<a href={`mailto:${legal.email}`}>{legal.email}</a> before disclosing it publicly.
+		</p>
+	</section>
+
+	<section id="rights">
+		<h2>Your rights and choices</h2>
+		<p>
+			Depending on where you live (for example under the GDPR in the European Union, or under
+			privacy laws in the United States, Colombia and elsewhere), you may have the right to
+			access, correct, delete, restrict or object to the processing of your personal information,
+			and to data portability. You can:
+		</p>
+		<ul>
+			<li>Remove any cloud location and its credentials from the App.</li>
+			<li>Revoke Google Drive access from your Google account settings.</li>
+			<li>Turn off crash reporting in Settings (from version 1.0).</li>
+			<li>Block Website analytics with your browser or a content blocker.</li>
+			<li>Contact us to exercise any of your rights.</li>
+		</ul>
+		<p>
+			We will not discriminate against you for exercising these rights. You may also file a
+			complaint with your local data-protection authority.
+		</p>
+	</section>
+
+	<section id="children">
+		<h2>Children</h2>
+		<p>
+			The App and the Website are not directed at children under 13 (or the minimum age in your
+			country). We do not knowingly collect personal information from children.
+		</p>
+	</section>
+
+	<section id="changes">
+		<h2>Changes to this policy</h2>
+		<p>
+			We may update this policy when the App changes. We will change the effective date at the top
+			of this page. If a change is significant, we will also announce it in the App's release
+			notes. If you continue to use the App after a change, the updated policy applies.
+		</p>
+	</section>
+
+	<section id="contact">
+		<h2>Contact</h2>
+		<p>
+			For questions about this policy or your data, contact {legal.publisher} at
+			{' '}<a href={`mailto:${legal.email}`}>{legal.email}</a>.
+		</p>
+		<p>
+			See also our <a href={legal.termsPath}>Terms of Service</a>.
+		</p>
+	</section>
+</LegalPage>
