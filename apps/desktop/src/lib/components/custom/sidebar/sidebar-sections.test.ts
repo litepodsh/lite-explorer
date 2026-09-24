@@ -5,12 +5,13 @@ describe("sidebar sections", () => {
   const locations = [
     { name: "Macintosh HD", path: "/", kind: "volume" },
     { name: "Archive", path: "/Volumes/Archive", kind: "hfs-volume" },
+    { name: "Ubuntu", path: "\\\\wsl$\\Ubuntu\\", kind: "wsl-volume" },
     { name: "sebastian", path: "/Users/sebastian", kind: "home" },
     { name: "Drive", path: "s3://drive/", kind: "s3" },
   ];
 
   test("keeps only OS volumes in Volumes", () => {
-    expect(volumeLocations(locations)).toEqual(locations.slice(0, 2));
-    expect(sidebarLocations(locations)).toEqual(locations.slice(2));
+    expect(volumeLocations(locations)).toEqual(locations.slice(0, 3));
+    expect(sidebarLocations(locations)).toEqual(locations.slice(3));
   });
 });

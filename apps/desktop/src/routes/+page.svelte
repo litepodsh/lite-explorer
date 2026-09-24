@@ -21,6 +21,7 @@
   import Rows2Icon from "@lucide/svelte/icons/rows-2";
   import FinderSearch from "$lib/components/custom/finder-search.svelte";
   import AppSidebar from "$lib/components/custom/sidebar/app-sidebar.svelte";
+  import { isVolumeLocation } from "$lib/components/custom/sidebar/sidebar-sections.js";
   import { addFavorite, fetchFavorites, removeFavorite, reorderFavorites } from "$lib/favorites/favorites.js";
   import { DragGhost } from "$lib/components/custom/drag-ghost/index.js";
   import TitleBar from "$lib/components/custom/titlebar/title-bar.svelte";
@@ -509,7 +510,7 @@
     window.addEventListener("pointermove", trackSwipePointer);
     // Drives mounted or ejected while the app is open (a DMG, a USB stick) reach the sidebar here.
     const volumeKey = (list: Location[]) =>
-      list.filter(({ kind }) => kind === "volume" || kind === "hfs-volume").map(({ path }) => path).sort().join("\n");
+      list.filter(isVolumeLocation).map(({ path }) => path).sort().join("\n");
     const refreshVolumes = () => {
       if (document.visibilityState !== "visible") return;
       void invoke<Location[]>("refresh_locations")

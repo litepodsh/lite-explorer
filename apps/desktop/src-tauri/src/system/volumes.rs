@@ -163,6 +163,75 @@ pub fn from_wide(buffer: &[u16]) -> String {
     String::from_utf16_lossy(&buffer[..end])
 }
 
+/// Docker Desktop registers its own distros; they hold no user files.
+#[cfg(any(target_os = "windows", test))]
+pub fn is_user_wsl_distro(name: &str) -> bool {
+    let name = name.trim();
+    !name.is_empty() && !name.starts_with("docker-desktop")
+}
+
+/// `\\wsl$` works on every WSL-capable build; `\\wsl.localhost` needs Windows 10 21H2+.
+#[cfg(any(target_os = "windows", test))]
+pub fn wsl_path(distro: &str) -> String {
+    format!(r"\\wsl$\{}\", distro.trim())
+}
+
+/// WSL distros registered for the current user. Read from the registry because touching
+/// `\\wsl$\<distro>` boots a stopped distro, and locations are polled while the window is open.
+#[cfg(target_os = "windows")]
+pub fn wsl_distros() -> Vec<String> {
+    use windows_sys::Win32::System::Registry::{
+        RegCloseKey, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW, HKEY, HKEY_CURRENT_USER,
+        KEY_READ, RRF_RT_REG_SZ,
+    };
+    let lxss = to_wide(r"Software\Microsoft\Windows\CurrentVersion\Lxss");
+    let mut key: HKEY = std::ptr::null_mut();
+    if unsafe { RegOpenKeyExW(HKEY_CURRENT_USER, lxss.as_ptr(), 0, KEY_READ, &mut key) } != 0 {
+        return Vec::new();
+    }
+    let value = to_wide("DistributionName");
+    let mut distros = Vec::new();
+    for index in 0.. {
+        let mut id = [0u16; 128];
+        let mut id_len = id.len() as u32;
+        let status = unsafe {
+            RegEnumKeyExW(
+                key,
+                index,
+                id.as_mut_ptr(),
+                &mut id_len,
+                std::ptr::null(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+        };
+        if status != 0 {
+            break;
+        }
+        let mut name = [0u16; 256];
+        let mut size = (name.len() * 2) as u32;
+        let status = unsafe {
+            RegGetValueW(
+                key,
+                id.as_ptr(),
+                value.as_ptr(),
+                RRF_RT_REG_SZ,
+                std::ptr::null_mut(),
+                name.as_mut_ptr().cast(),
+                &mut size,
+            )
+        };
+        let name = from_wide(&name);
+        if status == 0 && is_user_wsl_distro(&name) {
+            distros.push(name.trim().to_owned());
+        }
+    }
+    unsafe { RegCloseKey(key) };
+    distros.sort_by_key(|name| name.to_lowercase());
+    distros
+}
+
 #[cfg(target_os = "macos")]
 pub fn volumes() -> Vec<VolumeInfo> {
     let mut volumes = Vec::new();
@@ -562,5 +631,14 @@ mod tests {
         assert_eq!(drive_display_name("", 'C'), "Local Disk (C:)");
         assert_eq!(drive_display_name("  ", 'D'), "Local Disk (D:)");
         assert_eq!(drive_display_name("Backup", 'E'), "Backup (E:)");
+    }
+
+    #[test]
+    fn wsl_distros_skip_docker_and_map_to_unc_paths() {
+        assert!(is_user_wsl_distro("Ubuntu-24.04"));
+        assert!(!is_user_wsl_distro("docker-desktop"));
+        assert!(!is_user_wsl_distro("docker-desktop-data"));
+        assert!(!is_user_wsl_distro("  "));
+        assert_eq!(wsl_path("Ubuntu"), r"\\wsl$\Ubuntu\");
     }
 }

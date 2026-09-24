@@ -6,6 +6,7 @@
   import GaugeIcon from "@lucide/svelte/icons/gauge";
   import GlobeIcon from "@lucide/svelte/icons/globe";
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
+import SquareTerminalIcon from "@lucide/svelte/icons/square-terminal";
   import NetworkIcon from "@lucide/svelte/icons/network";
   import ServerIcon from "@lucide/svelte/icons/server";
   import HouseIcon from "@lucide/svelte/icons/house";
@@ -381,7 +382,7 @@
                   aria-label={location.name} data-sidebar-item
                   title={location.path}
                   class:active={selected === location.name}
-                  onclick={() => onOpen?.(location)}><HardDriveIcon /><span>{location.name}</span></button>
+                  onclick={() => onOpen?.(location)}>{#if location.kind === "wsl-volume"}<SquareTerminalIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span></button>
                 {#if location.kind === "hfs-volume"}
                   <button
                     class="location-trail"

@@ -113,6 +113,16 @@ pub fn system_locations() -> Vec<Location> {
                 kind: "volume".into(),
             })
             .collect();
+        #[cfg(target_os = "windows")]
+        locations.extend(
+            crate::system::volumes::wsl_distros()
+                .into_iter()
+                .map(|name| Location {
+                    path: crate::system::volumes::wsl_path(&name),
+                    name,
+                    kind: "wsl-volume".into(),
+                }),
+        );
         if let Some(home) = home_location() {
             locations.push(home);
         }
@@ -276,7 +286,7 @@ pub async fn refresh_locations(database: State<'_, Database>) -> Result<Vec<Loca
         .collect();
     detected.sort_unstable();
     let mut saved: Vec<String> =
-        sqlx::query_scalar("SELECT path FROM locations WHERE kind IN ('volume', 'hfs-volume')")
+        sqlx::query_scalar("SELECT path FROM locations WHERE kind IN ('volume', 'hfs-volume', 'wsl-volume')")
             .fetch_all(&database.0)
             .await
             .map_err(|error| error.to_string())?;
