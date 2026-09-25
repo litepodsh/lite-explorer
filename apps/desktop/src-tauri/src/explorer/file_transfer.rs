@@ -850,6 +850,9 @@ pub async fn copy_items(
             let mut groups: Vec<(PathBuf, PathBuf, Vec<FileTask>)> = Vec::new();
             let mut complete = true;
             for (source, target) in &planned {
+                if is_cancelled() {
+                    break;
+                }
                 let device = fs::symlink_metadata(source)
                     .ok()
                     .and_then(|m| device_id(&m));
@@ -881,6 +884,9 @@ pub async fn copy_items(
             );
             let produced = Mutex::new(Vec::<DirectoryEntry>::new());
             for (source, target, tasks) in groups {
+                if is_cancelled() {
+                    break;
+                }
                 let result = coordinated_read(&source, || {
                     coordinated_write(&target, || {
                         if !copy_file_tasks(
@@ -960,6 +966,9 @@ pub async fn move_items(
                     0,
                 );
                 for (source, target) in &planned {
+                    if is_cancelled() {
+                        break;
+                    }
                     let result = coordinated_write(source, || {
                         coordinated_write(target, || {
                             fs::rename(source, target).map_err(|error| error.to_string())?;
@@ -985,6 +994,9 @@ pub async fn move_items(
                 let mut complete = true;
                 let mut groups: Vec<(PathBuf, PathBuf, Vec<FileTask>)> = Vec::new();
                 for (source, target) in &planned {
+                    if is_cancelled() {
+                        break;
+                    }
                     let device = fs::symlink_metadata(source)
                         .ok()
                         .and_then(|m| device_id(&m));
@@ -1015,6 +1027,9 @@ pub async fn move_items(
                     bytes_total,
                 );
                 for (source, target, tasks) in groups {
+                    if is_cancelled() {
+                        break;
+                    }
                     let result = coordinated_write(&source, || {
                         coordinated_write(&target, || {
                             let copied = copy_file_tasks(

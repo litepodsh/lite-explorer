@@ -30,8 +30,10 @@ export async function copyItems(
   paths: string[],
   destination: string,
   label: string,
+  onStart?: (id: string) => void,
 ): Promise<DirectoryEntry[]> {
   const id = activity.start("copy", label, destination);
+  onStart?.(id);
   try {
     return await invoke<DirectoryEntry[]>("copy_items", { paths, destination, jobId: id });
   } catch (error) {
@@ -44,8 +46,10 @@ export async function moveItems(
   paths: string[],
   destination: string,
   label: string,
+  onStart?: (id: string) => void,
 ): Promise<DirectoryEntry[]> {
   const id = activity.start("move", label, destination);
+  onStart?.(id);
   try {
     return await invoke<DirectoryEntry[]>("move_items", { paths, destination, jobId: id });
   } catch (error) {

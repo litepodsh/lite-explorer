@@ -100,6 +100,9 @@
   const controllers = new Map<string, FilePaneController>();
   const transferClipboard = new TransferClipboard();
   let transferClipboardOpen = $state(false);
+  let pasteInProgress = $state(false);
+  let pasteJobId: string | null = null;
+  let pasteCancelled = false;
   let pastedPaths = $state(new Set<string>());
 
   function controllerFor(paneId: string): FilePaneController {
@@ -932,9 +935,19 @@
     });
   });
 
+  function cancelTransferClipboard() {
+    pasteCancelled = true;
+    if (pasteJobId) jobs.cancel(pasteJobId);
+    transferClipboard.clear();
+    transferClipboardOpen = false;
+  }
+
   async function pasteTransferClipboard() {
+    if (pasteInProgress) return;
     const request = transferClipboard.beginPaste(activeController.listingPath);
     if (!request) return;
+    pasteInProgress = true;
+    pasteCancelled = false;
     const copy = request.entries.filter((entry) => entry.mode === "copy");
     const move = request.entries.filter((entry) => entry.mode === "move");
     for (const entry of request.entries) {
@@ -953,22 +966,26 @@
           copy.map((entry) => entry.path),
           request.destination,
           `Copy: ${copy.length} items`,
+          (id) => (pasteJobId = id),
         );
+        pasteJobId = null;
         created.push(...entries.map((entry) => entry.path));
       }
-      if (move.length) {
+      if (move.length && !pasteCancelled) {
         const entries = await moveItems(
           move.map((entry) => entry.path),
           request.destination,
           `Move: ${move.length} items`,
+          (id) => (pasteJobId = id),
         );
+        pasteJobId = null;
         created.push(...entries.map((entry) => entry.path));
       }
-      for (const entry of request.entries) transferClipboard.removeByPath(entry.path);
+      if (!pasteCancelled) for (const entry of request.entries) transferClipboard.removeByPath(entry.path);
       markPasted(created);
     } catch (error) {
-      // Rejects only happen before the job registers, so nothing was processed.
-      for (const entry of request.entries) {
+      // Keep the queued entries available for retry when the operation fails.
+      if (!pasteCancelled) for (const entry of request.entries) {
         transferClipboard.applyProgress({
           jobId: "clipboard",
           itemId: entry.id,
@@ -976,6 +993,9 @@
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    } finally {
+      pasteJobId = null;
+      pasteInProgress = false;
     }
     activeController.reload();
   }
@@ -1189,13 +1209,16 @@
         </button>
         {#if transferClipboardOpen}
           <div class="transfer-clipboard-panel">
-            <div class="transfer-clipboard-heading"><strong>Ready to paste</strong><button aria-label="Clear transfer clipboard" onclick={() => transferClipboard.clear()}><XIcon class="size-4" /></button></div>
+            <div class="transfer-clipboard-heading"><strong>Ready to paste</strong><button aria-label="Cancel transfer clipboard" onclick={cancelTransferClipboard}><XIcon class="size-4" /></button></div>
             {#each transferClipboard.items as item (item.id)}
               <div class="transfer-clipboard-item"><span class="min-w-0 truncate">{item.name}</span><span>{item.mode === "copy" ? "Copy" : "Move"}</span><button aria-label={`Remove ${item.name}`} onclick={() => transferClipboard.remove(item.id)}><XIcon class="size-3" /></button></div>
             {/each}
-            {#if activeController.isBrowsableFolder()}
-              <button class="transfer-clipboard-paste" onclick={() => void pasteTransferClipboard()}>Paste here</button>
-            {/if}
+            <div class="transfer-clipboard-actions">
+              <button class="transfer-clipboard-cancel" onclick={cancelTransferClipboard}>Cancel</button>
+              {#if activeController.isBrowsableFolder()}
+                <button class="transfer-clipboard-paste" disabled={pasteInProgress} onclick={() => void pasteTransferClipboard()}>Paste here</button>
+              {/if}
+            </div>
           </div>
         {/if}
       </aside>
