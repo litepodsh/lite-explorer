@@ -33,7 +33,7 @@ export function activeTab(state: TabsState): Tab {
 }
 
 export function sameLocation(a: Location, b: Location): boolean {
-  return a.name === b.name && a.path === b.path && a.kind === b.kind;
+  return a.path === b.path && (Boolean(a.path) || (a.kind === b.kind && a.name === b.name));
 }
 
 function replaceActive(state: TabsState, update: (tab: Tab) => Tab): TabsState {

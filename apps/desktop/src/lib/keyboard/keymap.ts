@@ -96,11 +96,12 @@ export const STANDARD_BINDINGS: Binding[] = [
   }),
   standard("<Delete>", "file.trash", "Move to Trash", "Files", { repeat: false }),
   standard("<Backspace>", "file.trash", "Move to Trash", "Files", { repeat: false }),
+  ...["Meta+<Delete>", "Meta+<Backspace>"].map((keys) =>
+    standard(keys, "file.trash", "Move to Trash", "Files", { repeat: false, platforms: ["macos"] }),
+  ),
   ...[
     "Shift+<Delete>",
     "Shift+<Backspace>",
-    "Meta+<Delete>",
-    "Meta+<Backspace>",
     "Shift+Meta+<Delete>",
     "Shift+Meta+<Backspace>",
   ].map((keys) =>
@@ -133,11 +134,9 @@ export const STANDARD_BINDINGS: Binding[] = [
   }),
   standard("Mod+<Left>", "pane.left", "Focus left pane", "Tabs & Panes", {
     scope: "global",
-    where: TEXT_FIELDS,
   }),
   standard("Mod+<Right>", "pane.right", "Focus right pane", "Tabs & Panes", {
     scope: "global",
-    where: TEXT_FIELDS,
   }),
   ...Array.from({ length: 9 }, (_, index) =>
     standard(

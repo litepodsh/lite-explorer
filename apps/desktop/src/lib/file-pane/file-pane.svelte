@@ -96,14 +96,14 @@
 
   onDestroy(() => controller.cancelSizeScan());
 
-  let statusPath = $derived(controller.selected === "Overview" ? "" : controller.listingPath);
+  let statusPath = $derived(controller.tabs.active.location.kind === "overview" ? "" : controller.listingPath);
 
   // Lets archive entries dragged from any preview extract into this pane.
   $effect(() => {
     const id = controller.paneId;
     const localListing = () =>
-      controller.selected !== "Overview" &&
-      controller.selected !== "Recents" &&
+      controller.tabs.active.location.kind !== "overview" &&
+      controller.tabs.active.location.kind !== "recents" &&
       !!controller.listingPath &&
       !controller.remoteListing &&
       !isNetworkPath(controller.listingPath);
@@ -184,7 +184,8 @@
       </div>
     {/if}
     <div class="swipe-pane current" style:transform={`translate3d(${swipe.current}%, 0, 0)`}>
-  {#if controller.selected === "Overview"}
+  {#key controller.tabs.locationKey}
+  {#if controller.tabs.active.location.kind === "overview"}
     <OverviewPanel
       showHidden={showHiddenFiles}
       onOpen={(entry) => controller.openLocation({ name: entry.name, path: entry.path, kind: "folder" })} />
@@ -207,7 +208,7 @@
       <h1>Can’t open {controller.selected}</h1>
       <p>{controller.listingError}</p>
     </section>
-  {:else if controller.selected === "Recents" && controller.recentEntries.length}
+  {:else if controller.tabs.active.location.kind === "recents" && controller.recentEntries.length}
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="flex items-center justify-end px-3 pt-2">
         <button
@@ -273,7 +274,7 @@
         </ContextMenu.Content>
       </ContextMenu.Root>
     </div>
-  {:else if controller.selected === "Recents"}
+  {:else if controller.tabs.active.location.kind === "recents"}
     <section class="finder-empty" aria-live="polite">
       <Clock3Icon />
       <h1>Recents</h1>
@@ -491,6 +492,7 @@
       <p>Select a favorite or location to view its files.</p>
     </section>
   {/if}
+  {/key}
     </div>
   </div>
 
@@ -506,12 +508,12 @@
     location={statusPath}
     onNavigate={(path) => controller.openBreadcrumb(path)}
     network={Boolean(statusPath && networkStatus.ownerOf(statusPath))}
-    entries={controller.selected === "Recents"
+    entries={controller.tabs.active.location.kind === "recents"
       ? controller.recentEntries
-      : controller.selected === "Overview"
+      : controller.tabs.active.location.kind === "overview"
         ? []
         : controller.entries}
-    selectedEntries={controller.selected === "Overview" ? [] : controller.selectedEntries}
+    selectedEntries={controller.tabs.active.location.kind === "overview" ? [] : controller.selectedEntries}
     activity={transferActivity ??
       (folderScan.scanning
         ? `Analyzing ${folderScan.rootName}… ${formatSize(folderScan.scannedBytes)}`

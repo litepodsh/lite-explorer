@@ -27,6 +27,7 @@
   import TitleBar from "$lib/components/custom/titlebar/title-bar.svelte";
   import CommandPalette from "$lib/components/custom/command-palette.svelte";
   import { platformState } from "$lib/state/platform.svelte.js";
+  import { withTrailingSlash } from "$lib/keyboard/text.js";
   import { commandPaletteState, openCommandPalette, openCommandPaletteWith } from "$lib/state/command-palette.svelte";
   import WelcomeDialog from "$lib/components/custom/analytics/welcome-dialog.svelte";
   import { analytics } from "$lib/analytics/analytics.svelte.js";
@@ -826,7 +827,11 @@
       panes: {
         activeIndex: () => panes.panes.findIndex((pane) => pane.id === panes.activeId),
         count: () => panes.panes.length,
-        activate: (index) => panes.setActive(panes.panes[index].id),
+        activate: (index) => {
+          const paneId = panes.panes[index].id;
+          panes.setActive(paneId);
+          focusSlot({ region: "list", paneId });
+        },
         newTabInOtherPane: () => panes.newTabInOtherPane(),
         toggleSecond: () => panes.togglePane(),
       },
@@ -1035,7 +1040,7 @@
   class={`finder-window platform-${platform}${sidebarResizing ? " sidebar-resizing" : ""}${sidebarOpen ? "" : " sidebar-collapsed"}`}>
   <AppSidebar
     bind:this={sidebar}
-    selected={activeController.selected}
+    selected={activeController.tabs.active.location}
     {favorites}
     {locations}
     onOpen={(location) => openAnyLocation(location)}
@@ -1108,17 +1113,15 @@
             title="Toggle sidebar"
             onclick={toggleSidebar}><PanelLeftIcon /></button>
         {/if}
-        {#if activeController.selected !== "Overview"}
-          <div class="toolbar-controls">
-            <button aria-label="Back" disabled={!activeController.canBack} onclick={() => activeController.goBack()}><ArrowLeftIcon /></button>
-            <button aria-label="Forward" disabled={!activeController.canForward} onclick={() => activeController.goForward()}><ArrowRightIcon /></button>
-          </div>
-        {/if}
+        <div class="toolbar-controls">
+          <button aria-label="Back" disabled={!activeController.canBack} onclick={() => activeController.goBack()}><ArrowLeftIcon /></button>
+          <button aria-label="Forward" disabled={!activeController.canForward} onclick={() => activeController.goForward()}><ArrowRightIcon /></button>
+        </div>
       </div>
-      <button class="location-title" aria-label="Current location"
+      <button class="location-title" aria-label="Go to folder" onclick={() => openCommandPaletteWith(withTrailingSlash(activeController.listingPath))}
         >{activeController.selected}<ChevronDownIcon /></button>
       <div class="toolbar-actions">
-        {#if activeController.selected !== "Overview"}
+        {#if activeController.tabs.active.location.kind !== "overview"}
           <div class="toolbar-group">
             <button aria-label="List view" aria-pressed={activeController.viewMode === "list"} onclick={() => activeController.tabs.update({ viewMode: "list" })}><ListIcon /></button>
             <button aria-label="Icon view" aria-pressed={activeController.viewMode === "grid"} onclick={() => activeController.tabs.update({ viewMode: "grid" })}><Grid2X2Icon /></button>

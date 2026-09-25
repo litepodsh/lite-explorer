@@ -116,10 +116,14 @@ function runOrSkip(
 export function resolve(input: ResolveInput): Resolution {
   const { index, scope, mode, token, chord } = input;
 
-  if (chord && input.now - chord.startedAt <= input.timeoutMs) {
+  const eligible = chord?.candidates.filter(
+    (binding) => allowedIn(binding, scope) && modeRank(binding, mode) !== null,
+  );
+  if (chord && eligible?.length && input.now - chord.startedAt <= input.timeoutMs) {
+    if (input.repeat) return { kind: "pending", chord };
     if (token === "<Esc>") return { kind: "cancel" };
     const typed = [...chord.typed, token];
-    const remaining = chord.candidates.filter(
+    const remaining = eligible.filter(
       (binding) => binding.tokens[typed.length - 1] === token,
     );
     const complete = remaining.find((binding) => binding.tokens.length === typed.length);

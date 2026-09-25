@@ -512,8 +512,8 @@
     return Math.min(Math.max(0, index - first), 12) * 14;
   }
 
-  // The page unmounts this panel while a directory loads, so restoring once per mount
-  // restores the active tab's position after each tab switch.
+  // The pane keys this panel by tab and location, including cached listings, so
+  // restoring once per mount restores the active tab's position after each switch.
   let scrollRestored = false;
   $effect(() => {
     const element = scrollEl;

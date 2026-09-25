@@ -38,7 +38,7 @@
   let step = $state<"choose" | "details">("choose");
   let address = $state("");
   let addressInvalid = $state(false);
-  const comingSoon = new Set<LocationKind>(["onedrive", "dropbox"]);
+  const comingSoon = new Set<LocationKind>(["gdrive", "onedrive", "dropbox"]);
 
   $effect(() => {
     const path = editing?.path;

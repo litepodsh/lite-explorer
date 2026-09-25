@@ -121,3 +121,21 @@ describe("resolve", () => {
     );
   });
 });
+
+describe("chord focus changes", () => {
+  test("pending list chords cannot run inside text fields, dialogs or code", () => {
+    const first = resolve(input({ token: "g", mode: "yazi" }));
+    const chord = first.kind === "pending" ? first.chord : null;
+    for (const scope of ["input", "dialog", "monaco"] as const) {
+      expect(resolve(input({ token: "h", mode: "yazi", chord, scope })).kind).toBe("none");
+    }
+    expect(resolve(input({ token: "h", mode: "standard", chord })).kind).toBe("none");
+  });
+
+  test("holding a chord prefix does not complete the sequence", () => {
+    const first = resolve(input({ token: "g", mode: "yazi" }));
+    const chord = first.kind === "pending" ? first.chord : null;
+    expect(resolve(input({ token: "g", mode: "yazi", chord, repeat: true })).kind).toBe("pending");
+    expect(commandOf(resolve(input({ token: "g", mode: "yazi", chord })))).toBe("list.top");
+  });
+});

@@ -5,7 +5,7 @@ export type KeyPlatform = "macos" | "windows" | "linux";
 export type KeyInput = Pick<
   KeyboardEvent,
   "key" | "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey" | "isComposing"
->;
+> & Partial<Pick<KeyboardEvent, "getModifierState">>;
 
 const MODIFIER_ORDER = ["Ctrl", "Alt", "Shift", "Meta"] as const;
 export type Modifier = (typeof MODIFIER_ORDER)[number];
@@ -95,7 +95,8 @@ export function eventToken(event: KeyInput): string | null {
 
   if (event.ctrlKey || event.altKey || event.metaKey) {
     // AltGr arrives as Ctrl+Alt on Windows and types a character.
-    if (event.ctrlKey && event.altKey && !event.metaKey && event.key.length === 1) return null;
+    if (event.getModifierState?.("AltGraph") ??
+      (event.ctrlKey && event.altKey && !event.metaKey && event.key.length === 1)) return null;
     const label = codeLabel(event.code);
     return label ? joinToken(modifiers, label) : null;
   }

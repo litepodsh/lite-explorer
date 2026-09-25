@@ -4,7 +4,7 @@
 
 <script lang="ts">
 	import "./command-surface.css";
-	import { untrack } from "svelte";
+	import { tick, untrack } from "svelte";
 	import Fuse, { type FuseResult } from "fuse.js";
 	import { invoke } from "@tauri-apps/api/core";
 	import * as Command from "$lib/components/ui/command/index.js";
@@ -53,6 +53,7 @@
 	} = $props();
 
 	let query = $state("");
+	let input: HTMLInputElement | null = $state(null);
 	let newTabHeld = $state(false);
 	let selectedValue = $state("");
 	let pathEntries = $state<DirectoryEntry[]>([]);
@@ -83,6 +84,7 @@
 		untrack(() => {
 			query = initial;
 			commandPaletteState.query = null;
+			void tick().then(() => input?.select());
 		});
 	});
 
@@ -382,6 +384,7 @@
 	title="Command Palette"
 	description="Search commands, favorites, locations and paths">
 	<Command.Input
+		bind:ref={input}
 		bind:value={query}
 		autofocus
 		placeholder="Go to a folder, location or command…"

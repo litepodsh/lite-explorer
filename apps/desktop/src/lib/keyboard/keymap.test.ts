@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { buildIndex, resolve } from "./resolve.js";
 import {
   COMPONENT_BINDINGS,
   MENU_ACCELERATORS,
@@ -135,5 +136,27 @@ describe("yazi and component bindings", () => {
     expect(selectAll.map((item) => item.platforms)).toEqual([["macos"]]);
     const paneRight = YAZI_BINDINGS.filter((item) => item.command === "pane.right");
     expect(paneRight.map((item) => Boolean(item.overrides))).toEqual([false, true]);
+  });
+});
+
+describe("platform and text editing shortcuts", () => {
+  test("Command+Backspace on macOS sends files to trash", () => {
+    const index = buildIndex(allBindings(), "macos");
+    const result = resolve({ index, scope: "list", mode: "standard", token: "Meta+<Backspace>",
+      repeat: false, chord: null, now: 0, timeoutMs: 1500 });
+    expect(result.kind === "run" && result.binding.command).toBe("file.trash");
+  });
+
+  test("pane shortcuts preserve cursor movement in text fields and code", () => {
+    for (const platform of ["macos", "windows", "linux"] as const) {
+      const index = buildIndex(allBindings(), platform);
+      for (const scope of ["input", "monaco"] as const) {
+        for (const direction of ["Left", "Right"]) {
+          const token = `${platform === "macos" ? "Meta" : "Ctrl"}+<${direction}>`;
+          expect(resolve({ index, scope, mode: "standard", token,
+            repeat: false, chord: null, now: 0, timeoutMs: 1500 }).kind).toBe("none");
+        }
+      }
+    }
   });
 });
