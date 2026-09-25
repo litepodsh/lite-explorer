@@ -21,11 +21,13 @@
   import Rows2Icon from "@lucide/svelte/icons/rows-2";
   import FinderSearch from "$lib/components/custom/finder-search.svelte";
   import AppSidebar from "$lib/components/custom/sidebar/app-sidebar.svelte";
+  import { isVolumeLocation } from "$lib/components/custom/sidebar/sidebar-sections.js";
   import { addFavorite, fetchFavorites, removeFavorite, reorderFavorites } from "$lib/favorites/favorites.js";
   import { DragGhost } from "$lib/components/custom/drag-ghost/index.js";
   import TitleBar from "$lib/components/custom/titlebar/title-bar.svelte";
   import CommandPalette from "$lib/components/custom/command-palette.svelte";
   import { platformState } from "$lib/state/platform.svelte.js";
+  import { withTrailingSlash } from "$lib/keyboard/text.js";
   import { commandPaletteState, openCommandPalette, openCommandPaletteWith } from "$lib/state/command-palette.svelte";
   import WelcomeDialog from "$lib/components/custom/analytics/welcome-dialog.svelte";
   import { analytics } from "$lib/analytics/analytics.svelte.js";
@@ -99,6 +101,9 @@
   const controllers = new Map<string, FilePaneController>();
   const transferClipboard = new TransferClipboard();
   let transferClipboardOpen = $state(false);
+  let pasteInProgress = $state(false);
+  let pasteJobId: string | null = null;
+  let pasteCancelled = false;
   let pastedPaths = $state(new Set<string>());
 
   function controllerFor(paneId: string): FilePaneController {
@@ -509,7 +514,7 @@
     window.addEventListener("pointermove", trackSwipePointer);
     // Drives mounted or ejected while the app is open (a DMG, a USB stick) reach the sidebar here.
     const volumeKey = (list: Location[]) =>
-      list.filter(({ kind }) => kind === "volume" || kind === "hfs-volume").map(({ path }) => path).sort().join("\n");
+      list.filter(isVolumeLocation).map(({ path }) => path).sort().join("\n");
     const refreshVolumes = () => {
       if (document.visibilityState !== "visible") return;
       void invoke<Location[]>("refresh_locations")
@@ -822,7 +827,11 @@
       panes: {
         activeIndex: () => panes.panes.findIndex((pane) => pane.id === panes.activeId),
         count: () => panes.panes.length,
-        activate: (index) => panes.setActive(panes.panes[index].id),
+        activate: (index) => {
+          const paneId = panes.panes[index].id;
+          panes.setActive(paneId);
+          focusSlot({ region: "list", paneId });
+        },
         newTabInOtherPane: () => panes.newTabInOtherPane(),
         toggleSecond: () => panes.togglePane(),
       },
@@ -931,9 +940,19 @@
     });
   });
 
+  function cancelTransferClipboard() {
+    pasteCancelled = true;
+    if (pasteJobId) jobs.cancel(pasteJobId);
+    transferClipboard.clear();
+    transferClipboardOpen = false;
+  }
+
   async function pasteTransferClipboard() {
+    if (pasteInProgress) return;
     const request = transferClipboard.beginPaste(activeController.listingPath);
     if (!request) return;
+    pasteInProgress = true;
+    pasteCancelled = false;
     const copy = request.entries.filter((entry) => entry.mode === "copy");
     const move = request.entries.filter((entry) => entry.mode === "move");
     for (const entry of request.entries) {
@@ -952,22 +971,26 @@
           copy.map((entry) => entry.path),
           request.destination,
           `Copy: ${copy.length} items`,
+          (id) => (pasteJobId = id),
         );
+        pasteJobId = null;
         created.push(...entries.map((entry) => entry.path));
       }
-      if (move.length) {
+      if (move.length && !pasteCancelled) {
         const entries = await moveItems(
           move.map((entry) => entry.path),
           request.destination,
           `Move: ${move.length} items`,
+          (id) => (pasteJobId = id),
         );
+        pasteJobId = null;
         created.push(...entries.map((entry) => entry.path));
       }
-      for (const entry of request.entries) transferClipboard.removeByPath(entry.path);
+      if (!pasteCancelled) for (const entry of request.entries) transferClipboard.removeByPath(entry.path);
       markPasted(created);
     } catch (error) {
-      // Rejects only happen before the job registers, so nothing was processed.
-      for (const entry of request.entries) {
+      // Keep the queued entries available for retry when the operation fails.
+      if (!pasteCancelled) for (const entry of request.entries) {
         transferClipboard.applyProgress({
           jobId: "clipboard",
           itemId: entry.id,
@@ -975,6 +998,9 @@
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    } finally {
+      pasteJobId = null;
+      pasteInProgress = false;
     }
     activeController.reload();
   }
@@ -1014,7 +1040,7 @@
   class={`finder-window platform-${platform}${sidebarResizing ? " sidebar-resizing" : ""}${sidebarOpen ? "" : " sidebar-collapsed"}`}>
   <AppSidebar
     bind:this={sidebar}
-    selected={activeController.selected}
+    selected={activeController.tabs.active.location}
     {favorites}
     {locations}
     onOpen={(location) => openAnyLocation(location)}
@@ -1087,17 +1113,15 @@
             title="Toggle sidebar"
             onclick={toggleSidebar}><PanelLeftIcon /></button>
         {/if}
-        {#if activeController.selected !== "Overview"}
-          <div class="toolbar-controls">
-            <button aria-label="Back" disabled={!activeController.canBack} onclick={() => activeController.goBack()}><ArrowLeftIcon /></button>
-            <button aria-label="Forward" disabled={!activeController.canForward} onclick={() => activeController.goForward()}><ArrowRightIcon /></button>
-          </div>
-        {/if}
+        <div class="toolbar-controls">
+          <button aria-label="Back" disabled={!activeController.canBack} onclick={() => activeController.goBack()}><ArrowLeftIcon /></button>
+          <button aria-label="Forward" disabled={!activeController.canForward} onclick={() => activeController.goForward()}><ArrowRightIcon /></button>
+        </div>
       </div>
-      <button class="location-title" aria-label="Current location"
+      <button class="location-title" aria-label="Go to folder" onclick={() => openCommandPaletteWith(withTrailingSlash(activeController.listingPath))}
         >{activeController.selected}<ChevronDownIcon /></button>
       <div class="toolbar-actions">
-        {#if activeController.selected !== "Overview"}
+        {#if activeController.tabs.active.location.kind !== "overview"}
           <div class="toolbar-group">
             <button aria-label="List view" aria-pressed={activeController.viewMode === "list"} onclick={() => activeController.tabs.update({ viewMode: "list" })}><ListIcon /></button>
             <button aria-label="Icon view" aria-pressed={activeController.viewMode === "grid"} onclick={() => activeController.tabs.update({ viewMode: "grid" })}><Grid2X2Icon /></button>
@@ -1188,13 +1212,16 @@
         </button>
         {#if transferClipboardOpen}
           <div class="transfer-clipboard-panel">
-            <div class="transfer-clipboard-heading"><strong>Ready to paste</strong><button aria-label="Clear transfer clipboard" onclick={() => transferClipboard.clear()}><XIcon class="size-4" /></button></div>
+            <div class="transfer-clipboard-heading"><strong>Ready to paste</strong><button aria-label="Cancel transfer clipboard" onclick={cancelTransferClipboard}><XIcon class="size-4" /></button></div>
             {#each transferClipboard.items as item (item.id)}
               <div class="transfer-clipboard-item"><span class="min-w-0 truncate">{item.name}</span><span>{item.mode === "copy" ? "Copy" : "Move"}</span><button aria-label={`Remove ${item.name}`} onclick={() => transferClipboard.remove(item.id)}><XIcon class="size-3" /></button></div>
             {/each}
-            {#if activeController.isBrowsableFolder()}
-              <button class="transfer-clipboard-paste" onclick={() => void pasteTransferClipboard()}>Paste here</button>
-            {/if}
+            <div class="transfer-clipboard-actions">
+              <button class="transfer-clipboard-cancel" onclick={cancelTransferClipboard}>Cancel</button>
+              {#if activeController.isBrowsableFolder()}
+                <button class="transfer-clipboard-paste" disabled={pasteInProgress} onclick={() => void pasteTransferClipboard()}>Paste here</button>
+              {/if}
+            </div>
           </div>
         {/if}
       </aside>

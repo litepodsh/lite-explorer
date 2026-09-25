@@ -178,17 +178,31 @@
   color: #aaa49d;
   font-size: 11px;
 }
-.transfer-clipboard-paste {
-  width: 100%;
+.transfer-clipboard-actions {
+  display: flex;
+  gap: 6px;
   margin-top: 4px;
+}
+.transfer-clipboard-actions button {
+  flex: 1;
   border: 0;
   border-radius: 8px;
-  background: #72b6ff;
-  color: #10243a;
   padding: 8px 10px;
   font-weight: 700;
   font-size: 12px;
   cursor: pointer;
+}
+.transfer-clipboard-cancel {
+  background: #48433e;
+  color: #f2f1f0;
+}
+.transfer-clipboard-paste {
+  background: #72b6ff;
+  color: #10243a;
+}
+.transfer-clipboard-paste:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 @media (prefers-reduced-motion: reduce) {
   .transfer-clipboard-front {

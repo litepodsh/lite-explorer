@@ -6,13 +6,14 @@
   import GaugeIcon from "@lucide/svelte/icons/gauge";
   import GlobeIcon from "@lucide/svelte/icons/globe";
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
+import SquareTerminalIcon from "@lucide/svelte/icons/square-terminal";
   import NetworkIcon from "@lucide/svelte/icons/network";
   import ServerIcon from "@lucide/svelte/icons/server";
   import HouseIcon from "@lucide/svelte/icons/house";
   import UsersIcon from "@lucide/svelte/icons/users";
   import SearchIcon from "@lucide/svelte/icons/search";
 
-  import type { Location } from "$lib/tabs/tabs.js";
+  import { OVERVIEW, sameLocation, type Location } from "$lib/tabs/tabs.js";
   export type { Location };
 </script>
 
@@ -41,7 +42,7 @@
 
   let {
     ref = $bindable(null),
-    selected = "Overview",
+    selected = OVERVIEW,
     favorites = [],
     locations = [],
     collapsible = "offcanvas",
@@ -66,7 +67,7 @@
     brand = false,
     ...restProps
   }: ComponentProps<typeof Sidebar.Root> & {
-    selected?: string;
+    selected?: Location;
     favorites?: Location[];
     locations?: Location[];
     open?: boolean;
@@ -295,19 +296,19 @@
         data-sidebar-item
         aria-label="Overview"
         title="Overview"
-        class:active={selected === "Overview"}
+        class:active={selected.kind === "overview"}
         onclick={() => onOpen?.({ name: "Overview", path: "", kind: "overview" })}><GaugeIcon /> <span>Overview</span></button>
       <button
         data-sidebar-item
         aria-label="Recents"
         title="Recents"
-        class:active={selected === "Recents"}
+        class:active={selected.kind === "recents"}
         onclick={() => onOpen?.({ name: "Recents", path: "", kind: "recents" })}><Clock3Icon /> <span>Recents</span></button>
       <button
         data-sidebar-item
         aria-label="Shared"
         title="Shared"
-        class:active={selected === "Shared"}
+        class:active={selected.kind === "shared"}
         onclick={() => onOpen?.({ name: "Shared", path: "", kind: "shared" })}><UsersIcon /> <span>Shared</span></button>
       <div class="finder-section">
         <button
@@ -336,7 +337,7 @@
                   <button
                     aria-label={favorite.name} data-sidebar-item
                     title={favorite.path}
-                    class:active={selected === favorite.name}
+                    class:active={sameLocation(selected, favorite)}
                     onpointerdown={(event) => startReorder(event, favorite)}
                     onclick={() => onOpen?.(favorite)}><FolderIcon /> <span>{favorite.name}</span></button>
                   <button
@@ -380,8 +381,8 @@
                 <button
                   aria-label={location.name} data-sidebar-item
                   title={location.path}
-                  class:active={selected === location.name}
-                  onclick={() => onOpen?.(location)}><HardDriveIcon /><span>{location.name}</span></button>
+                  class:active={sameLocation(selected, location)}
+                  onclick={() => onOpen?.(location)}>{#if location.kind === "wsl-volume"}<SquareTerminalIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span></button>
                 {#if location.kind === "hfs-volume"}
                   <button
                     class="location-trail"
@@ -422,7 +423,7 @@
                   <button
                     aria-label={location.name} data-sidebar-item
                     title={status?.state === "locked" ? `${location.name}: password needed` : location.name}
-                    class:active={selected === location.name}
+                    class:active={sameLocation(selected, location)}
                     aria-busy={status?.state === "connecting"}
                     onclick={() => onOpen?.(location)}
                     >{#if status?.state === "connecting"}<LoaderCircleIcon class="location-spinner" />{:else if location.kind === "s3"}<CloudIcon />{:else if location.kind === "webdav"}<GlobeIcon />{:else if location.kind === "sftp" || location.kind === "ftp"}<ServerIcon />{:else}<NetworkIcon />{/if}<span
@@ -469,7 +470,7 @@
           <button
             aria-label={location.name} data-sidebar-item
             title={location.path}
-            class:active={selected === location.name}
+            class:active={sameLocation(selected, location)}
             onclick={() => onOpen?.(location)}
             >{#if location.kind === "home"}<HouseIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span></button>
         {/if}

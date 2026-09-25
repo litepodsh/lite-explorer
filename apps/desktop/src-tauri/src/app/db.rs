@@ -52,7 +52,7 @@ pub async fn sync_system_locations(
             .collect::<Vec<_>>()
             .join(", ");
         let sql =
-            format!("DELETE FROM locations WHERE kind IN ('volume', 'hfs-volume') AND path NOT IN ({placeholders})");
+            format!("DELETE FROM locations WHERE kind IN ('volume', 'hfs-volume', 'wsl-volume') AND path NOT IN ({placeholders})");
         let mut query = sqlx::query(&sql);
         for path in &volume_paths {
             query = query.bind(path);
@@ -63,7 +63,7 @@ pub async fn sync_system_locations(
 }
 
 pub fn is_volume(location: &Location) -> bool {
-    matches!(location.kind.as_str(), "volume" | "hfs-volume")
+    matches!(location.kind.as_str(), "volume" | "hfs-volume" | "wsl-volume")
 }
 
 pub async fn apply_migrations(pool: &SqlitePool) -> Result<(), sqlx::migrate::MigrateError> {

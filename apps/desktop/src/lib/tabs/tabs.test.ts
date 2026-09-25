@@ -61,6 +61,12 @@ describe("navigate", () => {
     expect(navigate(state, { ...desktop })).toBe(state);
   });
 
+  test("opening the same folder under an alias preserves history and selection", () => {
+    let state = navigate(createTabsState("a"), desktop);
+    state = updateActive(state, { selection: selectOnly("/Users/me/Desktop/a.txt") });
+    expect(navigate(state, { ...desktop, name: "My desktop", kind: "volume" })).toBe(state);
+  });
+
   test("treats sidebar entries with the same kind but different names as different", () => {
     const red: Location = { name: "Red", path: "", kind: "network" };
     const blue: Location = { name: "Blue", path: "", kind: "network" };

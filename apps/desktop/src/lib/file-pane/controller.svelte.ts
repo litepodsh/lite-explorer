@@ -301,7 +301,7 @@ export class FilePaneController {
     return this.sourceEntries.filter((entry) => selected.has(entry.path));
   });
   get sourceEntries(): DirectoryEntry[] {
-    return this.selected === "Recents" ? this.recentEntries : this.visibleEntries;
+    return this.tabs.active.location.kind === "recents" ? this.recentEntries : this.visibleEntries;
   }
   get selected() {
     return this.tabs.active.location.name;
@@ -488,18 +488,26 @@ export class FilePaneController {
     this.sizeScanMessage = "";
     this.#endSwipe();
     this.clearSearch();
+    clearTimeout(this.#previewTimer);
+    this.previewEntryPath = this.selection.paths.length === 1 ? this.selection.paths[0] : "";
     this.visual = null;
     const token = ++this.loadToken;
     this.renamingPath = "";
     this.listingError = "";
     this.disconnected = null;
     if (location.kind === "recents") {
-      this.listing = false;
+      this.listing = true;
       this.entries = [];
-      const result = await invoke<Recent[]>("recents");
-      if (token === this.loadToken) {
-        this.recents = result;
-        this.pruneSelection();
+      try {
+        const result = await invoke<Recent[]>("recents");
+        if (token === this.loadToken) {
+          this.recents = result;
+          this.pruneSelection();
+        }
+      } catch (error) {
+        if (token === this.loadToken) this.listingError = String(error);
+      } finally {
+        if (token === this.loadToken) this.listing = false;
       }
       return;
     }
@@ -518,6 +526,7 @@ export class FilePaneController {
       this.entries = cached;
       this.listing = false;
     } else {
+      this.entries = [];
       this.listing = true;
     }
     if (smbMount) {
@@ -787,8 +796,8 @@ export class FilePaneController {
   isBrowsableFolder(): boolean {
     return (
       Boolean(this.listingPath) &&
-      this.selected !== "Overview" &&
-      this.selected !== "Recents" &&
+      this.tabs.active.location.kind !== "overview" &&
+      this.tabs.active.location.kind !== "recents" &&
       !this.remoteRoot &&
       !this.serverRoot
     );
@@ -865,13 +874,15 @@ export class FilePaneController {
 
   /** Folds a fresh read of the folder into the listing: measured sizes and the scan survive. */
   async refreshListing(path: string) {
-    if (this.listingPath !== path || !path || this.selected === "Recents") return;
+    if (this.listingPath !== path || !path || this.tabs.active.location.kind === "recents") return;
+    const token = this.loadToken;
     try {
       const result = await invoke<DirectoryEntry[]>("read_directory", { path });
-      if (this.listingPath !== path) return;
+      if (this.listingPath !== path || token !== this.loadToken) return;
       this.setEntries(mergeListing(this.entries, result));
       this.pruneSelection();
     } catch (error) {
+      if (this.listingPath !== path || token !== this.loadToken) return;
       this.listingError = error instanceof Error ? error.message : String(error);
     }
   }
@@ -1327,7 +1338,7 @@ export class FilePaneController {
     modifiers: { shift: boolean; primary: boolean },
     showHidden: boolean,
   ): boolean {
-    if (this.selected === "Overview") return false;
+    if (this.tabs.active.location.kind === "overview") return false;
     const paths = this.keyboardOrder(showHidden).map((entry) => entry.path);
     const index = navTarget(paths.indexOf(this.focusPath), key, this.navLayout(paths.length));
     if (index === null) return false;
@@ -1337,7 +1348,7 @@ export class FilePaneController {
 
   /** Finder-style type-to-select: jumps to the first entry whose name starts with the typed text. */
   typeSelect(char: string, showHidden: boolean): boolean {
-    if (this.selected === "Overview" || this.visual) return false;
+    if (this.tabs.active.location.kind === "overview" || this.visual) return false;
     const entries = this.keyboardOrder(showHidden);
     const query = this.#typeSelect.push(char, Date.now());
     const current = entries.findIndex((entry) => entry.path === this.focusPath);
@@ -1356,7 +1367,7 @@ export class FilePaneController {
   }
 
   moveHalfPage(direction: 1 | -1, showHidden: boolean): boolean {
-    if (this.selected === "Overview") return false;
+    if (this.tabs.active.location.kind === "overview") return false;
     const paths = this.keyboardOrder(showHidden).map((entry) => entry.path);
     const index = halfPageTarget(
       paths.indexOf(this.focusPath),
@@ -1370,7 +1381,7 @@ export class FilePaneController {
 
   /** Opens the focused entry: folders in place, files with their default app. */
   enterOrOpenFocused(showHidden: boolean): boolean {
-    if (this.selected === "Overview") return false;
+    if (this.tabs.active.location.kind === "overview") return false;
     const entry = this.focusedEntry(showHidden);
     if (!entry) return false;
     this.openEntry(entry);
@@ -1385,7 +1396,7 @@ export class FilePaneController {
   }
 
   invertSelection(showHidden: boolean): boolean {
-    if (this.selected === "Overview") return false;
+    if (this.tabs.active.location.kind === "overview") return false;
     this.setSelection(
       invert(
         this.selection,
@@ -1396,7 +1407,7 @@ export class FilePaneController {
   }
 
   startVisual(mode: "add" | "remove", showHidden: boolean): boolean {
-    if (this.selected === "Overview") return false;
+    if (this.tabs.active.location.kind === "overview") return false;
     const paths = this.keyboardOrder(showHidden).map((entry) => entry.path);
     const anchor = paths.includes(this.focusPath) ? this.focusPath : paths[0];
     if (!anchor) return false;
@@ -1412,7 +1423,7 @@ export class FilePaneController {
   }
 
   renameFocused(showHidden: boolean): boolean {
-    if (this.selected === "Overview" || this.remoteRoot || this.serverRoot) return false;
+    if (this.tabs.active.location.kind === "overview" || this.remoteRoot || this.serverRoot) return false;
     const entry =
       this.focusedEntry(showHidden) ??
       (this.selectedEntries.length === 1 ? this.selectedEntries[0] : undefined);
@@ -1459,7 +1470,7 @@ export class FilePaneController {
 
   /** Opens the focused folder; false when focus is not on a folder. */
   enterFocused(showHidden: boolean): boolean {
-    if (this.selected === "Overview") return false;
+    if (this.tabs.active.location.kind === "overview") return false;
     const entry = this.focusedEntry(showHidden);
     if (!entry?.is_directory) return false;
     this.openEntry(entry);
@@ -1467,7 +1478,7 @@ export class FilePaneController {
   }
 
   selectFocused(mode: "only" | "toggle", showHidden: boolean): boolean {
-    if (this.selected === "Overview") return false;
+    if (this.tabs.active.location.kind === "overview") return false;
     const entry = this.focusedEntry(showHidden);
     if (!entry) return false;
     this.setSelection(
@@ -1477,19 +1488,19 @@ export class FilePaneController {
   }
 
   selectAllListed(showHidden: boolean): boolean {
-    if (this.selected === "Overview") return false;
+    if (this.tabs.active.location.kind === "overview") return false;
     this.setSelection(selectAll(this.keyboardOrder(showHidden).map((entry) => entry.path)));
     return true;
   }
 
   clearSelectionIfAny(): boolean {
-    if (this.selected === "Overview" || this.selection.paths.length === 0) return false;
+    if (this.tabs.active.location.kind === "overview" || this.selection.paths.length === 0) return false;
     this.clearSelection();
     return true;
   }
 
   trashSelection({ permanent }: { permanent: boolean }): boolean {
-    if (this.selected === "Overview") return false;
+    if (this.tabs.active.location.kind === "overview") return false;
     const entries = this.selectedEntries;
     if (entries.length === 0) return false;
     this.deleteEntries(entries, { permanent });
@@ -1506,7 +1517,7 @@ export class FilePaneController {
   }
 
   openParentFromKeyboard(): boolean {
-    if (this.selected === "Overview") return false;
+    if (this.tabs.active.location.kind === "overview") return false;
     this.openParent();
     return true;
   }

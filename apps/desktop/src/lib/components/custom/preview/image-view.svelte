@@ -16,10 +16,8 @@
   let cleanSvg = $state("");
 
   $effect(() => {
-    if (!isSvg) {
-      cleanSvg = "";
-      return;
-    }
+    cleanSvg = "";
+    if (!isSvg) return;
     let cancelled = false;
     void fetch(src)
       .then((response) => response.text())
@@ -158,7 +156,7 @@
     class="grid h-full w-full place-items-center"
     style="transform: translate({dispTx}px, {dispTy}px); will-change: transform;"
   >
-    {#if isSvg}
+    {#if isSvg && cleanSvg}
       <div
         class="svg-preview select-none"
         role="img"

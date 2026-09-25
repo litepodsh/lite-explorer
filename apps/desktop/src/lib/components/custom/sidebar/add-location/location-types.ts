@@ -12,7 +12,7 @@ export const LOCATION_TYPES: Record<LocationKind, { label: string; hint: string;
   aws: { label: "Amazon S3", hint: "Buckets on AWS", mark: "aws" },
   r2: { label: "Cloudflare R2", hint: "Zero-egress object storage", mark: "R2" },
   custom: { label: "S3-compatible", hint: "MinIO, Backblaze, Wasabi, Ceph", mark: "" },
-  gdrive: { label: "Google Drive", hint: "Connect your Google account", mark: "" },
+  gdrive: { label: "Google Drive", hint: "Coming soon", mark: "" },
   onedrive: { label: "OneDrive", hint: "Coming soon", mark: "OD" },
   dropbox: { label: "Dropbox", hint: "Coming soon", mark: "DB" },
   azblob: { label: "Azure Blob", hint: "Azure container storage", mark: "AZ" },
