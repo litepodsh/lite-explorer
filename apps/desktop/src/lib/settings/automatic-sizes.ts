@@ -18,6 +18,8 @@ export function shouldCalculateSizes(
   home: string,
   settings: Pick<Settings, "automaticSizesInHome" | "automaticSizePaths">,
 ): boolean {
-  return (settings.automaticSizesInHome && isWithinFolder(path, home)) ||
-    settings.automaticSizePaths.some((folder) => isWithinFolder(path, folder));
+  return (
+    (settings.automaticSizesInHome && isWithinFolder(path, home)) ||
+    settings.automaticSizePaths.some((folder) => isWithinFolder(path, folder))
+  );
 }

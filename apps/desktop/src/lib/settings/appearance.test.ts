@@ -13,7 +13,13 @@ describe("resolveTheme", () => {
 test("applyAppearance writes root datasets and native color scheme", () => {
   const root = { dataset: {}, style: {} } as unknown as HTMLElement;
   const document = { documentElement: root } as Document;
-  const settings = { ...defaultSettings({ dev: false }), theme: "oled" as const, radius: "round" as const, elevation: "lifted" as const, texture: "paper" as const };
+  const settings = {
+    ...defaultSettings({ dev: false }),
+    theme: "oled" as const,
+    radius: "round" as const,
+    elevation: "lifted" as const,
+    texture: "paper" as const,
+  };
 
   applyAppearance(settings, document);
 

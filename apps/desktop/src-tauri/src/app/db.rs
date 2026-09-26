@@ -63,7 +63,10 @@ pub async fn sync_system_locations(
 }
 
 pub fn is_volume(location: &Location) -> bool {
-    matches!(location.kind.as_str(), "volume" | "hfs-volume" | "wsl-volume")
+    matches!(
+        location.kind.as_str(),
+        "volume" | "hfs-volume" | "wsl-volume"
+    )
 }
 
 pub async fn apply_migrations(pool: &SqlitePool) -> Result<(), sqlx::migrate::MigrateError> {

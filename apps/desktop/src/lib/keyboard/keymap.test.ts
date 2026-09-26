@@ -142,8 +142,16 @@ describe("yazi and component bindings", () => {
 describe("platform and text editing shortcuts", () => {
   test("Command+Backspace on macOS sends files to trash", () => {
     const index = buildIndex(allBindings(), "macos");
-    const result = resolve({ index, scope: "list", mode: "standard", token: "Meta+<Backspace>",
-      repeat: false, chord: null, now: 0, timeoutMs: 1500 });
+    const result = resolve({
+      index,
+      scope: "list",
+      mode: "standard",
+      token: "Meta+<Backspace>",
+      repeat: false,
+      chord: null,
+      now: 0,
+      timeoutMs: 1500,
+    });
     expect(result.kind === "run" && result.binding.command).toBe("file.trash");
   });
 
@@ -153,8 +161,18 @@ describe("platform and text editing shortcuts", () => {
       for (const scope of ["input", "monaco"] as const) {
         for (const direction of ["Left", "Right"]) {
           const token = `${platform === "macos" ? "Meta" : "Ctrl"}+<${direction}>`;
-          expect(resolve({ index, scope, mode: "standard", token,
-            repeat: false, chord: null, now: 0, timeoutMs: 1500 }).kind).toBe("none");
+          expect(
+            resolve({
+              index,
+              scope,
+              mode: "standard",
+              token,
+              repeat: false,
+              chord: null,
+              now: 0,
+              timeoutMs: 1500,
+            }).kind,
+          ).toBe("none");
         }
       }
     }

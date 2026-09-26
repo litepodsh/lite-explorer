@@ -14,9 +14,16 @@ function pane(name = "files") {
   tabs.navigate({ name, path: `/tmp/${name}`, kind: "folder" });
   return new FilePaneController("pane", tabs, () => {});
 }
-const entry = { name: "file.txt", path: "/tmp/files/file.txt", is_directory: false, is_hidden: false };
+const entry = {
+  name: "file.txt",
+  path: "/tmp/files/file.txt",
+  is_directory: false,
+  is_hidden: false,
+};
 
-beforeEach(() => { vi.mocked(invoke).mockReset(); });
+beforeEach(() => {
+  vi.mocked(invoke).mockReset();
+});
 
 describe("navigation", () => {
   it.each(["Overview", "Recents"])("browses an ordinary folder named %s", (name) => {
@@ -31,8 +38,13 @@ describe("navigation", () => {
   it("clears the previous folder while the next listing is pending", async () => {
     const controller = pane();
     controller.entries = [entry];
-    let resolve!: (entries: typeof entry[]) => void;
-    vi.mocked(invoke).mockImplementation(() => new Promise((done) => { resolve = done; }));
+    let resolve!: (entries: (typeof entry)[]) => void;
+    vi.mocked(invoke).mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
     const loading = controller.loadLocation(controller.tabs.active.location);
     expect(controller.entries).toEqual([]);
     expect(controller.listing).toBe(true);
@@ -46,7 +58,12 @@ describe("navigation", () => {
   it("ignores refresh errors from a folder already left", async () => {
     const controller = pane();
     let reject!: (error: Error) => void;
-    vi.mocked(invoke).mockImplementation(() => new Promise((_, fail) => { reject = fail; }));
+    vi.mocked(invoke).mockImplementation(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        }),
+    );
     const refresh = controller.refreshListing(controller.listingPath);
     controller.tabs.navigate(OVERVIEW);
     await controller.loadLocation(OVERVIEW);

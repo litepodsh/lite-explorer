@@ -40,9 +40,7 @@ describe("canFavorite", () => {
 
   test("files are rejected but connected folders, buckets and shares are allowed", () => {
     expect(canFavorite({ is_directory: false, path: "/Users/me/notes.txt" })).toBe(false);
-    expect(canFavorite({ is_directory: true, path: "s3://id/bucket/", kind: "bucket" })).toBe(
-      true,
-    );
+    expect(canFavorite({ is_directory: true, path: "s3://id/bucket/", kind: "bucket" })).toBe(true);
     expect(canFavorite({ is_directory: true, path: "s3://id/bucket/folder/" })).toBe(true);
     expect(canFavorite({ is_directory: true, path: "smb://id/share", kind: "share" })).toBe(true);
     expect(canFavorite({ is_directory: true, path: "sftp://id/home" })).toBe(true);

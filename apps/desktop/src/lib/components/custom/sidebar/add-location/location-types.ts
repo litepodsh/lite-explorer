@@ -21,5 +21,8 @@ export const LOCATION_TYPES: Record<LocationKind, { label: string; hint: string;
 export const LOCATION_GROUPS: { label: string; kinds: LocationKind[] }[] = [
   { label: "Network share", kinds: ["smb", "nfs", "webdav"] },
   { label: "Server", kinds: ["sftp", "ftp"] },
-  { label: "Cloud storage", kinds: ["aws", "r2", "custom", "gdrive", "onedrive", "dropbox", "azblob"] },
+  {
+    label: "Cloud storage",
+    kinds: ["aws", "r2", "custom", "gdrive", "onedrive", "dropbox", "azblob"],
+  },
 ];

@@ -285,11 +285,12 @@ pub async fn refresh_locations(database: State<'_, Database>) -> Result<Vec<Loca
         .map(|location| location.path.as_str())
         .collect();
     detected.sort_unstable();
-    let mut saved: Vec<String> =
-        sqlx::query_scalar("SELECT path FROM locations WHERE kind IN ('volume', 'hfs-volume', 'wsl-volume')")
-            .fetch_all(&database.0)
-            .await
-            .map_err(|error| error.to_string())?;
+    let mut saved: Vec<String> = sqlx::query_scalar(
+        "SELECT path FROM locations WHERE kind IN ('volume', 'hfs-volume', 'wsl-volume')",
+    )
+    .fetch_all(&database.0)
+    .await
+    .map_err(|error| error.to_string())?;
     saved.sort_unstable();
     // Polled while the window is open, so only write when the set of drives changed.
     if saved != detected {
