@@ -171,7 +171,6 @@ pub fn run() {
             preview::data::open_data,
             preview::comic::open_comic,
             preview::notebook::open_notebook,
-            preview::tldraw::open_tldraw,
             preview::database::open_database,
             preview::database::read_sqlite_table,
             preview::subtitle::open_subtitle,

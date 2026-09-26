@@ -17,16 +17,3 @@ Lite Explorer can be used without a mouse.
 Yazi mode is off by default. It is not recommended with a screen reader, which also uses single-letter keys.
 
 The keymap lives in `src/lib/keyboard/keymap.ts`; menu accelerators in `src/lib/keyboard/menu-accelerators.json` are shared with Rust.
-
-## tldraw previews
-
-`.tldraw` desktop archives and `.tldr` JSON exports open in an interactive,
-read-only preview with pan, zoom, Fit, and page selection. The React-based SDK
-loads only for drawings, inside a Svelte wrapper. Files are never saved or modified.
-Standard tldraw shapes and embedded images/videos are supported; document scripts,
-live website embeds, and externally hosted media are not loaded. Documents are
-limited to 32 MB (including expanded archive contents) and 10,000 records.
-
-Set `VITE_TLDRAW_LICENSE_KEY` in `.env.local` before a production build. Development
-works without a key; production requires a valid [tldraw license](https://tldraw.dev/sdk-features/license-key)
-covering the desktop app's origin. Fonts and SDK assets are bundled locally.

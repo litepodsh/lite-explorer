@@ -25,7 +25,6 @@ pub(crate) mod sheet;
 pub(crate) mod sketch;
 pub(crate) mod source;
 pub(crate) mod subtitle;
-pub(crate) mod tldraw;
 pub(crate) mod torrent;
 pub(crate) mod vcard;
 pub(crate) mod xml;

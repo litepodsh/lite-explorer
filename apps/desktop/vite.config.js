@@ -8,8 +8,6 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [tailwindcss(), sveltekit()],
-  // Keep the SDK's ?url imports in Vite's asset pipeline during development.
-  optimizeDeps: { exclude: ["@tldraw/assets"] },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

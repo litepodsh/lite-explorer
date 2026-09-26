@@ -719,10 +719,6 @@ pub async fn file_preview(
             preview.kind = PreviewKind::Torrent;
             return Ok(preview);
         }
-        if crate::preview::tldraw::is_tldraw_extension(extension) {
-            preview.kind = PreviewKind::Tldraw;
-            return Ok(preview);
-        }
         if notebook::is_notebook_extension(extension) {
             preview.kind = PreviewKind::Notebook;
             return Ok(preview);

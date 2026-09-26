@@ -44,7 +44,6 @@
   import IsoView from "./iso-view.svelte";
   import MsgView from "./msg-view.svelte";
   import SketchView from "./sketch-view.svelte";
-  import TldrawView from "./tldraw-view.svelte";
   import PsdView from "./psd-view.svelte";
   import DicomView from "./dicom-view.svelte";
   import MobiView from "./mobi-view.svelte";
@@ -320,8 +319,6 @@
       <IsoView path={previewPath} name={preview.name} />
     {:else if preview.kind === "msg"}
       <MsgView path={previewPath} name={preview.name} />
-    {:else if preview.kind === "tldraw"}
-      <TldrawView path={previewPath} name={preview.name} />
     {:else if preview.kind === "sketch"}
       <SketchView path={previewPath} name={preview.name} />
     {:else if preview.kind === "psd"}
