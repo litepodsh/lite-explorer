@@ -137,7 +137,9 @@ export class LocationForm {
     this.attempted = true;
     if (this.isNetwork) return missingFields(this.network).length > 0;
     if (isPendingProvider(this.cloud.provider)) {
-      this.status = failure("This provider is ready to configure after its connection layer is enabled.");
+      this.status = failure(
+        "This provider is ready to configure after its connection layer is enabled.",
+      );
       return true;
     }
     const missing = missingRemoteFields(this.cloud);

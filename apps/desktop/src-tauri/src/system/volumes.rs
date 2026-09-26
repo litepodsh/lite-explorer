@@ -181,8 +181,8 @@ pub fn wsl_path(distro: &str) -> String {
 #[cfg(target_os = "windows")]
 pub fn wsl_distros() -> Vec<String> {
     use windows_sys::Win32::System::Registry::{
-        RegCloseKey, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW, HKEY, HKEY_CURRENT_USER,
-        KEY_READ, RRF_RT_REG_SZ,
+        RegCloseKey, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW, HKEY, HKEY_CURRENT_USER, KEY_READ,
+        RRF_RT_REG_SZ,
     };
     let lxss = to_wide(r"Software\Microsoft\Windows\CurrentVersion\Lxss");
     let mut key: HKEY = std::ptr::null_mut();

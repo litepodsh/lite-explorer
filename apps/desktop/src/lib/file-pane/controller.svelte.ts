@@ -85,7 +85,12 @@ export type SearchEntry = DirectoryEntry & {
 };
 type SearchResponse = { results: SearchEntry[]; skipped: number; limited: boolean };
 type DirectoryListingProgress = { entries: DirectoryEntry[]; done: boolean; error: string | null };
-type EntryDetails = { path: string; size: number | null; created: number | null; modified: number | null };
+type EntryDetails = {
+  path: string;
+  size: number | null;
+  created: number | null;
+  modified: number | null;
+};
 
 /** Rows asked for at once, and the pause that lets scrolling settle before asking. */
 const DETAILS_BATCH = 256;
@@ -533,7 +538,8 @@ export class FilePaneController {
       try {
         await this.loadSmbListing(location.path, token);
       } catch (error) {
-        if (token === this.loadToken) this.listingError = error instanceof Error ? error.message : String(error);
+        if (token === this.loadToken)
+          this.listingError = error instanceof Error ? error.message : String(error);
       } finally {
         if (token === this.loadToken) this.listing = false;
       }
@@ -572,9 +578,7 @@ export class FilePaneController {
       !isNetworkPath(location.path) &&
       !networkStatus.mountFor(location.path)
     ) {
-      const home = settings.current.automaticSizesInHome
-        ? await homeDir().catch(() => "")
-        : "";
+      const home = settings.current.automaticSizesInHome ? await homeDir().catch(() => "") : "";
       if (token !== this.loadToken) return;
       if (shouldCalculateSizes(location.path, home, settings.current)) {
         void this.calculateSizes({ preserveSort: true });
@@ -601,7 +605,12 @@ export class FilePaneController {
     await new Promise<void>((resolve, reject) => {
       const channel = new Channel<DirectoryListingProgress>();
       channel.onmessage = (update) => {
-        if (requestId !== this.#listingRequest || token !== this.loadToken || path !== this.listingPath) return;
+        if (
+          requestId !== this.#listingRequest ||
+          token !== this.loadToken ||
+          path !== this.listingPath
+        )
+          return;
         // Appending in place: copying the array per batch is quadratic over a million entries.
         if (update.entries.length) this.entries.push(...update.entries);
         if (!update.done) return;
@@ -617,7 +626,9 @@ export class FilePaneController {
           }
         }
       };
-      invoke("read_directory_progressively", { path, requestId, onProgress: channel }).catch(reject);
+      invoke("read_directory_progressively", { path, requestId, onProgress: channel }).catch(
+        reject,
+      );
     });
   }
 
@@ -650,7 +661,9 @@ export class FilePaneController {
       this.#detailsAsked.add(entry);
     }
     if (!wanted.length || path !== this.listingPath) return;
-    const details = await invoke<EntryDetails[]>("entry_details", { paths: wanted }).catch(() => []);
+    const details = await invoke<EntryDetails[]>("entry_details", { paths: wanted }).catch(
+      () => [],
+    );
     if (path === this.listingPath) {
       const byPath = new Map(details.map((detail) => [detail.path, detail]));
       for (const entry of this.entries) {
@@ -662,7 +675,10 @@ export class FilePaneController {
       }
     }
     if (this.#detailsWanted.size && !this.#detailsTimer) {
-      this.#detailsTimer = setTimeout(() => void this.#loadDetails(this.listingPath), DETAILS_DELAY);
+      this.#detailsTimer = setTimeout(
+        () => void this.#loadDetails(this.listingPath),
+        DETAILS_DELAY,
+      );
     }
   }
 
@@ -1423,7 +1439,8 @@ export class FilePaneController {
   }
 
   renameFocused(showHidden: boolean): boolean {
-    if (this.tabs.active.location.kind === "overview" || this.remoteRoot || this.serverRoot) return false;
+    if (this.tabs.active.location.kind === "overview" || this.remoteRoot || this.serverRoot)
+      return false;
     const entry =
       this.focusedEntry(showHidden) ??
       (this.selectedEntries.length === 1 ? this.selectedEntries[0] : undefined);
@@ -1494,7 +1511,8 @@ export class FilePaneController {
   }
 
   clearSelectionIfAny(): boolean {
-    if (this.tabs.active.location.kind === "overview" || this.selection.paths.length === 0) return false;
+    if (this.tabs.active.location.kind === "overview" || this.selection.paths.length === 0)
+      return false;
     this.clearSelection();
     return true;
   }

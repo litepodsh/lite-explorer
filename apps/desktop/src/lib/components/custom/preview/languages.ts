@@ -203,6 +203,8 @@ const KIND_LABEL_BY_EXTENSION: Record<string, string> = {
   iso: "Disc Image",
   msg: "Outlook Message",
   sketch: "Sketch Document",
+  tldraw: "tldraw Document",
+  tldr: "tldraw Document",
   psd: "Photoshop Document",
   psb: "Photoshop Document",
   dcm: "DICOM Image",

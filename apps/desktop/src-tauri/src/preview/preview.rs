@@ -44,6 +44,7 @@ pub(crate) enum PreviewKind {
     Log,
     Comic,
     Notebook,
+    Tldraw,
     Database,
     Subtitle,
     Certificate,
@@ -212,6 +213,8 @@ pub(crate) fn preview_kind_for_extension(extension: &str) -> Option<PreviewKind>
         Some(PreviewKind::Torrent)
     } else if crate::preview::comic::is_comic_extension(extension) {
         Some(PreviewKind::Comic)
+    } else if crate::preview::tldraw::is_tldraw_extension(extension) {
+        Some(PreviewKind::Tldraw)
     } else if crate::preview::notebook::is_notebook_extension(extension) {
         Some(PreviewKind::Notebook)
     } else if crate::preview::database::is_database_extension(extension) {

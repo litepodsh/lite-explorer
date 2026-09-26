@@ -76,10 +76,15 @@ const isBoolean = (value: unknown): value is boolean => typeof value === "boolea
 
 const VALIDATORS: { [K in SettingKey]: (value: unknown) => value is Settings[K] } = {
   theme: (value): value is Theme =>
-    value === "off-white" || value === "light" || value === "dark" || value === "off-black" || value === "oled",
+    value === "off-white" ||
+    value === "light" ||
+    value === "dark" ||
+    value === "off-black" ||
+    value === "oled",
   themeMode: (value): value is ThemeMode => value === "manual" || value === "system",
   radius: (value): value is Radius => value === "compact" || value === "soft" || value === "round",
-  elevation: (value): value is Elevation => value === "flat" || value === "soft" || value === "lifted",
+  elevation: (value): value is Elevation =>
+    value === "flat" || value === "soft" || value === "lifted",
   texture: (value): value is Texture => value === "none" || value === "paper",
   windowControls: (value): value is WindowControlsMode =>
     value === "automatic" || value === "visible" || value === "hover" || value === "hidden",
@@ -90,7 +95,8 @@ const VALIDATORS: { [K in SettingKey]: (value: unknown) => value is Settings[K] 
   showHiddenFiles: isBoolean,
   automaticSizesInHome: isBoolean,
   automaticSizePaths: (value): value is string[] =>
-    Array.isArray(value) && value.every((path) => typeof path === "string" && path.trim().length > 0),
+    Array.isArray(value) &&
+    value.every((path) => typeof path === "string" && path.trim().length > 0),
   defaultViewMode: (value): value is "list" | "grid" => value === "list" || value === "grid",
   previewOpenByDefault: isBoolean,
   panesLayout: (value): value is "row" | "column" => value === "row" || value === "column",

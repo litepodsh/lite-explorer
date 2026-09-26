@@ -148,10 +148,19 @@ test("generic actions publish active and terminal states", async () => {
   activity.publish = (event) => published.push(event);
   expect(await activity.action("Eject: USB", "/Volumes/USB", async () => "ok")).toBe("ok");
   const error = new Error("busy");
-  expect(await activity.action("Clear Recents", "", async () => { throw error; }).catch((reason) => reason)).toBe(error);
+  expect(
+    await activity
+      .action("Clear Recents", "", async () => {
+        throw error;
+      })
+      .catch((reason) => reason),
+  ).toBe(error);
   activity.publish = original;
   expect(published.map((event) => [event.kind, event.state])).toEqual([
-    ["action", "active"], ["action", "done"], ["action", "active"], ["action", "failed"],
+    ["action", "active"],
+    ["action", "done"],
+    ["action", "active"],
+    ["action", "failed"],
   ]);
   expect(published[3].error).toBe("busy");
 });

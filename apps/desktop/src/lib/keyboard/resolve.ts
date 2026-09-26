@@ -123,9 +123,7 @@ export function resolve(input: ResolveInput): Resolution {
     if (input.repeat) return { kind: "pending", chord };
     if (token === "<Esc>") return { kind: "cancel" };
     const typed = [...chord.typed, token];
-    const remaining = eligible.filter(
-      (binding) => binding.tokens[typed.length - 1] === token,
-    );
+    const remaining = eligible.filter((binding) => binding.tokens[typed.length - 1] === token);
     const complete = remaining.find((binding) => binding.tokens.length === typed.length);
     if (complete) return { kind: "run", binding: complete, args: complete.args ?? {} };
     if (remaining.length === 0) return { kind: "cancel" };

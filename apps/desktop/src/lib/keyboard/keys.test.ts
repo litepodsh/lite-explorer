@@ -127,7 +127,10 @@ describe("toKeyPlatform", () => {
 });
 
 test("distinguishes Ctrl+Alt shortcuts from AltGr when the browser reports it", () => {
-  const shortcut = { ...press("c", "KeyC", { ctrl: true, alt: true }), getModifierState: () => false };
+  const shortcut = {
+    ...press("c", "KeyC", { ctrl: true, alt: true }),
+    getModifierState: () => false,
+  };
   expect(eventToken(shortcut)).toBe("Ctrl+Alt+C");
   expect(eventToken({ ...shortcut, getModifierState: (key) => key === "AltGraph" })).toBeNull();
 });

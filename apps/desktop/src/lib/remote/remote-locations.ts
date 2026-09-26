@@ -78,7 +78,8 @@ export function missingFields(input: RemoteLocationInput): string[] {
   if (input.provider === "gdrive") return [];
   const missing: string[] = [];
   if (input.provider === "r2" && !input.accountId.trim()) missing.push("Account ID");
-  if ((input.provider === "custom" || input.provider === "azblob") && !input.endpoint.trim()) missing.push("Endpoint URL");
+  if ((input.provider === "custom" || input.provider === "azblob") && !input.endpoint.trim())
+    missing.push("Endpoint URL");
   if (input.provider === "azblob" && !input.bucket.trim()) missing.push("Container");
   if (!input.accessKeyId.trim()) missing.push("Access key ID");
   if (!input.secretAccessKey) missing.push("Secret access key");
@@ -120,8 +121,12 @@ export function addRemoteLocation(input: RemoteLocationInput): Promise<Location>
   );
 }
 
-export function connectGoogleDrive(input: Pick<RemoteLocationInput, "name" | "prefix">): Promise<Location> {
-  return activity.action("Connect Google Drive", "", () => invoke<Location>("connect_google_drive", { input }));
+export function connectGoogleDrive(
+  input: Pick<RemoteLocationInput, "name" | "prefix">,
+): Promise<Location> {
+  return activity.action("Connect Google Drive", "", () =>
+    invoke<Location>("connect_google_drive", { input }),
+  );
 }
 
 /** Downloads an object to the app cache and returns the local copy's path. */

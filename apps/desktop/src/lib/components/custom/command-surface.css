@@ -150,7 +150,7 @@
 
 @media (prefers-reduced-transparency: reduce) {
   .command-surface [data-slot="command"] {
-  background: var(--app-surface);
+    background: var(--app-surface);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

@@ -23,6 +23,7 @@ export type PreviewKind =
   | "log"
   | "comic"
   | "notebook"
+  | "tldraw"
   | "database"
   | "subtitle"
   | "certificate"
