@@ -465,6 +465,9 @@ html[data-texture="paper"] body::before {
   content: "";
   pointer-events: none;
 }
+.finder-window .titlebar-spacer::before {
+  background: var(--app-sidebar);
+}
 .sidebar-collapsed .finder-sidebar {
   position: relative;
   overflow: hidden;
@@ -1080,6 +1083,9 @@ html[data-texture="paper"] body::before {
     backdrop-filter: none;
     -webkit-mask-image: none;
     mask-image: none;
+  }
+  .finder-window .titlebar-spacer::before {
+    background: var(--app-sidebar);
   }
   .finder-window {
     --glass-fill: #302d2b;
