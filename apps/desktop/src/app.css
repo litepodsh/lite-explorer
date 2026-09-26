@@ -465,8 +465,11 @@ html[data-texture="paper"] body::before {
   content: "";
   pointer-events: none;
 }
+/* Sidebar rows scroll under a translucent header, like the Finder sidebar. */
 .finder-window .titlebar-spacer::before {
-  background: var(--app-sidebar);
+  background: color-mix(in srgb, var(--app-sidebar) 72%, transparent);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
 }
 .sidebar-collapsed .finder-sidebar {
   position: relative;

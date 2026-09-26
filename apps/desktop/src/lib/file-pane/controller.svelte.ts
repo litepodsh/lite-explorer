@@ -95,6 +95,9 @@ type EntryDetails = {
 /** Rows asked for at once, and the pause that lets scrolling settle before asking. */
 const DETAILS_BATCH = 256;
 const DETAILS_DELAY = 60;
+/** How often streamed rows reach the list. Each update copies and merges the whole listing,
+ *  so batches arriving faster than this are shown together. */
+const STREAM_FLUSH_MS = 250;
 
 /** What the mounted file list exposes so keyboard selection follows its visible order and layout. */
 export type ListNavigator = {
@@ -120,7 +123,9 @@ function targetLabel(targets: DirectoryEntry[]): string {
 }
 
 export class FilePaneController {
-  entries = $state<DirectoryEntry[]>([]);
+  /** Raw state: rows are replaced, never mutated, so a big listing isn't wrapped in a proxy
+   *  per row. Change rows with `#patchEntries`. */
+  entries = $state.raw<DirectoryEntry[]>([]);
   searchQuery = $state("");
   searchMode = $state<SearchMode>("fuzzy");
   searchResults = $state<SearchEntry[] | null>(null);
@@ -160,12 +165,11 @@ export class FilePaneController {
     this.#sizeRequest = requestId;
     this.sizeScanning = true;
     this.sizeScanMessage = "";
-    for (const entry of this.entries) {
-      if (entry.is_directory) {
-        entry.size = undefined;
-        entry.sizeComplete = false;
-      }
-    }
+    this.setEntries(
+      this.entries.map((entry) =>
+        entry.is_directory ? { ...entry, size: undefined, sizeComplete: false } : entry,
+      ),
+    );
     if (!preserveSort) this.navigator?.sort("size", "desc");
     const channel = new Channel<{
       sizes: { path: string; size: number; complete: boolean }[];
@@ -174,13 +178,9 @@ export class FilePaneController {
     }>();
     channel.onmessage = (update) => {
       if (this.#sizeRequest !== requestId || this.listingPath !== path) return;
-      for (const item of update.sizes) {
-        const index = this.entryIndex.get(item.path);
-        if (index !== undefined) {
-          this.entries[index].size = item.size;
-          this.entries[index].sizeComplete = item.complete;
-        }
-      }
+      this.#patchEntries(
+        update.sizes.map((item) => [item.path, { size: item.size, sizeComplete: item.complete }]),
+      );
       if (update.done) {
         this.#sizeRequest = "";
         this.sizeScanning = false;
@@ -602,18 +602,35 @@ export class FilePaneController {
     const requestId = crypto.randomUUID();
     this.#listingRequest = requestId;
     this.entries = [];
+    // Rows collect here and reach `entries` at most every STREAM_FLUSH_MS: each update copies
+    // the listing, so one per batch would be quadratic over a million entries.
+    const streamed: DirectoryEntry[] = [];
+    let shown = 0;
+    let flushTimer: ReturnType<typeof setTimeout> | undefined;
+    const current = () =>
+      requestId === this.#listingRequest && token === this.loadToken && path === this.listingPath;
+    const flush = () => {
+      clearTimeout(flushTimer);
+      flushTimer = undefined;
+      if (!current() || shown === streamed.length) return;
+      this.entries = this.entries.concat(streamed.slice(shown));
+      shown = streamed.length;
+    };
     await new Promise<void>((resolve, reject) => {
       const channel = new Channel<DirectoryListingProgress>();
       channel.onmessage = (update) => {
-        if (
-          requestId !== this.#listingRequest ||
-          token !== this.loadToken ||
-          path !== this.listingPath
-        )
+        if (!current()) {
+          clearTimeout(flushTimer);
           return;
-        // Appending in place: copying the array per batch is quadratic over a million entries.
-        if (update.entries.length) this.entries.push(...update.entries);
-        if (!update.done) return;
+        }
+        for (const entry of update.entries) streamed.push(entry);
+        if (!update.done) {
+          // The first rows show right away; later ones wait for the next flush.
+          if (shown === 0) flush();
+          else flushTimer ??= setTimeout(flush, STREAM_FLUSH_MS);
+          return;
+        }
+        flush();
         this.#listingRequest = "";
         if (update.error) reject(new Error(update.error));
         else {
@@ -665,14 +682,16 @@ export class FilePaneController {
       () => [],
     );
     if (path === this.listingPath) {
-      const byPath = new Map(details.map((detail) => [detail.path, detail]));
-      for (const entry of this.entries) {
-        const detail = byPath.get(entry.path);
-        if (!detail) continue;
-        entry.size = detail.size ?? undefined;
-        entry.created = detail.created ?? undefined;
-        entry.modified = detail.modified ?? undefined;
-      }
+      this.#patchEntries(
+        details.map((detail) => [
+          detail.path,
+          {
+            size: detail.size ?? undefined,
+            created: detail.created ?? undefined,
+            modified: detail.modified ?? undefined,
+          },
+        ]),
+      );
     }
     if (this.#detailsWanted.size && !this.#detailsTimer) {
       this.#detailsTimer = setTimeout(
@@ -876,6 +895,18 @@ export class FilePaneController {
     if (paths.length === 0) return;
     this.setEntries(removePaths(this.entries, paths));
     this.pruneSelection();
+  }
+
+  /** Replaces the listed rows at the given paths with updated copies, in one update. */
+  #patchEntries(patches: [path: string, changes: Partial<DirectoryEntry>][]) {
+    let next: DirectoryEntry[] | null = null;
+    for (const [path, changes] of patches) {
+      const index = this.entryIndex.get(path);
+      if (index === undefined) continue;
+      next ??= this.entries.slice();
+      next[index] = { ...next[index], ...changes };
+    }
+    if (next) this.setEntries(next);
   }
 
   /** Replaces the listing and keeps the copy used by history navigation in sync. */
