@@ -75,7 +75,13 @@ describe("parseSettings", () => {
 
   test("keeps valid appearance values and replaces invalid ones", () => {
     const { settings, problems } = parseSettings(
-      JSON.stringify({ theme: "oled", themeMode: "system", radius: "round", elevation: "flat", texture: "paper" }),
+      JSON.stringify({
+        theme: "oled",
+        themeMode: "system",
+        radius: "round",
+        elevation: "flat",
+        texture: "paper",
+      }),
       defaults,
     );
     expect(settings.theme).toBe("oled");
@@ -143,7 +149,10 @@ test("automatic size preferences persist and old settings keep them disabled", (
   expect(parseSettings("{}", defaults).settings.automaticSizesInHome).toBe(false);
   expect(parseSettings("{}", defaults).settings.automaticSizePaths).toEqual([]);
   const storage = memoryStorage({
-    [SETTINGS_STORAGE_KEY]: JSON.stringify({ automaticSizesInHome: true, automaticSizePaths: ["/data/work"] }),
+    [SETTINGS_STORAGE_KEY]: JSON.stringify({
+      automaticSizesInHome: true,
+      automaticSizePaths: ["/data/work"],
+    }),
   });
   const { settings, problems } = loadSettings(storage, defaults);
   expect(settings.automaticSizesInHome).toBe(true);

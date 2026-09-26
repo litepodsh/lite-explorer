@@ -6,7 +6,9 @@ const isSeparator = (character: string | undefined) => character === "/" || char
 
 /** Drops a trailing separator, keeping `/` and a bare `scheme://`. */
 function trimSeparator(path: string): string {
-  return path.length > 1 && isSeparator(path.at(-1)) && !path.endsWith("://") ? path.slice(0, -1) : path;
+  return path.length > 1 && isSeparator(path.at(-1)) && !path.endsWith("://")
+    ? path.slice(0, -1)
+    : path;
 }
 
 /** Splits a local, Windows, UNC or `scheme://host` path into folders, each with the path that opens it.
@@ -43,10 +45,13 @@ export function breadcrumbSegments(internal: string, display: string): Breadcrum
     inner[inner.length - 1 - shared].name === shown[shown.length - 1 - shared].name
   )
     shared++;
-  const segments = inner.slice(inner.length - shared).map(({ name, path }) => ({ label: name, path }));
+  const segments = inner
+    .slice(inner.length - shared)
+    .map(({ name, path }) => ({ label: name, path }));
   const innerRoot = inner[inner.length - shared - 1];
   const shownRoot = shown[shown.length - shared - 1];
-  if (innerRoot && shownRoot) segments.unshift({ label: trimSeparator(shownRoot.path), path: innerRoot.path });
+  if (innerRoot && shownRoot)
+    segments.unshift({ label: trimSeparator(shownRoot.path), path: innerRoot.path });
   return segments.length ? segments : inner.map(({ name, path }) => ({ label: name, path }));
 }
 

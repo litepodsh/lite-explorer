@@ -60,37 +60,91 @@
 
 /* Light materials */
 :root[data-theme="off-white"] {
-  --app-bg: #f4f1ed; --app-sidebar: #ebe7e1; --app-surface: #fbf9f6; --app-surface-raised: #fff; --app-input: #fff;
-  --app-fg: #292725; --app-fg-muted: #625e59; --app-fg-faint: #85807b; --app-border: #d7d1ca;
-  --app-accent: #087fce; --app-accent-fg: #fff; --app-danger: #c6363c; --app-danger-fg: #a4272c;
-  --app-overlay: rgb(35 31 28 / 14%); --app-shadow: 0 14px 34px -20px rgb(67 57 48 / 28%);
+  --app-bg: #f4f1ed;
+  --app-sidebar: #ebe7e1;
+  --app-surface: #fbf9f6;
+  --app-surface-raised: #fff;
+  --app-input: #fff;
+  --app-fg: #292725;
+  --app-fg-muted: #625e59;
+  --app-fg-faint: #85807b;
+  --app-border: #d7d1ca;
+  --app-accent: #087fce;
+  --app-accent-fg: #fff;
+  --app-danger: #c6363c;
+  --app-danger-fg: #a4272c;
+  --app-overlay: rgb(35 31 28 / 14%);
+  --app-shadow: 0 14px 34px -20px rgb(67 57 48 / 28%);
 }
 :root[data-theme="light"] {
-  --app-bg: #f7f7f8; --app-sidebar: #eeeeef; --app-surface: #fff; --app-surface-raised: #fff; --app-input: #fff;
-  --app-fg: #202124; --app-fg-muted: #62646a; --app-fg-faint: #8a8c91; --app-border: #d9dadd;
-  --app-accent: #087dca; --app-accent-fg: #fff; --app-danger: #c8343a; --app-danger-fg: #a92c31;
-  --app-overlay: rgb(25 28 32 / 14%); --app-shadow: 0 12px 28px -20px rgb(23 28 35 / 24%);
+  --app-bg: #f7f7f8;
+  --app-sidebar: #eeeeef;
+  --app-surface: #fff;
+  --app-surface-raised: #fff;
+  --app-input: #fff;
+  --app-fg: #202124;
+  --app-fg-muted: #62646a;
+  --app-fg-faint: #8a8c91;
+  --app-border: #d9dadd;
+  --app-accent: #087dca;
+  --app-accent-fg: #fff;
+  --app-danger: #c8343a;
+  --app-danger-fg: #a92c31;
+  --app-overlay: rgb(25 28 32 / 14%);
+  --app-shadow: 0 12px 28px -20px rgb(23 28 35 / 24%);
 }
 /* Dark materials */
 :root[data-theme="off-black"] {
-  --app-bg: #121212; --app-sidebar: #181818; --app-surface: #1d1d1d; --app-surface-raised: #282828; --app-input: #0d0d0d;
-  --app-fg: #f1f1f1; --app-fg-muted: #aaa9a8; --app-fg-faint: #727171; --app-border: #303030;
-  --app-accent: #35aaff; --app-accent-fg: #04121f; --app-danger: #ef6669; --app-danger-fg: #ffafb1;
-  --app-overlay: rgb(0 0 0 / 52%); --app-shadow: 0 10px 28px -12px rgb(0 0 0 / 62%);
+  --app-bg: #121212;
+  --app-sidebar: #181818;
+  --app-surface: #1d1d1d;
+  --app-surface-raised: #282828;
+  --app-input: #0d0d0d;
+  --app-fg: #f1f1f1;
+  --app-fg-muted: #aaa9a8;
+  --app-fg-faint: #727171;
+  --app-border: #303030;
+  --app-accent: #35aaff;
+  --app-accent-fg: #04121f;
+  --app-danger: #ef6669;
+  --app-danger-fg: #ffafb1;
+  --app-overlay: rgb(0 0 0 / 52%);
+  --app-shadow: 0 10px 28px -12px rgb(0 0 0 / 62%);
 }
 :root[data-theme="oled"] {
-  --app-bg: #000; --app-sidebar: #000; --app-surface: #000; --app-surface-raised: #111; --app-input: #000;
-  --app-fg: #fff; --app-fg-muted: #bdbdbd; --app-fg-faint: #777; --app-border: #343434;
-  --app-accent: #4ab4ff; --app-accent-fg: #000; --app-danger: #ff6b6e; --app-danger-fg: #ffc1c2;
-  --app-overlay: rgb(0 0 0 / 70%); --app-shadow: none;
+  --app-bg: #000;
+  --app-sidebar: #000;
+  --app-surface: #000;
+  --app-surface-raised: #111;
+  --app-input: #000;
+  --app-fg: #fff;
+  --app-fg-muted: #bdbdbd;
+  --app-fg-faint: #777;
+  --app-border: #343434;
+  --app-accent: #4ab4ff;
+  --app-accent-fg: #000;
+  --app-danger: #ff6b6e;
+  --app-danger-fg: #ffc1c2;
+  --app-overlay: rgb(0 0 0 / 70%);
+  --app-shadow: none;
 }
 
 /* Shared visual controls */
-:root[data-radius="compact"] { --app-radius: 7px; }
-:root[data-radius="soft"] { --app-radius: 12px; }
-:root[data-radius="round"] { --app-radius: 18px; }
-:root[data-elevation="flat"] { --app-shadow: none; }
-:root[data-elevation="lifted"] { --app-shadow: 0 18px 42px -20px var(--app-overlay); }
+:root[data-radius="compact"] {
+  --app-radius: 7px;
+}
+:root[data-radius="soft"] {
+  --app-radius: 12px;
+}
+:root[data-radius="round"] {
+  --app-radius: 18px;
+}
+:root[data-elevation="flat"] {
+  --app-shadow: none;
+}
+:root[data-elevation="lifted"] {
+  --app-shadow: 0 18px 42px -20px var(--app-overlay);
+}
 
 .transfer-clipboard {
   position: fixed;
@@ -304,19 +358,28 @@
   color-scheme: dark;
 }
 
-html[data-theme="off-white"], html[data-theme="light"] { color-scheme: light; }
+html[data-theme="off-white"],
+html[data-theme="light"] {
+  color-scheme: light;
+}
 html[data-texture="paper"] body::before {
   position: fixed;
   inset: 0;
   z-index: 100;
   pointer-events: none;
-  background-image: repeating-radial-gradient(circle at 0 0, rgb(127 127 127 / 10%) 0 1px, transparent 1px 3px);
+  background-image: repeating-radial-gradient(
+    circle at 0 0,
+    rgb(127 127 127 / 10%) 0 1px,
+    transparent 1px 3px
+  );
   mix-blend-mode: soft-light;
-  opacity: .22;
+  opacity: 0.22;
   content: "";
 }
 @media (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce) {
-  html[data-texture="paper"] body::before { display: none; }
+  html[data-texture="paper"] body::before {
+    display: none;
+  }
 }
 
 .finder-window {
@@ -401,6 +464,12 @@ html[data-texture="paper"] body::before {
   background: var(--app-bg);
   content: "";
   pointer-events: none;
+}
+/* Sidebar rows scroll under a translucent header, like the Finder sidebar. */
+.finder-window .titlebar-spacer::before {
+  background: color-mix(in srgb, var(--app-sidebar) 72%, transparent);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
 }
 .sidebar-collapsed .finder-sidebar {
   position: relative;
@@ -1017,6 +1086,9 @@ html[data-texture="paper"] body::before {
     backdrop-filter: none;
     -webkit-mask-image: none;
     mask-image: none;
+  }
+  .finder-window .titlebar-spacer::before {
+    background: var(--app-sidebar);
   }
   .finder-window {
     --glass-fill: #302d2b;

@@ -7,7 +7,13 @@ import type { Platform } from "$lib/state/platform.svelte.js";
  * "Show Package Contents".
  */
 export function isAppBundle(
-  entry: { path: string; name: string; is_directory: boolean; kind?: string; inner_path?: string | null },
+  entry: {
+    path: string;
+    name: string;
+    is_directory: boolean;
+    kind?: string;
+    inner_path?: string | null;
+  },
   platform: Platform,
 ): boolean {
   return (

@@ -10,7 +10,7 @@
   import * as Resizable from "$lib/components/ui/resizable/index.js";
   import { createRowVirtualizer } from "$lib/virtual/row-virtualizer.svelte.js";
   import ListItem, { type DirectoryEntry } from "./list-item.svelte";
-  import { sortEntries, entryType, type SortColumn, type SortDir } from "./sort.js";
+  import { orderEntries, entryType, type ListOrder, type SortColumn, type SortDir } from "./sort.js";
   import { DEFAULT_COLUMNS, COLUMN_LABELS, loadColumns, saveColumns, moveColumn, type ListColumn } from "./columns.js";
   import { loadFolderSort, saveFolderSort } from "./folder-sort.js";
   import { drag, type DraggedEntry } from "$lib/file-drag/drag.svelte.js";
@@ -209,8 +209,12 @@
     cancelResize = onUp;
   }
 
-  let filteredEntries = $derived(showHidden ? entries : entries.filter((entry: DirectoryEntry) => !entry.is_hidden));
-  let visibleEntries = $derived(sortColumn ? sortEntries(filteredEntries, sortColumn, sortDir) : filteredEntries);
+  // Last order, not state: a streamed listing grows at the end, so only its new rows get sorted.
+  let lastOrder: ListOrder | null = null;
+  let visibleEntries = $derived.by((): DirectoryEntry[] => {
+    lastOrder = orderEntries(entries, sortColumn, sortDir, showHidden, lastOrder);
+    return lastOrder.shown;
+  });
   let selectedVisible = $derived(visibleEntries.filter((entry: DirectoryEntry) => selectedPaths.has(entry.path)));
   let allSelected = $derived(visibleEntries.length > 0 && selectedVisible.length === visibleEntries.length);
   let externalOver = $derived(drag.overPaneId === paneId);
@@ -340,7 +344,7 @@
   );
   // Several selected entries show a summary in the preview pane instead of one file.
   let summarizing = $derived(selectedVisible.length > 1);
-  let previewTarget = $derived(summarizing ? SUMMARY : previewRequestedEntry);
+  let previewTarget = $derived<DirectoryEntry | typeof SUMMARY | null>(summarizing ? SUMMARY : previewRequestedEntry);
 
   $effect(() => {
     const target = previewOpen ? previewTarget : null;

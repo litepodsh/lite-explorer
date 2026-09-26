@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sortEntries, type SortColumn } from "./sort.js";
+import { orderEntries, sortEntries, type SortColumn } from "./sort.js";
 import type { DirectoryEntry } from "./list-item.svelte";
 
 function entry(name: string, is_directory: boolean, size = 0): DirectoryEntry {
@@ -106,4 +106,36 @@ it("sorts measured folders before files, largest first within each group", () =>
     "huge file",
     "small file",
   ]);
+});
+
+describe("orderEntries", () => {
+  const first = [entry("b.txt", false, 2), entry("docs", true), entry(".env", false, 1)];
+  const added = [entry("a.txt", false, 2), entry("assets", true), entry("c.txt", false, 3)];
+
+  it("matches a full sort when rows are appended", () => {
+    for (const column of ["name", "size", "type", null] as (SortColumn | null)[]) {
+      for (const showHidden of [true, false]) {
+        const previous = orderEntries(first, column, "asc", showHidden, null);
+        const all = [...first, ...added];
+        const incremental = orderEntries(all, column, "asc", showHidden, previous).shown;
+        const full = orderEntries(all, column, "asc", showHidden, null).shown;
+        expect(names(incremental)).toEqual(names(full));
+      }
+    }
+  });
+
+  it("sorts from scratch when rows change in place", () => {
+    const previous = orderEntries(first, "size", "desc", true, null);
+    const changed = [{ ...first[0], size: 0 }, first[1], first[2]];
+    expect(names(orderEntries(changed, "size", "desc", true, previous).shown)).toEqual([
+      "docs",
+      ".env",
+      "b.txt",
+    ]);
+  });
+
+  it("reuses the previous order for the same listing", () => {
+    const previous = orderEntries(first, "name", "asc", true, null);
+    expect(orderEntries(first, "name", "asc", true, previous)).toBe(previous);
+  });
 });

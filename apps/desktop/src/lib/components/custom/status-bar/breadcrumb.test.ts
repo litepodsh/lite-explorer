@@ -33,7 +33,9 @@ describe("breadcrumb segments", () => {
   });
 
   test("maps S3 labels onto internal paths that carry the location id", () => {
-    expect(breadcrumbSegments("s3://loc-1/bucket/photos/2024/", "s3://bucket/photos/2024/")).toEqual([
+    expect(
+      breadcrumbSegments("s3://loc-1/bucket/photos/2024/", "s3://bucket/photos/2024/"),
+    ).toEqual([
       { label: "s3://bucket", path: "s3://loc-1/bucket/" },
       { label: "photos", path: "s3://loc-1/bucket/photos/" },
       { label: "2024", path: "s3://loc-1/bucket/photos/2024/" },
@@ -41,7 +43,9 @@ describe("breadcrumb segments", () => {
   });
 
   test("shows a location's bucket list as a single root", () => {
-    expect(breadcrumbSegments("s3://loc-1/", "s3://")).toEqual([{ label: "s3://", path: "s3://loc-1/" }]);
+    expect(breadcrumbSegments("s3://loc-1/", "s3://")).toEqual([
+      { label: "s3://", path: "s3://loc-1/" },
+    ]);
   });
 
   test("labels a mounted share with its server address", () => {
@@ -70,7 +74,11 @@ describe("collapsed segments", () => {
   const segments = ["/", "a", "b", "c", "d", "e"].map((label) => ({ label, path: label }));
 
   test("keeps short paths whole", () => {
-    expect(collapseSegments(segments.slice(0, 4))).toEqual({ head: segments.slice(0, 4), hidden: [], tail: [] });
+    expect(collapseSegments(segments.slice(0, 4))).toEqual({
+      head: segments.slice(0, 4),
+      hidden: [],
+      tail: [],
+    });
   });
 
   test("hides the middle of long paths behind the root and the last folders", () => {

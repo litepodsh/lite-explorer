@@ -7,11 +7,16 @@ test("matches home and nested folders without matching sibling prefixes", () => 
   expect(shouldCalculateSizes("/home/me/projects/deep", "/home/me", settings)).toBe(true);
   expect(shouldCalculateSizes("/home/me-too", "/home/me", settings)).toBe(false);
   expect(shouldCalculateSizes("/home/me", "", settings)).toBe(false);
-  expect(shouldCalculateSizes("/home/me", "/home/me", { ...settings, automaticSizesInHome: false })).toBe(false);
+  expect(
+    shouldCalculateSizes("/home/me", "/home/me", { ...settings, automaticSizesInHome: false }),
+  ).toBe(false);
 });
 
 test("custom folders work independently and include descendants", () => {
-  const settings = { automaticSizesInHome: false, automaticSizePaths: ["/data/work/", "/mnt/archive"] };
+  const settings = {
+    automaticSizesInHome: false,
+    automaticSizePaths: ["/data/work/", "/mnt/archive"],
+  };
   expect(shouldCalculateSizes("/data/work/sub", "", settings)).toBe(true);
   expect(shouldCalculateSizes("/mnt/archive", "", settings)).toBe(true);
   expect(shouldCalculateSizes("/data/work-other", "", settings)).toBe(false);

@@ -30,7 +30,9 @@ export function fetchDefaultApp(path: string): Promise<OpenWithApp | null> {
 }
 
 export function openWithTarget(path: string, appPath: string): Promise<void> {
-  return activity.action(`Open: ${baseName(path)}`, path, () => invoke("open_with", { path, appPath }));
+  return activity.action(`Open: ${baseName(path)}`, path, () =>
+    invoke("open_with", { path, appPath }),
+  );
 }
 
 /** Reveals `path` in the system file manager (Finder, File Explorer, …). */

@@ -99,13 +99,9 @@ export const STANDARD_BINDINGS: Binding[] = [
   ...["Meta+<Delete>", "Meta+<Backspace>"].map((keys) =>
     standard(keys, "file.trash", "Move to Trash", "Files", { repeat: false, platforms: ["macos"] }),
   ),
-  ...[
-    "Shift+<Delete>",
-    "Shift+<Backspace>",
-    "Shift+Meta+<Delete>",
-    "Shift+Meta+<Backspace>",
-  ].map((keys) =>
-    standard(keys, "file.deletePermanent", "Delete permanently", "Files", { repeat: false }),
+  ...["Shift+<Delete>", "Shift+<Backspace>", "Shift+Meta+<Delete>", "Shift+Meta+<Backspace>"].map(
+    (keys) =>
+      standard(keys, "file.deletePermanent", "Delete permanently", "Files", { repeat: false }),
   ),
   standard("Mod+C", "file.copy", "Copy to transfer clipboard", "Files", {
     scope: "global",
