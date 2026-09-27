@@ -70,6 +70,8 @@
     onToggleFavorite = (_entry: DirectoryEntry, _add: boolean) => {},
     keyboardMode = "standard",
     pendingKeys = "",
+    gridZoom = 1,
+    onGridZoom,
   }: {
     controller: FilePaneController;
     active?: boolean;
@@ -92,6 +94,8 @@
     onToggleFavorite?: (entry: DirectoryEntry, add: boolean) => void;
     keyboardMode?: "standard" | "yazi";
     pendingKeys?: string;
+    gridZoom?: number;
+    onGridZoom?: (delta: number) => void;
   } = $props();
 
   onDestroy(() => controller.cancelSizeScan());
@@ -173,6 +177,8 @@
               previewing
               entries={incoming.entries}
               view={controller.viewMode}
+              {gridZoom}
+              {onGridZoom}
               showHidden={showHiddenFiles}
               sortKey={incoming.path}
               previewOpen={false}
@@ -222,6 +228,8 @@
             entries={controller.recentEntries}
             sortKey="recents"
             view={controller.viewMode}
+            {gridZoom}
+            {onGridZoom}
             showHidden={showHiddenFiles}
             paneId={controller.paneId}
             {pastedPaths}
@@ -290,6 +298,8 @@
           searchQuery={controller.searchMode === "content" ? controller.searchQuery.trim() : ""}
           sortKey={controller.listingPath}
           view={controller.viewMode}
+          {gridZoom}
+          {onGridZoom}
           showHidden={showHiddenFiles}
           paneId={controller.paneId}
           {pastedPaths}

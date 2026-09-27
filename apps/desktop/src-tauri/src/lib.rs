@@ -148,6 +148,7 @@ pub fn run() {
             app::menu::trigger_menu,
             app::swipe_nav::set_swipe_context,
             media::media_url,
+            media::thumbnails::image_thumbnails,
             media::viewer::open_viewer,
             media::viewer::viewer_target,
             explorer::sizes::scan_directory_sizes,

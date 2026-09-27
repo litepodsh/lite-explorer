@@ -112,7 +112,7 @@ pub async fn media_url(
     register_local(&registry, PathBuf::from(path))
 }
 
-fn register_local(registry: &MediaRegistry, path: PathBuf) -> Result<MediaUrl, String> {
+pub(crate) fn register_local(registry: &MediaRegistry, path: PathBuf) -> Result<MediaUrl, String> {
     let size = std::fs::metadata(&path)
         .map(|metadata| metadata.len())
         .map_err(|error| error.to_string())?;

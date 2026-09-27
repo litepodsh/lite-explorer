@@ -94,6 +94,7 @@
   import { scrollPreview } from "$lib/keyboard/preview-scroll.js";
   import { settings } from "$lib/settings/settings.svelte.js";
   import { prefersReducedMotion } from "$lib/swipe/gesture.js";
+  import { Slider } from "$lib/components/ui/slider/index.js";
 
   // Before any store reads a preference.
   settings.load();
@@ -105,6 +106,11 @@
   let pasteJobId: string | null = null;
   let pasteCancelled = false;
   let pastedPaths = $state(new Set<string>());
+  let gridZoom = $state(1);
+
+  function adjustGridZoom(delta: number) {
+    gridZoom = Math.max(0.75, Math.min(6, gridZoom + delta));
+  }
 
   function controllerFor(paneId: string): FilePaneController {
     let controller = controllers.get(paneId);
@@ -1149,6 +1155,11 @@
             <button aria-label="List view" aria-pressed={activeController.viewMode === "list"} onclick={() => activeController.tabs.update({ viewMode: "list" })}><ListIcon /></button>
             <button aria-label="Icon view" aria-pressed={activeController.viewMode === "grid"} onclick={() => activeController.tabs.update({ viewMode: "grid" })}><Grid2X2Icon /></button>
           </div>
+          {#if activeController.viewMode === "grid"}
+            <div class="toolbar-group px-2" aria-label="Icon size">
+              <Slider type="single" bind:value={gridZoom} min={0.75} max={6} step={0.05} class="grid-zoom-slider w-24" aria-label="Icon size" />
+            </div>
+          {/if}
           <div class="toolbar-group">
             <button
               aria-label={itemCheckboxes ? "Hide item checkboxes" : "Show item checkboxes"}
@@ -1209,6 +1220,8 @@
           {itemCheckboxes}
           onEnableCheckboxes={() => setItemCheckboxes(true)}
           {showFps}
+          {gridZoom}
+          onGridZoom={adjustGridZoom}
           {revealLabel}
           {transferActivity}
           onOpenBucketSettings={openBucketSettings}
@@ -1252,3 +1265,15 @@
   </Sidebar.Inset>
 </Sidebar.Provider>
 <DragGhost />
+
+<style>
+  :global(.grid-zoom-slider [data-slot="slider-track"]) {
+    background: var(--app-surface-raised);
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / 28%), inset 0 1px 1px rgb(255 255 255 / 18%);
+  }
+  :global(.grid-zoom-slider [data-slot="slider-range"]) { background: var(--app-accent); }
+  :global(.grid-zoom-slider [data-slot="slider-thumb"]) {
+    background: var(--app-surface);
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / 55%), 0 3px 5px rgb(0 0 0 / 25%);
+  }
+</style>

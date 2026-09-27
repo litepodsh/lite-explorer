@@ -22,6 +22,8 @@
   import { formatDate, formatSize } from "$lib/components/custom/preview/format.js";
   import SelectionSummary from "$lib/components/custom/preview/selection-summary.svelte";
   import SelectionCheckbox from "./selection-checkbox.svelte";
+  import { requestThumbnails, thumbnailFor } from "$lib/file-icons/thumbnail-cache.svelte.js";
+  import { categoryFor } from "$lib/file-icons/fallback.js";
 
   let {
     entries = [],
@@ -54,6 +56,8 @@
     onFilesChanged,
     onNeedDetails,
     previewing = false,
+    gridZoom = 1,
+    onGridZoom,
   } = $props<{
     entries?: DirectoryEntry[];
     onFilesChanged?: () => void;
@@ -91,6 +95,9 @@
     searchQuery?: string;
     /** Rendered as a non-interactive preview of another folder (swipe animation). */
     previewing?: boolean;
+    /** Tile scale supplied by the grid-view zoom control. */
+    gridZoom?: number;
+    onGridZoom?: (delta: number) => void;
     /** Paths of shown rows that carry no size or dates yet, for a streamed network listing. */
     onNeedDetails?: (paths: string[]) => void;
   }>();
@@ -404,11 +411,12 @@
 
   const LIST_ROW_H = 36; // h-9
   const SEARCH_ROW_H = 50; // name plus a path/snippet line
-  const GRID_ITEM_H = 96; // h-24
-  const GRID_GAP = 4; // gap-1
-  const GRID_ROW_H = GRID_ITEM_H + GRID_GAP;
+  // Icons can grow to 3× without turning every tile into a 3× empty canvas.
+  const GRID_ITEM_H = $derived(Math.max(96, Math.round(68 + 19 * gridZoom)));
+  const GRID_GAP = 1;
+  const GRID_ROW_H = $derived(GRID_ITEM_H + GRID_GAP);
   const GRID_TOP = 8; // mt-2 above the grid rows
-  const GRID_MIN = 110;
+  const GRID_MIN = $derived(Math.max(110, Math.round(76 + 26 * gridZoom)));
   const SCROLL_PADDING_X = 16; // px-2
 
   let scrollEl = $state<HTMLDivElement>();
@@ -541,6 +549,12 @@
     return visibleEntries.slice(start, start + itemsPerRow);
   }
 
+  const visibleThumbnailPaths = $derived(rows.virtualItems.flatMap((row) =>
+    (view === "grid" ? gridRowEntries(row.index) : [visibleEntries[row.index]])
+      .filter((entry): entry is DirectoryEntry => Boolean(entry) && canDragOut(entry) && categoryFor(entry.name) === "image")
+      .map((entry) => entry.path)));
+  $effect(() => { requestThumbnails(visibleThumbnailPaths); });
+
   function reorder(fromPath: string, toPath: string) {
     const from = entries.findIndex((entry: DirectoryEntry) => entry.path === fromPath);
     const to = entries.findIndex((entry: DirectoryEntry) => entry.path === toPath);
@@ -549,6 +563,12 @@
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     onReorder?.(next);
+  }
+
+  function handleGridPinch(event: WheelEvent) {
+    if (view !== "grid" || !event.ctrlKey) return;
+    event.preventDefault();
+    onGridZoom?.(-event.deltaY / 600);
   }
 </script>
 
@@ -576,6 +596,7 @@
         data-key-scope={previewing ? undefined : "list"}
         tabindex={previewing ? undefined : 0}
         onclick={previewing ? undefined : handleBlankClick}
+        onwheel={handleGridPinch}
         onscroll={() => scrollEl && onScroll?.(scrollEl.scrollTop)}
         class="list-scroll min-h-0 min-w-0 flex-1 overflow-auto px-2 pb-2 [scrollbar-gutter:stable]"
         class:with-header={view === "list"}
@@ -639,6 +660,7 @@
                     {entry}
                     downloadSnapshot={downloadSnapshots[entry.path]}
                     view="list"
+                    thumbnail={thumbnailFor(entry.path)}
                     {columns}
                     draggedColumn={columnGhost?.column}
                     rowIndex={v.index + 2}
@@ -671,13 +693,16 @@
           <div class="relative mt-2" style="height: {rows.totalSize}px;">
             {#each rows.virtualItems as v (v.key)}
               <div
-                class="grid gap-1"
+                class="grid gap-px"
                 style="position: absolute; top: 0; left: 0; right: 0; height: {v.size}px; grid-template-columns: repeat({itemsPerRow}, minmax(0, 1fr)); align-content: start; transform: translateY({v.start - scrollMargin}px);">
                 {#each gridRowEntries(v.index) as entry (entry.path)}
                   <ListItem
                     {entry}
                     downloadSnapshot={downloadSnapshots[entry.path]}
                     view="grid"
+                    {gridZoom}
+                    gridTileHeight={GRID_ITEM_H}
+                    thumbnail={thumbnailFor(entry.path)}
                     selected={selectedPaths.has(entry.path)}
                     focused={entry.path === focusPath}
                     {checkboxes}
