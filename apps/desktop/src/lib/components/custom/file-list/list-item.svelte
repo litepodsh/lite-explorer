@@ -137,7 +137,8 @@
     else onRename?.(entry.path, value);
   }
 
-  const gridIconSize = $derived(Math.round(17 * gridZoom));
+  const gridIconSize = $derived(Math.min(Math.max(48, Math.round(32 * gridZoom)), Math.round(gridTileHeight * 0.7)));
+  const thumbnailSize = $derived(Math.min(160, Math.max(48, Math.round(gridTileHeight * 0.62))));
 </script>
 
 {#snippet sizeLabel()}
@@ -222,7 +223,7 @@
 {:else}
   <button
     style={`height: ${gridTileHeight}px`}
-    class="file-tile relative grid h-24 w-full min-w-0 grid-rows-[minmax(0,1fr)_2rem] items-center gap-1 rounded-md border-0 bg-transparent p-2 text-center text-[13px] text-[var(--app-fg)] {dropTarget ? 'entry-drop-target' : ''} {pasted ? 'entry-pasted' : ''}"
+    class="file-tile relative grid h-24 w-full min-w-0 grid-rows-[minmax(0,1fr)_1rem] items-center gap-1 rounded-md border-0 bg-transparent p-2 text-center text-[13px] text-[var(--app-fg)] {dropTarget ? 'entry-drop-target' : ''} {pasted ? 'entry-pasted' : ''}"
     aria-label={entry.name}
     aria-pressed={selected}
     data-entry-path={entry.path}
@@ -246,7 +247,7 @@
       </span>
     {/if}
     <span class="flex items-center justify-center gap-1.5">
-    {#if thumbnail}<span class="inline-block max-h-full max-w-full overflow-hidden" style="border-radius: 12px"><img src={thumbnail} alt="" draggable="false" class="block max-h-full max-w-full object-contain" /></span>{:else if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else}<EntryIcon path={entry.path} name={entry.name} directory={entry.is_directory && !isAppBundle(entry, platformState.current)} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}
+    {#if thumbnail}<span class="inline-block shrink-0 overflow-hidden" style={`width: ${thumbnailSize}px; height: ${thumbnailSize}px; border-radius: 12px`}><img src={thumbnail} alt="" draggable="false" class="size-full object-contain" /></span>{:else if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else}<EntryIcon path={entry.path} name={entry.name} directory={entry.is_directory && !isAppBundle(entry, platformState.current)} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}
     {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </span>
     {#if renaming}
@@ -263,7 +264,7 @@
           onblur={commitRename} />
       </span>
     {:else}
-      <span class="line-clamp-2 max-w-full leading-4" title={entry.name}>{entry.name}</span>
+      <span class="max-w-full truncate leading-4" title={entry.name}>{entry.name}</span>
     {/if}
     {#if entry.sizeComplete != null}
       <span class="text-[10px] tabular-nums text-[var(--app-fg-muted)]">{@render sizeLabel()}</span>
