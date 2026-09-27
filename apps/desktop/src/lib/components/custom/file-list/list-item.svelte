@@ -43,6 +43,7 @@
     searchQuery = "",
     gridZoom = 1,
     gridTileHeight = 96,
+    thumbnail,
   } = $props<{
     entry: DirectoryEntry;
     downloadSnapshot?: DownloadSnapshot;
@@ -79,6 +80,7 @@
     style?: string;
     gridZoom?: number;
     gridTileHeight?: number;
+    thumbnail?: string | null;
   }>();
 
   // Local files get the OS icon; archive-inner entries are pseudo-paths with no
@@ -249,7 +251,7 @@
       </span>
     {/if}
     <span class="flex items-center justify-center gap-1.5">
-    {#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else if entry.is_directory && !isAppBundle(entry, platformState.current)}{@render folderIcon()}{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}
+    {#if thumbnail}<img src={thumbnail} alt="" draggable="false" class="max-h-full max-w-full object-contain" />{:else if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else if entry.is_directory && !isAppBundle(entry, platformState.current)}{@render folderIcon()}{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}
     {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </span>
     {#if renaming}

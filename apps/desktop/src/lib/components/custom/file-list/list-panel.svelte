@@ -22,6 +22,8 @@
   import { formatDate, formatSize } from "$lib/components/custom/preview/format.js";
   import SelectionSummary from "$lib/components/custom/preview/selection-summary.svelte";
   import SelectionCheckbox from "./selection-checkbox.svelte";
+  import { requestThumbnails, thumbnailFor } from "$lib/file-icons/thumbnail-cache.svelte.js";
+  import { categoryFor } from "$lib/file-icons/fallback.js";
 
   let {
     entries = [],
@@ -547,6 +549,10 @@
     return visibleEntries.slice(start, start + itemsPerRow);
   }
 
+  const visibleThumbnailPaths = $derived(view === "grid" ? rows.virtualItems.flatMap((row) =>
+    gridRowEntries(row.index).filter((entry) => canDragOut(entry) && categoryFor(entry.name) === "image").map((entry) => entry.path)) : []);
+  $effect(() => { requestThumbnails(visibleThumbnailPaths); });
+
   function reorder(fromPath: string, toPath: string) {
     const from = entries.findIndex((entry: DirectoryEntry) => entry.path === fromPath);
     const to = entries.findIndex((entry: DirectoryEntry) => entry.path === toPath);
@@ -693,6 +699,7 @@
                     view="grid"
                     {gridZoom}
                     gridTileHeight={GRID_ITEM_H}
+                    thumbnail={thumbnailFor(entry.path)}
                     selected={selectedPaths.has(entry.path)}
                     focused={entry.path === focusPath}
                     {checkboxes}
