@@ -12,8 +12,9 @@
 //!   (-1..1) so the frontend can follow the finger, then a commit decision.
 //!
 //! The frontend keeps `SwipeContext` up to date (setting enabled, pointer over
-//! the active list, history availability). Gestures are ignored unless the
-//! context allows them, so horizontal scrolling elsewhere is never hijacked.
+//! the active list, horizontal-scroll position, and history availability).
+//! Gestures are ignored unless the context allows them, so horizontal scrolling
+//! gets priority until it reaches the corresponding edge.
 
 use std::sync::Mutex;
 
@@ -27,6 +28,8 @@ pub struct SwipeContext {
     pub pointer_in_list: bool,
     pub can_back: bool,
     pub can_forward: bool,
+    pub horizontal_scroll_at_start: bool,
+    pub horizontal_scroll_at_end: bool,
 }
 
 #[derive(Default)]
@@ -57,10 +60,10 @@ struct SwipeEnd {
 
 /// Maps a swipe amount to a navigation direction, respecting available history.
 /// Positive is back (fingers move right), negative is forward.
-fn direction(can_back: bool, can_forward: bool, amount: f64) -> Option<&'static str> {
-    if amount > 0.0 && can_back {
+fn direction(context: SwipeContext, amount: f64) -> Option<&'static str> {
+    if amount > 0.0 && context.can_back && context.horizontal_scroll_at_start {
         Some("back")
-    } else if amount < 0.0 && can_forward {
+    } else if amount < 0.0 && context.can_forward && context.horizontal_scroll_at_end {
         Some("forward")
     } else {
         None
@@ -74,12 +77,16 @@ pub fn set_swipe_context(
     pointer_in_list: bool,
     can_back: bool,
     can_forward: bool,
+    horizontal_scroll_at_start: bool,
+    horizontal_scroll_at_end: bool,
 ) {
     state.store(SwipeContext {
         enabled,
         pointer_in_list,
         can_back,
         can_forward,
+        horizontal_scroll_at_start,
+        horizontal_scroll_at_end,
     });
 }
 
@@ -115,9 +122,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
                 if delta != 0.0 {
                     let context = state.context();
                     if context.enabled && context.pointer_in_list {
-                        if let Some(direction) =
-                            direction(context.can_back, context.can_forward, delta)
-                        {
+                        if let Some(direction) = direction(context, delta) {
                             let _ = app_handle.emit("swipe-nav", direction);
                         }
                     }
@@ -144,12 +149,12 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
                 if !context.enabled || !context.pointer_in_list {
                     return pass();
                 }
-                if !context.can_back && !context.can_forward {
+                if direction(context, event.scrollingDeltaX()).is_none() {
                     return pass();
                 }
 
-                let can_back = context.can_back;
-                let can_forward = context.can_forward;
+                let can_back = context.can_back && context.horizontal_scroll_at_start;
+                let can_forward = context.can_forward && context.horizontal_scroll_at_end;
                 tracking_flag.store(true, Ordering::Relaxed);
                 let flag = tracking_flag.clone();
                 let app = app_handle.clone();
@@ -214,21 +219,119 @@ mod tests {
 
     #[test]
     fn positive_amount_is_back() {
-        assert_eq!(direction(true, false, 0.5), Some("back"));
-        assert_eq!(direction(true, true, 0.5), Some("back"));
+        assert_eq!(
+            direction(
+                SwipeContext {
+                    can_back: true,
+                    can_forward: true,
+                    horizontal_scroll_at_start: true,
+                    ..Default::default()
+                },
+                0.5
+            ),
+            Some("back")
+        );
+        assert_eq!(
+            direction(
+                SwipeContext {
+                    can_back: true,
+                    horizontal_scroll_at_start: true,
+                    ..Default::default()
+                },
+                0.5
+            ),
+            Some("back")
+        );
     }
 
     #[test]
     fn negative_amount_is_forward() {
-        assert_eq!(direction(false, true, -0.5), Some("forward"));
-        assert_eq!(direction(true, true, -0.5), Some("forward"));
+        assert_eq!(
+            direction(
+                SwipeContext {
+                    can_forward: true,
+                    horizontal_scroll_at_end: true,
+                    ..Default::default()
+                },
+                -0.5
+            ),
+            Some("forward")
+        );
+        assert_eq!(
+            direction(
+                SwipeContext {
+                    can_back: true,
+                    can_forward: true,
+                    horizontal_scroll_at_end: true,
+                    ..Default::default()
+                },
+                -0.5
+            ),
+            Some("forward")
+        );
     }
 
     #[test]
     fn unavailable_history_is_ignored() {
-        assert_eq!(direction(false, false, 1.0), None);
-        assert_eq!(direction(false, true, 1.0), None);
-        assert_eq!(direction(true, false, -1.0), None);
-        assert_eq!(direction(true, true, 0.0), None);
+        assert_eq!(direction(SwipeContext::default(), 1.0), None);
+        assert_eq!(
+            direction(
+                SwipeContext {
+                    can_forward: true,
+                    horizontal_scroll_at_end: true,
+                    ..Default::default()
+                },
+                1.0
+            ),
+            None
+        );
+        assert_eq!(
+            direction(
+                SwipeContext {
+                    can_back: true,
+                    horizontal_scroll_at_start: true,
+                    ..Default::default()
+                },
+                -1.0
+            ),
+            None
+        );
+        assert_eq!(
+            direction(
+                SwipeContext {
+                    can_back: true,
+                    can_forward: true,
+                    horizontal_scroll_at_start: true,
+                    horizontal_scroll_at_end: true,
+                    ..Default::default()
+                },
+                0.0
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn horizontal_scroll_has_priority_away_from_its_edges() {
+        assert_eq!(
+            direction(
+                SwipeContext {
+                    can_back: true,
+                    ..Default::default()
+                },
+                0.5
+            ),
+            None
+        );
+        assert_eq!(
+            direction(
+                SwipeContext {
+                    can_forward: true,
+                    ..Default::default()
+                },
+                -0.5
+            ),
+            None
+        );
     }
 }
