@@ -7,6 +7,13 @@ type CachedIcon = string | null;
 const icons = new SvelteMap<string, CachedIcon>();
 const pending = new Set<string>();
 let scheduled = false;
+export const MAX_MEMORY_ENTRIES = 512;
+
+function remember(path: string, icon: CachedIcon): void {
+  icons.delete(path);
+  icons.set(path, icon);
+  if (icons.size > MAX_MEMORY_ENTRIES) icons.delete(icons.keys().next().value!);
+}
 
 /**
  * The list is virtualized, so only mounted rows call `requestIcon`. Every
@@ -21,12 +28,12 @@ function flush(): void {
   void invoke<CachedIcon[]>("file_icons", { paths: batch })
     .then((results) => {
       for (let index = 0; index < batch.length; index++) {
-        icons.set(batch[index], results[index] ?? null);
+        remember(batch[index], results[index] ?? null);
       }
     })
     .catch(() => {
       // A failed batch must not retry forever; cache the misses.
-      for (const path of batch) icons.set(path, null);
+      for (const path of batch) remember(path, null);
     });
 }
 

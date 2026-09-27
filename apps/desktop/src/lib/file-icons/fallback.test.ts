@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { categoryFor, extensionOf } from "./fallback.js";
+import { categoryFor, customIconFor, extensionOf } from "./fallback.js";
 
 describe("extensionOf", () => {
   it("returns the lowercased extension", () => {
@@ -32,5 +32,18 @@ describe("categoryFor", () => {
     expect(categoryFor("Makefile")).toBe("code");
     expect(categoryFor("LICENSE")).toBe("text");
     expect(categoryFor("something")).toBe("default");
+  });
+});
+
+describe("customIconFor", () => {
+  it("maps the supplied assets by extension without filesystem work", () => {
+    expect(customIconFor("bundle.zip")).toBe("file_archive");
+    expect(customIconFor("settings.toml")).toBe("file_config");
+    expect(customIconFor("report.pdf")).toBe("file_pdf");
+    expect(customIconFor("captions.srt")).toBe("file_subtitle");
+    expect(customIconFor("sheet.xlsx")).toBe("file_spreadsheet");
+    expect(customIconFor("metadata.xmp")).toBe("file_metadata");
+    expect(customIconFor("unknown.filetype")).toBe("file");
+    expect(customIconFor("anything", true)).toBe("folder");
   });
 });

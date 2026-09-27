@@ -140,11 +140,6 @@
   const gridIconSize = $derived(Math.round(17 * gridZoom));
 </script>
 
-{#snippet folderIcon()}
-  <img class="folder-light-icon size-[17px]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} src="/icons/folder_light.svg" alt="" aria-hidden="true" />
-  <img class="folder-dark-icon size-[17px]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} src="/icons/folder_dark.svg" alt="" aria-hidden="true" />
-{/snippet}
-
 {#snippet sizeLabel()}
   {#if entry.size != null}
     {#key `${entry.size}:${entry.sizeComplete}`}
@@ -179,7 +174,7 @@
       onContextMenu?.(entry);
     }}
     ondblclick={handleDblClick}>
-    <div role="gridcell" class="flex items-center gap-2 px-2">{#if checkboxes}<span class="flex" transition:checkboxReveal={{ delay: revealDelay }}><SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} /></span>{/if}{#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else if entry.is_directory && !isAppBundle(entry, platformState.current)}{@render folderIcon()}{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}</div>
+    <div role="gridcell" class="flex items-center gap-2 px-2">{#if checkboxes}<span class="flex" transition:checkboxReveal={{ delay: revealDelay }}><SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} /></span>{/if}{#if thumbnail}<span class="size-[17px] shrink-0 overflow-hidden" style={`width: ${gridIconSize}px; height: ${gridIconSize}px; border-radius: 3px`}><img src={thumbnail} alt="" draggable="false" class="size-full object-contain" /></span>{:else if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else}<EntryIcon path={entry.path} name={entry.name} directory={entry.is_directory && !isAppBundle(entry, platformState.current)} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}</div>
     {#each columns as column (column)}
     {#if column === "name"}
     <div role="gridcell" class:column-source={draggedColumn === column} class="flex min-w-0 items-center gap-2 px-2">
@@ -251,7 +246,7 @@
       </span>
     {/if}
     <span class="flex items-center justify-center gap-1.5">
-    {#if thumbnail}<img src={thumbnail} alt="" draggable="false" class="max-h-full max-w-full object-contain" />{:else if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else if entry.is_directory && !isAppBundle(entry, platformState.current)}{@render folderIcon()}{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}
+    {#if thumbnail}<span class="inline-block max-h-full max-w-full overflow-hidden" style="border-radius: 12px"><img src={thumbnail} alt="" draggable="false" class="block max-h-full max-w-full object-contain" /></span>{:else if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else}<EntryIcon path={entry.path} name={entry.name} directory={entry.is_directory && !isAppBundle(entry, platformState.current)} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}
     {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </span>
     {#if renaming}
@@ -278,12 +273,6 @@
 
 <style>
   .column-source { opacity: 0.35; }
-  .folder-light-icon, .folder-dark-icon { object-fit: contain; }
-  .folder-light-icon { display: none; }
-  :global(:root[data-theme="light"] .folder-light-icon),
-  :global(:root[data-theme="off-white"] .folder-light-icon) { display: block; }
-  :global(:root[data-theme="light"] .folder-dark-icon),
-  :global(:root[data-theme="off-white"] .folder-dark-icon) { display: none; }
   .measured-size {
     display: inline-block;
     animation: size-reveal 240ms cubic-bezier(0.2, 0, 0, 1) both;

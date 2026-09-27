@@ -12,6 +12,9 @@
 	import { highlightMatches } from "$lib/utils/highlight-matches.js";
 	import { commandPaletteState, closeCommandPalette } from "$lib/state/command-palette.svelte";
 	import { openTarget } from "$lib/file-ops/open.js";
+	import EntryIcon from "$lib/file-icons/entry-icon.svelte";
+	import { requestThumbnails, thumbnailFor } from "$lib/file-icons/thumbnail-cache.svelte.js";
+	import { categoryFor } from "$lib/file-icons/fallback.js";
 	import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
 	import type { Location } from "$lib/tabs/tabs.js";
 
@@ -35,7 +38,8 @@
 		location: Location;
 		group: "path" | "quick" | "favorites" | "locations" | "recents";
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		icon: any;
+		icon?: any;
+		entry?: { path: string; name: string; directory: boolean };
 	};
 
 	let {
@@ -119,7 +123,7 @@
 			subtitle: favorite.path,
 			location: favorite,
 			group: "favorites",
-			icon: FolderIcon,
+			entry: { path: favorite.path, name: favorite.name, directory: true },
 		})),
 	);
 
@@ -150,7 +154,7 @@
 				kind: recent.kind === "file" ? "file" : "folder",
 			},
 			group: "recents",
-			icon: recent.kind === "file" ? FileIcon : FolderIcon,
+			entry: { path: recent.path, name: recent.name, directory: recent.kind !== "file" },
 		})),
 	);
 
@@ -263,7 +267,7 @@
 						kind: exactEntry && !exactEntry.is_directory ? "file" : "folder",
 					},
 					group: "path",
-					icon: exactEntry && !exactEntry.is_directory ? FileIcon : FolderInputIcon,
+					entry: { path: trimmed, name: exactEntry?.name ?? trimmed, directory: exactEntry?.is_directory ?? true },
 				}
 			: null,
 	);
@@ -279,7 +283,7 @@
 				kind: entry.is_directory ? "folder" : "file",
 			},
 			group: "path",
-			icon: entry.is_directory ? FolderIcon : FileIcon,
+			entry: { path: entry.path, name: entry.name, directory: entry.is_directory },
 		})),
 	);
 
@@ -303,6 +307,13 @@
 	const recentResults = $derived(
 		trimmed ? results.filter((r) => r.item.group === "recents").map((r) => r.item) : recentItems,
 	);
+	const thumbnailPaths = $derived(
+		commandPaletteState.open
+			? [...pathResults, ...recentResults]
+					.flatMap((item) => item.entry && !item.entry.directory && categoryFor(item.entry.name) === "image" ? [item.entry.path] : [])
+			: [],
+	);
+	$effect(() => requestThumbnails(thumbnailPaths));
 
 	function nameIndices(result: FuseResult<PaletteItem>) {
 		return result.matches?.find((match) => match.key === "name")?.indices;
@@ -376,6 +387,17 @@
 	}
 </script>
 
+{#snippet paletteIcon(item: PaletteItem)}
+	{@const thumbnail = item.entry && !item.entry.directory ? thumbnailFor(item.entry.path) : undefined}
+	{#if thumbnail}
+		<span class="size-4 shrink-0 overflow-hidden" style="border-radius: 4px"><img src={thumbnail} alt="" draggable="false" class="size-full object-contain" /></span>
+	{:else if item.entry}
+		<EntryIcon path={item.entry.path} name={item.entry.name} directory={item.entry.directory} size={16} />
+	{:else if item.icon}
+		<item.icon class="size-4 text-muted-foreground" />
+	{/if}
+{/snippet}
+
 <Command.Dialog
 	bind:open={commandPaletteState.open}
 	bind:value={selectedValue}
@@ -397,7 +419,7 @@
 			<Command.Group heading="Go to Folder">
 				{#each pathResults as item (item.id)}
 					<Command.Item value={item.id} onSelect={() => select(item)}>
-						<item.icon class="size-4 text-muted-foreground" />
+						{@render paletteIcon(item)}
 						<span class="min-w-0 flex-1 truncate">{item.name}</span>
 						{#if item.subtitle}
 							<span class="ml-auto truncate text-xs text-muted-foreground">{item.subtitle}</span>
@@ -411,7 +433,7 @@
 			<Command.Group heading="Quick Access">
 				{#each quickResults as item (item.id)}
 					<Command.Item value={item.id} onSelect={() => select(item)}>
-						<item.icon class="size-4 text-muted-foreground" />
+						{@render paletteIcon(item)}
 						<span class="min-w-0 flex-1 truncate">{item.name}</span>
 					</Command.Item>
 				{/each}
@@ -422,7 +444,7 @@
 			<Command.Group heading="Favorites">
 				{#each favoriteResults as item (item.id)}
 					<Command.Item value={item.id} onSelect={() => select(item)}>
-						<item.icon class="size-4 text-muted-foreground" />
+						{@render paletteIcon(item)}
 						<span class="min-w-0 flex-1 truncate">
 							{#each highlightMatches(item.name, matchIndicesFor(item)) as segment}
 								{#if segment.highlighted}<mark class="bg-primary/20 text-foreground rounded-sm">{segment.text}</mark>{:else}{segment.text}{/if}
@@ -454,7 +476,7 @@
 			<Command.Group heading="Locations">
 				{#each locationResults as item (item.id)}
 					<Command.Item value={item.id} onSelect={() => select(item)}>
-						<item.icon class="size-4 text-muted-foreground" />
+						{@render paletteIcon(item)}
 						<span class="min-w-0 flex-1 truncate">
 							{#each highlightMatches(item.name, matchIndicesFor(item)) as segment}
 								{#if segment.highlighted}<mark class="bg-primary/20 text-foreground rounded-sm">{segment.text}</mark>{:else}{segment.text}{/if}
@@ -472,7 +494,7 @@
 			<Command.Group heading="Recents">
 				{#each recentResults as item (item.id)}
 					<Command.Item value={item.id} onSelect={() => select(item)}>
-						<item.icon class="size-4 text-muted-foreground" />
+						{@render paletteIcon(item)}
 						<span class="min-w-0 flex-1 truncate">
 							{#each highlightMatches(item.name, matchIndicesFor(item)) as segment}
 								{#if segment.highlighted}<mark class="bg-primary/20 text-foreground rounded-sm">{segment.text}</mark>{:else}{segment.text}{/if}

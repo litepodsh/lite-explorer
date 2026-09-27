@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
-import { iconFor, requestIcon, resetIconCache } from "./icon-cache.svelte.js";
+import { iconFor, MAX_MEMORY_ENTRIES, requestIcon, resetIconCache } from "./icon-cache.svelte.js";
 
 afterEach(() => {
   resetIconCache();
@@ -42,5 +42,14 @@ describe("icon cache", () => {
     await Promise.resolve();
 
     expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps only the most recently used entries", async () => {
+    const paths = Array.from({ length: MAX_MEMORY_ENTRIES + 1 }, (_, index) => `/${index}`);
+    invoke.mockResolvedValue(paths.map((path) => `data:${path}`));
+    paths.forEach(requestIcon);
+
+    await vi.waitFor(() => expect(iconFor(paths.at(-1)!)).toBe(`data:${paths.at(-1)}`));
+    expect(iconFor(paths[0])).toBeUndefined();
   });
 });

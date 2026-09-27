@@ -11,7 +11,7 @@
   import SheetIcon from "@lucide/svelte/icons/file-spreadsheet";
   import TypeIcon from "@lucide/svelte/icons/file-text";
   import VideoIcon from "@lucide/svelte/icons/file-video-camera";
-  import { categoryFor, type IconCategory } from "./fallback.js";
+  import { categoryFor, customIconFor, type IconCategory } from "./fallback.js";
   import { iconFor, requestIcon } from "./icon-cache.svelte.js";
 
   let {
@@ -19,7 +19,8 @@
     name,
     native = false,
     size = 17,
-  }: { path: string; name: string; native?: boolean; size?: number } = $props();
+    directory = false,
+  }: { path: string; name: string; native?: boolean; size?: number; directory?: boolean } = $props();
 
   const FALLBACK_ICONS: Record<IconCategory, { icon: Component; class: string }> = {
     archive: { icon: ArchiveIcon, class: "text-[#c9a06a]" },
@@ -37,17 +38,18 @@
   };
 
   const category = $derived(categoryFor(name));
-  const source = $derived(native && category !== "default" ? iconFor(path) : undefined);
+  const customIcon = $derived(customIconFor(name, directory));
+  const source = $derived(native && !customIcon ? iconFor(path) : undefined);
   const fallback = $derived(FALLBACK_ICONS[category]);
 
   $effect(() => {
-    if (native && category !== "default") requestIcon(path);
+    if (native && !customIcon) requestIcon(path);
   });
 </script>
 
-{#if category === "default"}
-  <img class="file-light-icon size-[17px] shrink-0 object-contain" style={`width: ${size}px; height: ${size}px`} src="/icons/file_light.svg" alt="" draggable="false" />
-  <img class="file-dark-icon size-[17px] shrink-0 object-contain" style={`width: ${size}px; height: ${size}px`} src="/icons/file_dark.svg" alt="" draggable="false" />
+{#if customIcon}
+  <img class="custom-light-icon size-[17px] shrink-0 object-contain" style={`width: ${size}px; height: ${size}px`} src={`/icons/${customIcon}_light.svg`} alt="" draggable="false" />
+  <img class="custom-dark-icon size-[17px] shrink-0 object-contain" style={`width: ${size}px; height: ${size}px`} src={`/icons/${customIcon}_dark.svg`} alt="" draggable="false" />
 {:else if source}
   <img
     src={source}
@@ -63,9 +65,9 @@
 {/if}
 
 <style>
-  .file-light-icon { display: none; }
-  :global(:root[data-theme="light"] .file-light-icon),
-  :global(:root[data-theme="off-white"] .file-light-icon) { display: block; }
-  :global(:root[data-theme="light"] .file-dark-icon),
-  :global(:root[data-theme="off-white"] .file-dark-icon) { display: none; }
+  .custom-light-icon { display: none; }
+  :global(:root[data-theme="light"] .custom-light-icon),
+  :global(:root[data-theme="off-white"] .custom-light-icon) { display: block; }
+  :global(:root[data-theme="light"] .custom-dark-icon),
+  :global(:root[data-theme="off-white"] .custom-dark-icon) { display: none; }
 </style>
