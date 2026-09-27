@@ -152,6 +152,8 @@
   let showFps = $derived(settings.current.showFps);
   /** Pointer is over the active pane's file list, where a trackpad swipe navigates. */
   let pointerInList = $state(false);
+  let horizontalScrollAtStart = $state(true);
+  let horizontalScrollAtEnd = $state(true);
   const jobs = new JobsStore();
   let activityOpen = $state(false);
   let finderSearch = $state<ReturnType<typeof FinderSearch>>();
@@ -162,6 +164,15 @@
       return active ? `${active.kind} ${active.label || active.destination}…` : null;
     })(),
   );
+
+  function updateHorizontalScrollBounds() {
+    const element = document.querySelector<HTMLElement>(
+      `[data-key-scope='list'][data-pane-id='${CSS.escape(panes.activeId)}']`,
+    );
+    const maximum = Math.max(0, (element?.scrollWidth ?? 0) - (element?.clientWidth ?? 0));
+    horizontalScrollAtStart = !element || element.scrollLeft <= 1;
+    horizontalScrollAtEnd = !element || element.scrollLeft >= maximum - 1;
+  }
 
   /** Shows `optimistic` right away, then the list the backend saved; restores the old list on failure. */
   async function updateFavorites(optimistic: Location[], request: () => Promise<Location[]>) {
@@ -510,8 +521,12 @@
         event.clientY >= rect.top &&
         event.clientY <= rect.bottom;
       if (inside !== pointerInList) pointerInList = inside;
+      updateHorizontalScrollBounds();
     };
+    const trackHorizontalScroll = () => updateHorizontalScrollBounds();
     window.addEventListener("pointermove", trackSwipePointer);
+    window.addEventListener("scroll", trackHorizontalScroll, true);
+    window.addEventListener("resize", trackHorizontalScroll);
     // Drives mounted or ejected while the app is open (a DMG, a USB stick) reach the sidebar here.
     const volumeKey = (list: Location[]) =>
       list.filter(isVolumeLocation).map(({ path }) => path).sort().join("\n");
@@ -613,6 +628,8 @@
       window.removeEventListener("keydown", refreshFolder, true);
       window.removeEventListener("pointerdown", markPointer, true);
       window.removeEventListener("pointermove", trackSwipePointer);
+      window.removeEventListener("scroll", trackHorizontalScroll, true);
+      window.removeEventListener("resize", trackHorizontalScroll);
       clearInterval(volumePoll);
       window.removeEventListener("focus", refreshVolumes);
       activity.publish = () => {};
@@ -635,6 +652,10 @@
   // list and that tab has history in the swiped direction.
   let lastSwipeContext = "";
   $effect(() => {
+    void activeController.tabs.locationKey;
+    void tick().then(updateHorizontalScrollBounds);
+  });
+  $effect(() => {
     if (platform !== "macos") return;
     const controller = activeController;
     const context = {
@@ -642,8 +663,10 @@
       pointerInList,
       canBack: controller.canBack,
       canForward: controller.canForward,
+      horizontalScrollAtStart,
+      horizontalScrollAtEnd,
     };
-    const key = `${context.enabled}|${context.pointerInList}|${context.canBack}|${context.canForward}`;
+    const key = `${context.enabled}|${context.pointerInList}|${context.canBack}|${context.canForward}|${context.horizontalScrollAtStart}|${context.horizontalScrollAtEnd}`;
     if (key === lastSwipeContext) return;
     lastSwipeContext = key;
     void invoke("set_swipe_context", context).catch(() => {});
