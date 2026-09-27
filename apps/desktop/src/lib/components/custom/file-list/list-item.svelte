@@ -8,7 +8,6 @@
   import EntryIcon from "$lib/file-icons/entry-icon.svelte";
   import { DEFAULT_COLUMNS, type ListColumn } from "./columns.js";
   import { entryType } from "./sort.js";
-  import FolderIcon from "@lucide/svelte/icons/folder";
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
   import { canDragOut } from "$lib/file-drag/native-drag.js";
   import { formatSize, formatDate } from "$lib/components/custom/preview/format.js";
@@ -42,6 +41,8 @@
     onContextMenu,
     style = "",
     searchQuery = "",
+    gridZoom = 1,
+    gridTileHeight = 96,
   } = $props<{
     entry: DirectoryEntry;
     downloadSnapshot?: DownloadSnapshot;
@@ -76,6 +77,8 @@
     /** Content-search query to highlight inside the snippet. */
     searchQuery?: string;
     style?: string;
+    gridZoom?: number;
+    gridTileHeight?: number;
   }>();
 
   // Local files get the OS icon; archive-inner entries are pseudo-paths with no
@@ -131,7 +134,14 @@
     if (value === "" || value === entry.name) onRenameCancel?.();
     else onRename?.(entry.path, value);
   }
+
+  const gridIconSize = $derived(Math.round(17 * gridZoom));
 </script>
+
+{#snippet folderIcon()}
+  <img class="folder-light-icon size-[17px]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} src="/icons/folder_light.svg" alt="" aria-hidden="true" />
+  <img class="folder-dark-icon size-[17px]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} src="/icons/folder_dark.svg" alt="" aria-hidden="true" />
+{/snippet}
 
 {#snippet sizeLabel()}
   {#if entry.size != null}
@@ -167,7 +177,7 @@
       onContextMenu?.(entry);
     }}
     ondblclick={handleDblClick}>
-    <div role="gridcell" class="flex items-center gap-2 px-2">{#if checkboxes}<span class="flex" transition:checkboxReveal={{ delay: revealDelay }}><SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} /></span>{/if}{#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else if entry.is_directory && !isAppBundle(entry, platformState.current)}<FolderIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} />{/if}</div>
+    <div role="gridcell" class="flex items-center gap-2 px-2">{#if checkboxes}<span class="flex" transition:checkboxReveal={{ delay: revealDelay }}><SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} /></span>{/if}{#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else if entry.is_directory && !isAppBundle(entry, platformState.current)}{@render folderIcon()}{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}</div>
     {#each columns as column (column)}
     {#if column === "name"}
     <div role="gridcell" class:column-source={draggedColumn === column} class="flex min-w-0 items-center gap-2 px-2">
@@ -214,7 +224,8 @@
   </div>
 {:else}
   <button
-    class="file-tile relative flex h-24 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-md border-0 bg-transparent p-3 text-center text-[13px] text-[var(--app-fg)] {dropTarget ? 'entry-drop-target' : ''} {pasted ? 'entry-pasted' : ''}"
+    style={`height: ${gridTileHeight}px`}
+    class="file-tile relative grid h-24 w-full min-w-0 grid-rows-[minmax(0,1fr)_2rem] items-center gap-1 rounded-md border-0 bg-transparent p-2 text-center text-[13px] text-[var(--app-fg)] {dropTarget ? 'entry-drop-target' : ''} {pasted ? 'entry-pasted' : ''}"
     aria-label={entry.name}
     aria-pressed={selected}
     data-entry-path={entry.path}
@@ -237,8 +248,8 @@
         <SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} />
       </span>
     {/if}
-    <span class="flex items-center gap-1.5">
-    {#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else if entry.is_directory && !isAppBundle(entry, platformState.current)}<FolderIcon class="size-[17px] text-blue-400 stroke-[1.7]" />{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} />{/if}
+    <span class="flex items-center justify-center gap-1.5">
+    {#if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else if entry.is_directory && !isAppBundle(entry, platformState.current)}{@render folderIcon()}{:else}<EntryIcon path={entry.path} name={entry.name} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}
     {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </span>
     {#if renaming}
@@ -255,7 +266,7 @@
           onblur={commitRename} />
       </span>
     {:else}
-      <span class="max-w-full truncate">{entry.name}</span>
+      <span class="line-clamp-2 max-w-full leading-4" title={entry.name}>{entry.name}</span>
     {/if}
     {#if entry.sizeComplete != null}
       <span class="text-[10px] tabular-nums text-[var(--app-fg-muted)]">{@render sizeLabel()}</span>
@@ -265,6 +276,12 @@
 
 <style>
   .column-source { opacity: 0.35; }
+  .folder-light-icon, .folder-dark-icon { object-fit: contain; }
+  .folder-light-icon { display: none; }
+  :global(:root[data-theme="light"] .folder-light-icon),
+  :global(:root[data-theme="off-white"] .folder-light-icon) { display: block; }
+  :global(:root[data-theme="light"] .folder-dark-icon),
+  :global(:root[data-theme="off-white"] .folder-dark-icon) { display: none; }
   .measured-size {
     display: inline-block;
     animation: size-reveal 240ms cubic-bezier(0.2, 0, 0, 1) both;
