@@ -98,19 +98,23 @@ jobs:
             target: aarch64-apple-darwin
             rust-targets: aarch64-apple-darwin
             args: --target aarch64-apple-darwin --bundles app,dmg
+            release-asset-suffix: apple-silicon
           - name: macOS (Intel)
             runner: macos-latest
             target: x86_64-apple-darwin
             rust-targets: x86_64-apple-darwin
             args: --target x86_64-apple-darwin --bundles app,dmg
+            release-asset-suffix: apple-intel
           - name: Linux (x86_64)
             runner: ubuntu-22.04
             rust-targets: ""
             args: --bundles deb,rpm,appimage
+            release-asset-suffix: linux-x86_64
           - name: Windows (x86_64)
             runner: windows-latest
             rust-targets: ""
             args: --bundles nsis
+            release-asset-suffix: windows-x86_64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -231,6 +235,7 @@ jobs:
           tauriScript: bun run tauri
           args: ${{ matrix.args }}
           releaseId: ${{ needs.create-release.outputs.release-id }}
+          releaseAssetNamePattern: "[name]-[version]-${{ matrix.release-asset-suffix }}[setup][ext]"
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
 
