@@ -139,6 +139,7 @@
 
   const gridIconSize = $derived(Math.min(Math.max(48, Math.round(32 * gridZoom)), Math.round(gridTileHeight * 0.7)));
   const thumbnailSize = $derived(Math.min(160, Math.max(48, Math.round(gridTileHeight * 0.62))));
+  const listIconSize = 17;
 </script>
 
 {#snippet sizeLabel()}
@@ -175,7 +176,7 @@
       onContextMenu?.(entry);
     }}
     ondblclick={handleDblClick}>
-    <div role="gridcell" class="flex items-center gap-2 px-2">{#if checkboxes}<span class="flex" transition:checkboxReveal={{ delay: revealDelay }}><SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} /></span>{/if}{#if thumbnail}<span class="size-[17px] shrink-0 overflow-hidden" style={`width: ${gridIconSize}px; height: ${gridIconSize}px; border-radius: 3px`}><img src={thumbnail} alt="" draggable="false" class="size-full object-contain" /></span>{:else if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else}<EntryIcon path={entry.path} name={entry.name} directory={entry.is_directory && !isAppBundle(entry, platformState.current)} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}</div>
+    <div role="gridcell" class="flex items-center gap-2 px-2">{#if checkboxes}<span class="flex" transition:checkboxReveal={{ delay: revealDelay }}><SelectionCheckbox checked={selected} label={`Select ${entry.name}`} onToggle={() => onToggle?.(entry)} /></span>{/if}{#if thumbnail}<span class="size-[17px] shrink-0 overflow-hidden" style={`width: ${listIconSize}px; height: ${listIconSize}px; border-radius: 3px`}><img src={thumbnail} alt="" draggable="false" class="size-full object-contain" /></span>{:else if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${listIconSize}px; height: ${listIconSize}px`} />{:else}<EntryIcon path={entry.path} name={entry.name} directory={entry.is_directory && !isAppBundle(entry, platformState.current)} native={usesNativeIcon(entry)} size={listIconSize} />{/if}</div>
     {#each columns as column (column)}
     {#if column === "name"}
     <div role="gridcell" class:column-source={draggedColumn === column} class="flex min-w-0 items-center gap-2 px-2">
