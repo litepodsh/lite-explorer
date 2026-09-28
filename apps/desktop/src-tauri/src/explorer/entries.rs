@@ -191,6 +191,13 @@ pub fn coordinated_write<T>(
     action()
 }
 
+/// Symlinks to folders (e.g. `/var`, `/tmp`) count as folders, like in Finder, so they
+/// open in the app instead of being handed to the OS. Only symlinks pay for the extra stat.
+fn is_directory_entry(entry: &fs::DirEntry, kind: fs::FileType) -> bool {
+    kind.is_dir()
+        || kind.is_symlink() && fs::metadata(entry.path()).is_ok_and(|metadata| metadata.is_dir())
+}
+
 pub fn directory_entries(path: &Path) -> Result<Vec<DirectoryEntry>, String> {
     if !path.is_dir() {
         return Err(format!("{} is not a directory", path.display()));
@@ -199,7 +206,7 @@ pub fn directory_entries(path: &Path) -> Result<Vec<DirectoryEntry>, String> {
         .map_err(|error| error.to_string())?
         .filter_map(Result::ok)
         .filter_map(|entry| {
-            let is_directory = entry.file_type().ok()?.is_dir();
+            let is_directory = is_directory_entry(&entry, entry.file_type().ok()?);
             let name = entry.file_name().to_string_lossy().into_owned();
             let metadata = entry.metadata().ok()?;
             Some(DirectoryEntry {
@@ -249,7 +256,7 @@ fn stream_directory_entries(
         }
         let Ok(entry) = entry else { continue };
         let is_directory = match entry.file_type() {
-            Ok(kind) => kind.is_dir(),
+            Ok(kind) => is_directory_entry(&entry, kind),
             Err(_) => continue,
         };
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -517,6 +524,14 @@ mod tests {
         assert!(entries
             .iter()
             .any(|entry| entry.name == ".hidden" && entry.is_hidden));
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(directory.join("folder"), directory.join("link")).unwrap();
+            assert!(directory_entries(&directory)
+                .unwrap()
+                .iter()
+                .any(|entry| entry.name == "link" && entry.is_directory));
+        }
         fs::remove_dir_all(directory).unwrap();
     }
 
