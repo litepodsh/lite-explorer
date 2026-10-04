@@ -149,7 +149,11 @@ pub fn register<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
             .and_then(|value| value.to_str().ok())
             .map(str::to_string);
         tauri::async_runtime::spawn(async move {
-            responder.respond(handle(&app, &token, inner, range).await);
+            let response = handle(&app, &token, inner, range).await;
+            // Respond on the main thread. WebKit cancels in-flight tasks there (e.g. when
+            // the user skips to the next video); answering from a worker races that
+            // cancellation, WebKit throws on the stopped task and the app aborts.
+            let _ = app.run_on_main_thread(move || responder.respond(response));
         });
     })
 }
