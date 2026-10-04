@@ -1,4 +1,4 @@
-import { favoriteDropIndexAt } from "$lib/favorites/favorites.js";
+import { favoriteDropIndexAt } from "#lib/favorites/favorites.js";
 
 export type DropTarget =
   | { kind: "favorites"; index: number }

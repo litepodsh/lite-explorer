@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { activity } from "$lib/transfers/jobs.js";
+import { activity } from "#lib/transfers/jobs.js";
 import { baseName } from "./files.js";
 
 export interface OpenWithApp {

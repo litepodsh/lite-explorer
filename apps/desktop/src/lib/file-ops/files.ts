@@ -1,6 +1,6 @@
-import { activity } from "$lib/transfers/jobs.js";
+import { activity } from "#lib/transfers/jobs.js";
 import { invoke } from "@tauri-apps/api/core";
-import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
+import type { DirectoryEntry } from "#lib/components/custom/file-list/list-item.svelte";
 
 export function copyItem(path: string, destination: string): Promise<DirectoryEntry> {
   return activity.track("copy", `Copy: ${baseName(path)}`, destination, () =>

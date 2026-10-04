@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { FolderUsage, FolderUsageError, FolderUsageProgress } from "./types.js";
-import { baseName } from "$lib/file-ops/files.js";
+import { baseName } from "#lib/file-ops/files.js";
 import { isStale, upsertEntry } from "./usage.js";
 
 /**

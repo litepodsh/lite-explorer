@@ -1,5 +1,5 @@
-import type { ArchiveEntry, ArchiveListing } from "$lib/file-ops/archive.js";
-import { formatSize } from "$lib/components/custom/preview/format.js";
+import type { ArchiveEntry, ArchiveListing } from "#lib/file-ops/archive.js";
+import { formatSize } from "#lib/components/custom/preview/format.js";
 
 /** Paths for the tree: extractable entries only, directories ending with `/`. */
 export function toTreePaths(entries: readonly ArchiveEntry[]): string[] {

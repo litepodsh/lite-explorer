@@ -1,5 +1,5 @@
-import type { Location } from "$lib/tabs/tabs.js";
-import { parseLocationUrl } from "$lib/remote/location-url.js";
+import type { Location } from "#lib/tabs/tabs.js";
+import { parseLocationUrl } from "#lib/remote/location-url.js";
 import {
   addNetworkLocation,
   describeError,
@@ -16,7 +16,7 @@ import {
   type DiscoveredServer,
   type NetworkField,
   type NetworkLocationInput,
-} from "$lib/remote/network-locations.js";
+} from "#lib/remote/network-locations.js";
 import {
   addRemoteLocation,
   connectGoogleDrive,
@@ -27,7 +27,7 @@ import {
   testRemoteLocation,
   withProvider,
   type RemoteLocationInput,
-} from "$lib/remote/remote-locations.js";
+} from "#lib/remote/remote-locations.js";
 import type { LocationKind } from "./location-types.js";
 
 export type FormStatus =

@@ -4,7 +4,7 @@ import type {
   ExtractionOutcome,
   ExtractionTarget,
   Resolution,
-} from "$lib/file-ops/archive.js";
+} from "#lib/file-ops/archive.js";
 import { runExtraction, type ExtractionDeps } from "./run-extraction.js";
 
 const target = (name: string, exists: boolean): ExtractionTarget => ({

@@ -2,7 +2,7 @@
   import { formatDate, formatSize } from "./format.js";
   import { kindLabel } from "./languages.js";
   import type { FilePreview } from "./types.js";
-  import type { OpenWithApp } from "$lib/file-ops/open.js";
+  import type { OpenWithApp } from "#lib/file-ops/open.js";
 
   // While `pending`, `preview` belongs to the previous file: its rows stay in the
   // layout (hidden) so the panel height does not jump between selections.

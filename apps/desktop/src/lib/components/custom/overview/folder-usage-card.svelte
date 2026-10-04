@@ -3,11 +3,11 @@
   import FolderIcon from "@lucide/svelte/icons/folder";
   import HouseIcon from "@lucide/svelte/icons/house";
   import { flip } from "svelte/animate";
-  import { baseName } from "$lib/file-ops/files.js";
+  import { baseName } from "#lib/file-ops/files.js";
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
-  import { formatSize } from "$lib/components/custom/preview/format.js";
-  import { UsageBar } from "$lib/components/custom/usage-bar/index.js";
+  import { formatSize } from "#lib/components/custom/preview/format.js";
+  import { UsageBar } from "#lib/components/custom/usage-bar/index.js";
   import type { FolderUsage, FolderUsageEntry } from "./types.js";
   import { formatAge, summarizeFolders } from "./usage.js";
 

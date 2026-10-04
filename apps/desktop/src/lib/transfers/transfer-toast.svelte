@@ -1,9 +1,9 @@
 <script lang="ts">
   import CheckIcon from "@lucide/svelte/icons/check";
-  import { formatJobDuration, type Job } from "$lib/transfers/jobs.js";
-  import { etaSeconds, formatBytes, formatEta, progressFraction } from "$lib/transfers/progress.js";
-  import { overflowCount, shouldAutoDismiss, visibleToasts } from "$lib/transfers/toasts.js";
-  import type { JobsStore } from "$lib/transfers/jobs.svelte.js";
+  import { formatJobDuration, type Job } from "#lib/transfers/jobs.js";
+  import { etaSeconds, formatBytes, formatEta, progressFraction } from "#lib/transfers/progress.js";
+  import { overflowCount, shouldAutoDismiss, visibleToasts } from "#lib/transfers/toasts.js";
+  import type { JobsStore } from "#lib/transfers/jobs.svelte.js";
 
   let { jobs }: { jobs: JobsStore } = $props();
 

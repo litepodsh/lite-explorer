@@ -1,10 +1,10 @@
 <script lang="ts">
   // Asks for a network location's password when none is saved or the saved one was rejected.
   import CircleAlertIcon from "@lucide/svelte/icons/circle-alert";
-  import { DialogButton, DialogShell, DialogSwitch } from "$lib/components/custom/dialog/index.js";
-  import { formatLocationUrl } from "$lib/remote/location-url.js";
-  import { getNetworkLocation } from "$lib/remote/network-locations.js";
-  import type { Location } from "$lib/tabs/tabs.js";
+  import { DialogButton, DialogShell, DialogSwitch } from "#lib/components/custom/dialog/index.js";
+  import { formatLocationUrl } from "#lib/remote/location-url.js";
+  import { getNetworkLocation } from "#lib/remote/network-locations.js";
+  import type { Location } from "#lib/tabs/tabs.js";
   import "./add-location.css";
 
   let {

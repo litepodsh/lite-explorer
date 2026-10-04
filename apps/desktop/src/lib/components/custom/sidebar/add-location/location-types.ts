@@ -1,5 +1,5 @@
-import type { NetworkProtocol } from "$lib/remote/network-locations.js";
-import type { Provider } from "$lib/remote/remote-locations.js";
+import type { NetworkProtocol } from "#lib/remote/network-locations.js";
+import type { Provider } from "#lib/remote/remote-locations.js";
 
 export type LocationKind = NetworkProtocol | Provider;
 

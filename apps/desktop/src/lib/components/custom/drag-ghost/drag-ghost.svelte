@@ -6,7 +6,7 @@
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
   import PackageOpenIcon from "@lucide/svelte/icons/package-open";
   import StarIcon from "@lucide/svelte/icons/star";
-  import { drag } from "$lib/file-drag/drag.svelte.js";
+  import { drag } from "#lib/file-drag/drag.svelte.js";
 
   const actions = {
     favorite: { label: "Favorites", icon: StarIcon },

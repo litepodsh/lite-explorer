@@ -1,20 +1,20 @@
 <script lang="ts">
-  import { settings } from "$lib/settings/settings.svelte.js";
+  import { settings } from "#lib/settings/settings.svelte.js";
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import FileIcon from "@lucide/svelte/icons/file";
   import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
-  import WindowControls from "$lib/components/custom/titlebar/window-controls.svelte";
-  import ImageView from "$lib/components/custom/preview/image-view.svelte";
-  import MediaView from "$lib/components/custom/preview/media-view.svelte";
-  import PdfView from "$lib/components/custom/preview/pdf-view.svelte";
-  import { fetchMediaUrl, fetchViewerTarget } from "$lib/components/custom/preview/media.js";
-  import { isMediaKind } from "$lib/components/custom/preview/languages.js";
-  import type { FilePreview } from "$lib/components/custom/preview/types.js";
-  import type { Platform } from "$lib/state/platform.svelte.js";
-  import { openTarget } from "$lib/file-ops/open.js";
+  import WindowControls from "#lib/components/custom/titlebar/window-controls.svelte";
+  import ImageView from "#lib/components/custom/preview/image-view.svelte";
+  import MediaView from "#lib/components/custom/preview/media-view.svelte";
+  import PdfView from "#lib/components/custom/preview/pdf-view.svelte";
+  import { fetchMediaUrl, fetchViewerTarget } from "#lib/components/custom/preview/media.js";
+  import { isMediaKind } from "#lib/components/custom/preview/languages.js";
+  import type { FilePreview } from "#lib/components/custom/preview/types.js";
+  import type { Platform } from "#lib/state/platform.svelte.js";
+  import { openTarget } from "#lib/file-ops/open.js";
 
   settings.load();
 

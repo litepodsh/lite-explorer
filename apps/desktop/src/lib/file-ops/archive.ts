@@ -1,4 +1,4 @@
-import { activity } from "$lib/transfers/jobs.js";
+import { activity } from "#lib/transfers/jobs.js";
 import { invoke } from "@tauri-apps/api/core";
 
 const ARCHIVE_EXTENSIONS = [".zip", ".tar.gz", ".tgz", ".tar"];

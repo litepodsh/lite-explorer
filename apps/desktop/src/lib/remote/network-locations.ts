@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { activity } from "$lib/transfers/jobs.js";
-import type { Location } from "$lib/tabs/tabs.js";
+import { activity } from "#lib/transfers/jobs.js";
+import type { Location } from "#lib/tabs/tabs.js";
 
 export type NetworkProtocol = "smb" | "nfs" | "webdav" | "sftp" | "ftp";
 export type NetworkAuth = "guest" | "password";

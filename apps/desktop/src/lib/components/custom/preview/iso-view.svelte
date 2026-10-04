@@ -1,6 +1,6 @@
 <script lang="ts">
   import Disc from "@lucide/svelte/icons/disc";
-  import { PathTree } from "$lib/components/custom/path-tree/index.js";
+  import { PathTree } from "#lib/components/custom/path-tree/index.js";
   import { formatSize } from "./format.js";
   import { openIso, type IsoPreview } from "./iso.js";
 

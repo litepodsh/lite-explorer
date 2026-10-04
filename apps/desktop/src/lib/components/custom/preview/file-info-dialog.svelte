@@ -1,12 +1,12 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { activity } from "$lib/transfers/jobs.js";
-  import DialogShell from "$lib/components/custom/dialog/dialog-shell.svelte";
-  import DialogButton from "$lib/components/custom/dialog/dialog-button.svelte";
-  import EntryIcon from "$lib/file-icons/entry-icon.svelte";
-  import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
-  import { entryType } from "$lib/components/custom/file-list/sort.js";
-  import { fetchDefaultApp, type OpenWithApp } from "$lib/file-ops/open.js";
+  import { activity } from "#lib/transfers/jobs.js";
+  import DialogShell from "#lib/components/custom/dialog/dialog-shell.svelte";
+  import DialogButton from "#lib/components/custom/dialog/dialog-button.svelte";
+  import EntryIcon from "#lib/file-icons/entry-icon.svelte";
+  import type { DirectoryEntry } from "#lib/components/custom/file-list/list-item.svelte";
+  import { entryType } from "#lib/components/custom/file-list/sort.js";
+  import { fetchDefaultApp, type OpenWithApp } from "#lib/file-ops/open.js";
   import { formatSize } from "./format.js";
 
   type FileInfo = {

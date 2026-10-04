@@ -3,16 +3,16 @@
 </script>
 
 <script lang="ts">
-  import DownloadIndicator from "$lib/transfers/download-indicator.svelte";
-  import type { DownloadSnapshot } from "$lib/transfers/download-progress.js";
-  import EntryIcon from "$lib/file-icons/entry-icon.svelte";
+  import DownloadIndicator from "#lib/transfers/download-indicator.svelte";
+  import type { DownloadSnapshot } from "#lib/transfers/download-progress.js";
+  import EntryIcon from "#lib/file-icons/entry-icon.svelte";
   import { DEFAULT_COLUMNS, type ListColumn } from "./columns.js";
   import { entryType } from "./sort.js";
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
-  import { canDragOut } from "$lib/file-drag/native-drag.js";
-  import { formatSize, formatDate } from "$lib/components/custom/preview/format.js";
-  import { isPrimaryModifier, platformState } from "$lib/state/platform.svelte.js";
-  import { isAppBundle } from "$lib/file-ops/bundles.js";
+  import { canDragOut } from "#lib/file-drag/native-drag.js";
+  import { formatSize, formatDate } from "#lib/components/custom/preview/format.js";
+  import { isPrimaryModifier, platformState } from "#lib/state/platform.svelte.js";
+  import { isAppBundle } from "#lib/file-ops/bundles.js";
   import SelectionCheckbox from "./selection-checkbox.svelte";
   import { checkboxReveal } from "./checkbox-reveal.js";
   let {

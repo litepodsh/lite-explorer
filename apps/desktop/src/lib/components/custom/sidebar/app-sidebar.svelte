@@ -13,13 +13,13 @@
   import UsersIcon from "@lucide/svelte/icons/users";
   import SearchIcon from "@lucide/svelte/icons/search";
 
-  import { OVERVIEW, sameLocation, type Location } from "$lib/tabs/tabs.js";
+  import { OVERVIEW, sameLocation, type Location } from "#lib/tabs/tabs.js";
   export type { Location };
 </script>
 
 <script lang="ts">
-  import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
-  import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+  import * as Sidebar from "#lib/components/ui/sidebar/index.js";
   import ClipboardCopyIcon from "@lucide/svelte/icons/clipboard-copy";
   import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import EjectIcon from "@lucide/svelte/icons/eject";
@@ -31,13 +31,13 @@
   import StarIcon from "@lucide/svelte/icons/star";
   import StarOffIcon from "@lucide/svelte/icons/star-off";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
-  import { drag } from "$lib/file-drag/drag.svelte.js";
-  import { canFavorite, favoriteDropIndexAt, moveTo } from "$lib/favorites/favorites.js";
-  import { trackPointerDrag } from "$lib/file-drag/pointer-drag.js";
-  import { atWindowEdge, startNativeDrag } from "$lib/file-drag/native-drag.js";
-  import { isNetworkProtocol } from "$lib/remote/network-locations.js";
+  import { drag } from "#lib/file-drag/drag.svelte.js";
+  import { canFavorite, favoriteDropIndexAt, moveTo } from "#lib/favorites/favorites.js";
+  import { trackPointerDrag } from "#lib/file-drag/pointer-drag.js";
+  import { atWindowEdge, startNativeDrag } from "#lib/file-drag/native-drag.js";
+  import { isNetworkProtocol } from "#lib/remote/network-locations.js";
   import { sidebarLocations, volumeLocations } from "./sidebar-sections.js";
-  import type { LocationStatus } from "$lib/remote/network-status.svelte.js";
+  import type { LocationStatus } from "#lib/remote/network-status.svelte.js";
   import { onMount, tick, type ComponentProps } from "svelte";
 
   let {

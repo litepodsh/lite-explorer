@@ -3,7 +3,7 @@
   // directories end with "/". It knows nothing about where the paths come from.
   import { untrack } from "svelte";
   import { FileTree } from "@pierre/trees";
-  import { trackPointerDrag } from "$lib/file-drag/pointer-drag.js";
+  import { trackPointerDrag } from "#lib/file-drag/pointer-drag.js";
   import { pathsToDrag, rowPathFromEvent, sameSelection, type PathTreeDragHandlers } from "./path-tree.js";
 
   type Props = {

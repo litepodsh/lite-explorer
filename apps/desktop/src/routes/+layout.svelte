@@ -1,7 +1,7 @@
 <script lang="ts">
   import "../app.css";
-  import { applyAppearance, listenForSystemAppearance } from "$lib/settings/appearance.js";
-  import { settings } from "$lib/settings/settings.svelte.js";
+  import { applyAppearance, listenForSystemAppearance } from "#lib/settings/appearance.js";
+  import { settings } from "#lib/settings/settings.svelte.js";
 
   let { children } = $props();
 

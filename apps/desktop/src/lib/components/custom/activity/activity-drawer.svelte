@@ -13,9 +13,9 @@
   import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
   import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
   import XIcon from "@lucide/svelte/icons/x";
-  import { formatSize } from "$lib/components/custom/preview/format.js";
-  import type { JobsStore } from "$lib/transfers/jobs.svelte.js";
-  import { formatJobDuration, isRunning, type Job, type JobFilter, type JobKind } from "$lib/transfers/jobs.js";
+  import { formatSize } from "#lib/components/custom/preview/format.js";
+  import type { JobsStore } from "#lib/transfers/jobs.svelte.js";
+  import { formatJobDuration, isRunning, type Job, type JobFilter, type JobKind } from "#lib/transfers/jobs.js";
 
   let {
     jobs,

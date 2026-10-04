@@ -14,9 +14,9 @@
   import MusicIcon from "@lucide/svelte/icons/music";
   import AlertTriangleIcon from "@lucide/svelte/icons/triangle-alert";
   import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
-  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+  import * as Tooltip from "#lib/components/ui/tooltip/index.js";
   import MediaTool from "./media-tool.svelte";
-  import { openTarget } from "$lib/file-ops/open.js";
+  import { openTarget } from "#lib/file-ops/open.js";
 
   type Props = {
     src: string;

@@ -15,10 +15,10 @@
   import ProtocolMark from "./protocol-mark.svelte";
   import { LocationForm } from "./location-form.svelte.js";
   import { LOCATION_GROUPS, LOCATION_TYPES, type LocationKind } from "./location-types.js";
-  import { formatLocationUrl } from "$lib/remote/location-url.js";
-  import { openLocalNetworkSettings, type DiscoveredServer } from "$lib/remote/network-locations.js";
-  import { NetworkScan } from "$lib/remote/network-scan.svelte.js";
-  import type { Location } from "$lib/tabs/tabs.js";
+  import { formatLocationUrl } from "#lib/remote/location-url.js";
+  import { openLocalNetworkSettings, type DiscoveredServer } from "#lib/remote/network-locations.js";
+  import { NetworkScan } from "#lib/remote/network-scan.svelte.js";
+  import type { Location } from "#lib/tabs/tabs.js";
 
   let {
     open = $bindable(false),

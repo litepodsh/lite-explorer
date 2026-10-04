@@ -1,4 +1,4 @@
-import type { Location } from "$lib/tabs/tabs.js";
+import type { Location } from "#lib/tabs/tabs.js";
 
 const VOLUME_KINDS = new Set(["volume", "hfs-volume", "wsl-volume"]);
 

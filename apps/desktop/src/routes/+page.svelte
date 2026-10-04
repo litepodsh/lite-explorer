@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { dev } from "$app/environment";
+  import { dev } from '$app/env';
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
-  import { devToolsVisible } from "$lib/stores/devTools";
+  import { devToolsVisible } from "#lib/stores/devTools.js";
   import { onMount, tick, untrack } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -20,31 +20,31 @@
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import Rows2Icon from "@lucide/svelte/icons/rows-2";
   import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
-  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-  import FinderSearch from "$lib/components/custom/finder-search.svelte";
-  import AppSidebar from "$lib/components/custom/sidebar/app-sidebar.svelte";
-  import { isVolumeLocation } from "$lib/components/custom/sidebar/sidebar-sections.js";
-  import { addFavorite, fetchFavorites, removeFavorite, reorderFavorites } from "$lib/favorites/favorites.js";
-  import { DragGhost } from "$lib/components/custom/drag-ghost/index.js";
-  import TitleBar from "$lib/components/custom/titlebar/title-bar.svelte";
-  import CommandPalette from "$lib/components/custom/command-palette.svelte";
-  import { platformState } from "$lib/state/platform.svelte.js";
-  import { withTrailingSlash } from "$lib/keyboard/text.js";
-  import { commandPaletteState, openCommandPalette, openCommandPaletteWith } from "$lib/state/command-palette.svelte";
-  import WelcomeDialog from "$lib/components/custom/analytics/welcome-dialog.svelte";
-  import { analytics } from "$lib/analytics/analytics.svelte.js";
-  import AddLocationDialog from "$lib/components/custom/sidebar/add-location/add-location-dialog.svelte";
-  import PasswordPrompt from "$lib/components/custom/sidebar/add-location/password-prompt.svelte";
-  import NewBucketDialog from "$lib/components/custom/remote/new-bucket-dialog.svelte";
-  import BucketSettingsDialog from "$lib/components/custom/remote/bucket-settings-dialog.svelte";
-  import { ConfirmHost, confirmation } from "$lib/components/custom/dialog/index.js";
-  import ConflictHost from "$lib/archive/conflict-host.svelte";
-  import { extraction } from "$lib/archive/extraction.svelte.js";
-  import { FilePane } from "$lib/file-pane/index.js";
-  import { FilePaneController } from "$lib/file-pane/controller.svelte.js";
-  import { PanesStore } from "$lib/panes/panes.svelte.js";
-  import { downloadRemoteItems, removeRemoteLocation, uploadRemoteFiles } from "$lib/remote/remote-locations.js";
-  import { formatLocationUrl } from "$lib/remote/location-url.js";
+  import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+  import FinderSearch from "#lib/components/custom/finder-search.svelte";
+  import AppSidebar from "#lib/components/custom/sidebar/app-sidebar.svelte";
+  import { isVolumeLocation } from "#lib/components/custom/sidebar/sidebar-sections.js";
+  import { addFavorite, fetchFavorites, removeFavorite, reorderFavorites } from "#lib/favorites/favorites.js";
+  import { DragGhost } from "#lib/components/custom/drag-ghost/index.js";
+  import TitleBar from "#lib/components/custom/titlebar/title-bar.svelte";
+  import CommandPalette from "#lib/components/custom/command-palette.svelte";
+  import { platformState } from "#lib/state/platform.svelte.js";
+  import { withTrailingSlash } from "#lib/keyboard/text.js";
+  import { commandPaletteState, openCommandPalette, openCommandPaletteWith } from "#lib/state/command-palette.svelte.js";
+  import WelcomeDialog from "#lib/components/custom/analytics/welcome-dialog.svelte";
+  import { analytics } from "#lib/analytics/analytics.svelte.js";
+  import AddLocationDialog from "#lib/components/custom/sidebar/add-location/add-location-dialog.svelte";
+  import PasswordPrompt from "#lib/components/custom/sidebar/add-location/password-prompt.svelte";
+  import NewBucketDialog from "#lib/components/custom/remote/new-bucket-dialog.svelte";
+  import BucketSettingsDialog from "#lib/components/custom/remote/bucket-settings-dialog.svelte";
+  import { ConfirmHost, confirmation } from "#lib/components/custom/dialog/index.js";
+  import ConflictHost from "#lib/archive/conflict-host.svelte";
+  import { extraction } from "#lib/archive/extraction.svelte.js";
+  import { FilePane } from "#lib/file-pane/index.js";
+  import { FilePaneController } from "#lib/file-pane/controller.svelte.js";
+  import { PanesStore } from "#lib/panes/panes.svelte.js";
+  import { downloadRemoteItems, removeRemoteLocation, uploadRemoteFiles } from "#lib/remote/remote-locations.js";
+  import { formatLocationUrl } from "#lib/remote/location-url.js";
   import {
     describeError,
     getNetworkLocation,
@@ -55,48 +55,48 @@
     trustNetworkHost,
     type ConnectError,
     type TrustRequest,
-  } from "$lib/remote/network-locations.js";
-  import { remapMountPath } from "$lib/remote/network-paths.js";
-  import { networkStatus, type ConnectOutcome } from "$lib/remote/network-status.svelte.js";
-  import { baseName, copyItem, copyItems, moveItems, parentPath } from "$lib/file-ops/files.js";
+  } from "#lib/remote/network-locations.js";
+  import { remapMountPath } from "#lib/remote/network-paths.js";
+  import { networkStatus, type ConnectOutcome } from "#lib/remote/network-status.svelte.js";
+  import { baseName, copyItem, copyItems, moveItems, parentPath } from "#lib/file-ops/files.js";
   import { message } from "@tauri-apps/plugin-dialog";
-  import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
-  import type { DraggedEntry } from "$lib/file-drag/drag.svelte.js";
-  import ActivityDrawer from "$lib/components/custom/activity/activity-drawer.svelte";
-  import TransferToast from "$lib/transfers/transfer-toast.svelte";
-  import { applyDownloadProgress, fileDownloads } from "$lib/transfers/download-progress.svelte.js";
-  import { JobsStore } from "$lib/transfers/jobs.svelte.js";
-  import { activity, isRunning, type TransferEventPayload } from "$lib/transfers/jobs.js";
+  import type { DirectoryEntry } from "#lib/components/custom/file-list/index.js";
+  import type { DraggedEntry } from "#lib/file-drag/drag.svelte.js";
+  import ActivityDrawer from "#lib/components/custom/activity/activity-drawer.svelte";
+  import TransferToast from "#lib/transfers/transfer-toast.svelte";
+  import { applyDownloadProgress, fileDownloads } from "#lib/transfers/download-progress.svelte.js";
+  import { JobsStore } from "#lib/transfers/jobs.svelte.js";
+  import { activity, isRunning, type TransferEventPayload } from "#lib/transfers/jobs.js";
   import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
   import CopyIcon from "@lucide/svelte/icons/copy";
   import ScissorsIcon from "@lucide/svelte/icons/scissors";
   import XIcon from "@lucide/svelte/icons/x";
-  import { OVERVIEW, type Location } from "$lib/tabs/tabs.js";
-  import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import UpdateBanner from "$lib/updates/update-banner.svelte";
-  import ChangelogDialog from "$lib/updates/changelog-dialog.svelte";
-  import { updates } from "$lib/updates/updates.svelte.js";
-  import { whatsNew } from "$lib/updates/whats-new.svelte.js";
-  import { TransferClipboard } from "$lib/transfer-clipboard/queue.svelte.js";
-  import { CommandRegistry } from "$lib/keyboard/commands.js";
-  import { KeyboardDispatcher } from "$lib/keyboard/dispatcher.svelte.js";
-  import { allBindings, appliesTo } from "$lib/keyboard/keymap.js";
-  import { standardCommands } from "$lib/keyboard/app-commands.js";
-  import { formatToken, normalizeToken, toKeyPlatform } from "$lib/keyboard/keys.js";
-  import type { PaletteCommand } from "$lib/components/custom/command-palette.svelte";
-  import WhichKey from "$lib/keyboard/which-key.svelte";
-  import ShortcutsDialog from "$lib/keyboard/shortcuts-dialog.svelte";
-  import type { ShortcutRow } from "$lib/keyboard/shortcuts-filter.js";
-  import type { AppContext } from "$lib/keyboard/context.js";
-  import type { Scope } from "$lib/keyboard/scope.js";
+  import { OVERVIEW, type Location } from "#lib/tabs/tabs.js";
+  import * as Sidebar from "#lib/components/ui/sidebar/index.js";
+  import UpdateBanner from "#lib/updates/update-banner.svelte";
+  import ChangelogDialog from "#lib/updates/changelog-dialog.svelte";
+  import { updates } from "#lib/updates/updates.svelte.js";
+  import { whatsNew } from "#lib/updates/whats-new.svelte.js";
+  import { TransferClipboard } from "#lib/transfer-clipboard/queue.svelte.js";
+  import { CommandRegistry } from "#lib/keyboard/commands.js";
+  import { KeyboardDispatcher } from "#lib/keyboard/dispatcher.svelte.js";
+  import { allBindings, appliesTo } from "#lib/keyboard/keymap.js";
+  import { standardCommands } from "#lib/keyboard/app-commands.js";
+  import { formatToken, normalizeToken, toKeyPlatform } from "#lib/keyboard/keys.js";
+  import type { PaletteCommand } from "#lib/components/custom/command-palette.svelte";
+  import WhichKey from "#lib/keyboard/which-key.svelte";
+  import ShortcutsDialog from "#lib/keyboard/shortcuts-dialog.svelte";
+  import type { ShortcutRow } from "#lib/keyboard/shortcuts-filter.js";
+  import type { AppContext } from "#lib/keyboard/context.js";
+  import type { Scope } from "#lib/keyboard/scope.js";
   import { downloadDir, homeDir } from "@tauri-apps/api/path";
-  import { openShortcuts } from "$lib/state/shortcuts-dialog.svelte.js";
-  import { navigationCommands } from "$lib/keyboard/navigation-commands.js";
-  import { nextRegion, type RegionSlot } from "$lib/keyboard/focus-cycle.js";
-  import { scrollPreview } from "$lib/keyboard/preview-scroll.js";
-  import { settings } from "$lib/settings/settings.svelte.js";
-  import { prefersReducedMotion } from "$lib/swipe/gesture.js";
-  import { Slider } from "$lib/components/ui/slider/index.js";
+  import { openShortcuts } from "#lib/state/shortcuts-dialog.svelte.js";
+  import { navigationCommands } from "#lib/keyboard/navigation-commands.js";
+  import { nextRegion, type RegionSlot } from "#lib/keyboard/focus-cycle.js";
+  import { scrollPreview } from "#lib/keyboard/preview-scroll.js";
+  import { settings } from "#lib/settings/settings.svelte.js";
+  import { prefersReducedMotion } from "#lib/swipe/gesture.js";
+  import { Slider } from "#lib/components/ui/slider/index.js";
 
   // Before any store reads a preference.
   settings.load();
@@ -168,7 +168,7 @@
   let sidebar = $state<ReturnType<typeof AppSidebar>>();
   let transferActivity = $derived(
     (() => {
-      const active = jobs.jobs.find(isRunning);
+    const active = jobs.jobs.find(isRunning);
       return active ? `${active.kind} ${active.label || active.destination}…` : null;
     })(),
   );
@@ -403,7 +403,7 @@
   }
 
   function updatedLocation(previousPath: string, location: Location) {
-    locations = locations.map((candidate) => (candidate.path === previousPath ? location : candidate));
+    locations = locations.map((candidate) => candidate.path === previousPath ? location : candidate);
     // A changed path points at another share, so the old mount state no longer applies.
     if (previousPath !== location.path) networkStatus.forget(previousPath);
     networkStatus.invalidate(location.path);
@@ -439,7 +439,7 @@
   /** Briefly highlights new rows, as after a paste. */
   function markPasted(paths: string[]) {
     pastedPaths = new Set([...pastedPaths, ...paths]);
-    setTimeout(() => (pastedPaths = new Set([...pastedPaths].filter((path) => !paths.includes(path)))), 2800);
+    setTimeout(() => pastedPaths = new Set([...pastedPaths].filter((path) => !paths.includes(path))), 2800);
   }
 
   async function handleExternalDrop(targetPaneId: string, entries: DraggedEntry[], folder?: string) {
@@ -484,7 +484,7 @@
       platformState.current = platform;
       document.documentElement.dataset.platform = detected;
     });
-    void fetchFavorites().then((savedFavorites) => (favorites = savedFavorites));
+    void fetchFavorites().then((savedFavorites) => favorites = savedFavorites);
     void invoke<Location[]>("locations").then((savedLocations) => {
       locations = savedLocations;
       void networkStatus.refresh().catch(() => {});
@@ -500,7 +500,7 @@
     };
     const stopSettings = settings.listen();
     // Focus rings for keyboard regions show only while the keyboard is in use.
-    const markKeyboard = () => (document.documentElement.dataset.keyboard = "");
+    const markKeyboard = () => document.documentElement.dataset.keyboard = "";
     const markPointer = () => delete document.documentElement.dataset.keyboard;
     window.addEventListener("keydown", markKeyboard, true);
     // Capture F5 before focused widgets or the webview can reload the whole app.
@@ -553,8 +553,8 @@
         const previousProgress = fileDownloads.jobs[payload.id];
         const previousFile = previousProgress?.path;
         applyDownloadProgress(payload);
-        if (payload.fileProgress?.path !== previousFile ||
-            ((payload.fileProgress?.bytesDone ?? 0) > 0 && (previousProgress?.bytesDone ?? 0) === 0)) {
+
+        if (payload.fileProgress?.path !== previousFile || (payload.fileProgress?.bytesDone ?? 0) > 0 && (previousProgress?.bytesDone ?? 0) === 0) {
           const file = payload.fileProgress?.path ?? previousFile;
           if (file) {
             const parent = parentPath(file);
@@ -807,15 +807,21 @@
         if (result instanceof Promise) result.catch((error: unknown) => reportCommandError(paletteTitle(id), error));
       },
     })),
-    ...(activeController.canCalculateSizes || activeController.sizeScanning ? [{
-      id: "folder.calculateSizes",
-      title: activeController.sizeScanning ? "Cancel Size Calculation" : "Calculate Folder Sizes",
+
+    ...activeController.canCalculateSizes || activeController.sizeScanning
+      ? [
+        {
+          id: "folder.calculateSizes",
+          title: activeController.sizeScanning ? "Cancel Size Calculation" : "Calculate Folder Sizes",
       keywords: ["medir carpetas", "tamaños", "tamanos", "analizar", "directory sizes", "disk usage"],
-      shortcut: "",
-      run: () => activeController.sizeScanning
-        ? activeController.cancelSizeScan() : void activeController.calculateSizes(),
-    }] : [])],
-  );
+          shortcut: "",
+          run: () => activeController.sizeScanning
+            ? activeController.cancelSizeScan()
+            : void activeController.calculateSizes()
+        }
+      ]
+      : []
+  ]);
 
   /** What keyboard commands act on: the active pane at the moment of the key press. */
   function keyboardContext(scope: Scope): AppContext {
@@ -887,7 +893,7 @@
       },
       checkboxes: { active: () => itemCheckboxes, exit: () => setItemCheckboxes(false) },
       preview: {
-        toggle: () => (controller.previewOpen = !controller.previewOpen),
+        toggle: () => controller.previewOpen = !controller.previewOpen,
         scroll: (direction) => {
           const element = regionElement({ region: "preview", paneId: controller.paneId });
           return element ? scrollPreview(element, direction) : false;
@@ -916,7 +922,7 @@
         toggleKeyboardMode: () =>
           settings.set("keyboardMode", settings.current.keyboardMode === "yazi" ? "standard" : "yazi"),
         toggleHidden: () => settings.set("showHiddenFiles", !settings.current.showHiddenFiles),
-        toggleActivity: () => (activityOpen = !activityOpen),
+        toggleActivity: () => activityOpen = !activityOpen,
         openShortcuts: () => openShortcuts(),
         openSettings: () => invoke<void>("open_settings"),
         setView: (mode) => controller.tabs.update({ viewMode: mode }),
@@ -934,7 +940,7 @@
         controller.setSearchMode("content");
         finderSearch?.focus();
       },
-      togglePalette: () => (commandPaletteState.open = !commandPaletteState.open),
+      togglePalette: () => commandPaletteState.open = !commandPaletteState.open,
       openPalette: (query) => openCommandPaletteWith(query),
       currentPath: () => controller.listingPath,
       focusInside: (selector) => Boolean(document.activeElement?.closest(selector)),
@@ -998,22 +1004,14 @@
       // event per finished top-level item that drains the list above.
       const created: string[] = [];
       if (copy.length) {
-        const entries = await copyItems(
-          copy.map((entry) => entry.path),
-          request.destination,
-          `Copy: ${copy.length} items`,
-          (id) => (pasteJobId = id),
-        );
+        const entries = await copyItems(copy.map((entry) => entry.path), request.destination, `Copy: ${copy.length} items`, (id) => pasteJobId = id);
+
         pasteJobId = null;
         created.push(...entries.map((entry) => entry.path));
       }
       if (move.length && !pasteCancelled) {
-        const entries = await moveItems(
-          move.map((entry) => entry.path),
-          request.destination,
-          `Move: ${move.length} items`,
-          (id) => (pasteJobId = id),
-        );
+        const entries = await moveItems(move.map((entry) => entry.path), request.destination, `Move: ${move.length} items`, (id) => pasteJobId = id);
+
         pasteJobId = null;
         created.push(...entries.map((entry) => entry.path));
       }
@@ -1059,10 +1057,10 @@
 </script>
 
 <svelte:head><title>{activeController.selected} - Lite Explorer</title></svelte:head>
-<svelte:window onkeydown={keyboard.handle} />
+<svelte:window onkeydown={keyboard.handle}></svelte:window>
 
 {#if platform === "windows" || platform === "linux"}
-  <TitleBar {platform} />
+  <TitleBar platform={platform} />
 {/if}
 <Sidebar.Provider
   bind:open={sidebarOpen}
@@ -1072,10 +1070,10 @@
   <AppSidebar
     bind:this={sidebar}
     selected={activeController.tabs.active.location}
-    {favorites}
-    {locations}
+    favorites={favorites}
+    locations={locations}
     onOpen={(location) => openAnyLocation(location)}
-    onAddLocation={() => (addLocationOpen = true)}
+    onAddLocation={() => addLocationOpen = true}
     onRemoveLocation={removeLocation}
     onEditLocation={editLocation}
     onCopyLocationAddress={copyLocationAddress}
@@ -1088,8 +1086,8 @@
     open={sidebarOpen}
     width={sidebarWidth}
     onResize={resizeSidebar}
-    onResizeStart={() => (sidebarResizing = true)}
-    onResizeEnd={() => (sidebarResizing = false)}
+    onResizeStart={() => sidebarResizing = true}
+    onResizeEnd={() => sidebarResizing = false}
     onToggle={toggleSidebar}
     variant="sidebar"
     onOpenPalette={openCommandPalette}
@@ -1124,11 +1122,29 @@
   {/if}
   <ConflictHost />
   <UpdateBanner />
-  <ChangelogDialog bind:open={whatsNew.open} version={whatsNew.version} notes={whatsNew.notes} />
-  <CommandPalette commands={paletteCommands} {favorites} {locations} recents={activeController.recents} onNavigate={(location, opts) => openAnyLocation(location, opts)} />
-  <WhichKey pending={keyboard.pending} enabled={settings.current.showWhichKey} platform={toKeyPlatform(platform)} />
+
+  <ChangelogDialog
+    bind:open={whatsNew.open}
+    version={whatsNew.version}
+    notes={whatsNew.notes}
+  />
+
+  <CommandPalette
+    commands={paletteCommands}
+    favorites={favorites}
+    locations={locations}
+    recents={activeController.recents}
+    onNavigate={(location, opts) => openAnyLocation(location, opts)}
+  />
+
+  <WhichKey
+    pending={keyboard.pending}
+    enabled={settings.current.showWhichKey}
+    platform={toKeyPlatform(platform)}
+  />
+
   <ShortcutsDialog
-    {bindings}
+    bindings={bindings}
     platform={toKeyPlatform(platform)}
     mode={settings.current.keyboardMode}
     available={shortcutAvailable}
@@ -1173,7 +1189,15 @@
               aria-label={activeController.previewOpen ? "Hide preview" : "Show preview"}
               aria-pressed={activeController.previewOpen}
               title={activeController.previewOpen ? "Hide preview" : "Show preview"}
-              onclick={() => (activeController.previewOpen = !activeController.previewOpen)}>{#if activeController.previewOpen}<PanelRightCloseIcon />{:else}<PanelRightOpenIcon />{/if}</button>
+              onclick={() => activeController.previewOpen = !activeController.previewOpen}
+            >
+              {#if activeController.previewOpen}
+                <PanelRightCloseIcon />
+              {:else}
+                <PanelRightOpenIcon />
+              {/if}
+            </button>
+
             <button
               class="toolbar-secondary"
               aria-label={activeController.sizeScanning ? "Cancel Size Calculation" : "Calculate Folder Sizes"}
@@ -1205,7 +1229,8 @@
             aria-pressed={activityOpen}
             title="Activity"
             class="activity-toggle"
-            onclick={() => (activityOpen = !activityOpen)}>
+            onclick={() => activityOpen = !activityOpen}
+          >
             <RotateCwIcon />
             {#if jobs.activeCount > 0}<span class="activity-badge">{jobs.activeCount}</span>{/if}
           </button>
@@ -1245,35 +1270,58 @@
           controller={controllerFor(pane.id)}
           active={pane.id === panes.activeId}
           onActivate={() => panes.setActive(pane.id)}
-          {showHiddenFiles}
-          {itemCheckboxes}
+          showHiddenFiles={showHiddenFiles}
+          itemCheckboxes={itemCheckboxes}
           onEnableCheckboxes={() => setItemCheckboxes(true)}
-          {showFps}
-          {gridZoom}
+          showFps={showFps}
+          gridZoom={gridZoom}
           onGridZoom={adjustGridZoom}
-          {revealLabel}
-          {transferActivity}
+          revealLabel={revealLabel}
+          transferActivity={transferActivity}
           onOpenBucketSettings={openBucketSettings}
-          onNewBucket={() => (newBucketOpen = true)}
+          onNewBucket={() => newBucketOpen = true}
           onReconnect={(location) => reconnect(controllerFor(pane.id), location)}
           onExternalDrop={(paths, options) => handleExternalDrop(pane.id, paths, options)}
           onCrossPaneDrop={(from, to, fromIndex, toIndex) => panes.moveTab(from, to, fromIndex, toIndex)}
-          {favoritePaths}
-          {pastedPaths}
+          favoritePaths={favoritePaths}
+          pastedPaths={pastedPaths}
           keyboardMode={settings.current.keyboardMode}
           pendingKeys={pane.id === panes.activeId && keyboard.pending
             ? keyboard.pending.typed.map((token) => formatToken(token, toKeyPlatform(platform))).join(" ")
             : ""}
-          onToggleFavorite={(entry, add) => (add ? addToFavorites(entry.path) : removeFromFavorites(entry.path))} />
+          onToggleFavorite={(entry, add) => add
+            ? addToFavorites(entry.path)
+            : removeFromFavorites(entry.path)}
+        />
       {/each}
     </div>
-    <ActivityDrawer {jobs} open={activityOpen} onToggle={() => (activityOpen = !activityOpen)} />
-    <TransferToast {jobs} />
+
+    <ActivityDrawer
+      jobs={jobs}
+      open={activityOpen}
+      onToggle={() => activityOpen = !activityOpen}
+    />
+
+    <TransferToast jobs={jobs} />
+
     {#if transferClipboard.items.length}
-      <aside class:open={transferClipboardOpen} class="transfer-clipboard" aria-label="Transfer clipboard">
-        <button class="transfer-clipboard-stack" onclick={() => (transferClipboardOpen = !transferClipboardOpen)} aria-expanded={transferClipboardOpen}>
-          <span class="transfer-clipboard-layer"></span><span class="transfer-clipboard-layer"></span>
-          <span class="transfer-clipboard-front"><CopyIcon class="size-4" /> {transferClipboard.items.length} ready</span>
+      <aside
+        class:open={transferClipboardOpen}
+        class="transfer-clipboard"
+        aria-label="Transfer clipboard"
+      >
+        <button
+          class="transfer-clipboard-stack"
+          onclick={() => transferClipboardOpen = !transferClipboardOpen}
+          aria-expanded={transferClipboardOpen}
+        >
+          <span class="transfer-clipboard-layer"></span>
+          <span class="transfer-clipboard-layer"></span>
+
+          <span class="transfer-clipboard-front">
+            <CopyIcon class="size-4" />
+            {transferClipboard.items.length} ready
+          </span>
         </button>
         {#if transferClipboardOpen}
           <div class="transfer-clipboard-panel">

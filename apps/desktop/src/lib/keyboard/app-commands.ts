@@ -97,7 +97,7 @@ export function standardCommands(): AppCommand[] {
       title: "Open Terminal Here",
       when: (context) => !context.list.remote() && isLocalFolder(context.currentPath()),
       run: async (context) => {
-        const { openTerminalHere } = await import("$lib/terminal/open-terminal.js");
+        const { openTerminalHere } = await import("#lib/terminal/open-terminal.js");
         await openTerminalHere(context.currentPath());
       },
     },

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import DialogButton from "$lib/components/custom/dialog/dialog-button.svelte";
-  import DialogShell from "$lib/components/custom/dialog/dialog-shell.svelte";
+  import DialogButton from "#lib/components/custom/dialog/dialog-button.svelte";
+  import DialogShell from "#lib/components/custom/dialog/dialog-shell.svelte";
   import {
     formatDate,
     noteLines,

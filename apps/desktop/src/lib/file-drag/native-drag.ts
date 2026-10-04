@@ -1,6 +1,6 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import { isNetworkPath } from "$lib/remote/network-locations.js";
-import { isRemotePath } from "$lib/remote/remote-locations.js";
+import { isNetworkPath } from "#lib/remote/network-locations.js";
+import { isRemotePath } from "#lib/remote/remote-locations.js";
 
 export type DragIcon = "folder" | "file" | "drive";
 

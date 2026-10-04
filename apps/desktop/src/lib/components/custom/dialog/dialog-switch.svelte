@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { Switch } from "$lib/components/ui/switch/index.js";
+  import { Switch } from "#lib/components/ui/switch/index.js";
 
   let {
     checked = false,

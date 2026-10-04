@@ -1,7 +1,7 @@
 <script lang="ts">
   import DownloadIcon from "@lucide/svelte/icons/download";
   import XIcon from "@lucide/svelte/icons/x";
-  import { formatSize } from "$lib/components/custom/preview/format.js";
+  import { formatSize } from "#lib/components/custom/preview/format.js";
   import { updates } from "./updates.svelte.js";
   import { whatsNew } from "./whats-new.svelte.js";
 

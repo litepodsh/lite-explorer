@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { activity } from "$lib/transfers/jobs.js";
+  import { activity } from "#lib/transfers/jobs.js";
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import FolderOpenIcon from "@lucide/svelte/icons/folder-open";
   import { ask } from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
-  import { formatSize } from "$lib/components/custom/preview/format.js";
+  import { formatSize } from "#lib/components/custom/preview/format.js";
 
   let {
     trashBytes,

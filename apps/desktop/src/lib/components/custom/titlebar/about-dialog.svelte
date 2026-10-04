@@ -1,6 +1,6 @@
 <script lang="ts">
-  import * as Dialog from "$lib/components/ui/dialog/index.js";
-  import { appMenu } from "$lib/menu/app-menu.svelte.js";
+  import * as Dialog from "#lib/components/ui/dialog/index.js";
+  import { appMenu } from "#lib/menu/app-menu.svelte.js";
 </script>
 
 <Dialog.Root

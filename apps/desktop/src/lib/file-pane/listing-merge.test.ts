@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
+import type { DirectoryEntry } from "#lib/components/custom/file-list/index.js";
 import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
 
 function entry(path: string, extra: Partial<DirectoryEntry> = {}): DirectoryEntry {

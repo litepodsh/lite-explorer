@@ -1,7 +1,7 @@
 <script lang="ts">
   // Name-collision decision for one item: Skip, Keep both or Replace. Replacing a
   // folder needs a hold-to-confirm step. Closing without a choice is Skip.
-  import { formatDate } from "$lib/components/custom/preview/format.js";
+  import { formatDate } from "#lib/components/custom/preview/format.js";
   import DialogButton from "./dialog-button.svelte";
   import DialogShell from "./dialog-shell.svelte";
   import HoldToConfirm from "./hold-to-confirm.svelte";
