@@ -21,6 +21,7 @@ use super::{
     load_settings, network_path, parse_network_path, to_db, Auth, ConnectError, ErrorKind,
     Protocol, Security, Settings, KEYCHAIN_SERVICE,
 };
+use crate::app::error::AppError;
 use crate::remote::read_optional_secret;
 use crate::remote::transfer::{self, TransferEvent, TransferRegistry};
 use crate::{
@@ -35,6 +36,10 @@ mod ftp;
 mod sftp;
 
 pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+/// Upper bound for a single short operation (list, stat, mkdir, …).
+pub const OPERATION_TIMEOUT: Duration = Duration::from_secs(30);
+/// Without new bytes for this long, a transfer is assumed dead.
+pub const INACTIVITY_TIMEOUT: Duration = Duration::from_secs(30);
 const CHUNK: usize = 256 * 1024;
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(150);
 /// Largest file "Open" copies to the local cache.
@@ -295,33 +300,60 @@ macro_rules! dispatch {
     };
 }
 
+/// Like `dispatch!` but bounds the whole call with the operation timeout.
+macro_rules! timeout_dispatch {
+    ($self:ident . $method:ident ( $($argument:expr),* )) => {
+        timeout_op(async {
+            match $self {
+                Session::Sftp(connection) => connection.$method($($argument),*).await,
+                Session::Ftp(connection) => connection.$method($($argument),*).await,
+            }
+        })
+        .await
+    };
+}
+
+/// Bounds a single short session operation. Transfers (download/upload) use
+/// their own inactivity timeout instead of this overall bound.
+async fn timeout_op<T>(
+    call: impl std::future::Future<Output = Result<T, ConnectError>>,
+) -> Result<T, ConnectError> {
+    match tokio::time::timeout(OPERATION_TIMEOUT, call).await {
+        Err(_) => Err(ConnectError::new(
+            ErrorKind::Timeout,
+            "The server didn’t answer in time.",
+        )),
+        Ok(result) => result,
+    }
+}
+
 impl Session {
     pub async fn home(&self) -> Result<String, ConnectError> {
-        dispatch!(self.home())
+        timeout_dispatch!(self.home())
     }
     async fn list(&self, dir: &str) -> Result<Vec<RemoteEntry>, ConnectError> {
-        dispatch!(self.list(dir))
+        timeout_dispatch!(self.list(dir))
     }
     async fn stat(&self, path: &str) -> Result<RemoteEntry, ConnectError> {
-        dispatch!(self.stat(path))
+        timeout_dispatch!(self.stat(path))
     }
     async fn mkdir(&self, path: &str) -> Result<(), ConnectError> {
-        dispatch!(self.mkdir(path))
+        timeout_dispatch!(self.mkdir(path))
     }
     async fn create_file(&self, path: &str) -> Result<(), ConnectError> {
-        dispatch!(self.create_file(path))
+        timeout_dispatch!(self.create_file(path))
     }
     async fn rename(&self, from: &str, to: &str) -> Result<(), ConnectError> {
-        dispatch!(self.rename(from, to))
+        timeout_dispatch!(self.rename(from, to))
     }
     async fn remove_file(&self, path: &str) -> Result<(), ConnectError> {
-        dispatch!(self.remove_file(path))
+        timeout_dispatch!(self.remove_file(path))
     }
     async fn remove_dir(&self, path: &str) -> Result<(), ConnectError> {
-        dispatch!(self.remove_dir(path))
+        timeout_dispatch!(self.remove_dir(path))
     }
     async fn read_head(&self, path: &str, max: usize) -> Result<Vec<u8>, ConnectError> {
-        dispatch!(self.read_head(path, max))
+        timeout_dispatch!(self.read_head(path, max))
     }
     async fn download(
         &self,
@@ -459,19 +491,35 @@ impl Sessions {
     }
 }
 
-/// Runs a session call, reconnecting once when the connection was lost.
-macro_rules! with_session {
-    ($sessions:expr, $pool:expr, $id:expr, |$session:ident| $call:expr) => {{
-        let $session = $sessions.connect($pool, $id, None).await?;
-        match $call {
-            Err(error) if error.kind == ErrorKind::Unreachable => {
-                $sessions.forget_broken($id).await;
-                let $session = $sessions.connect($pool, $id, None).await?;
-                $call
+/// Runs a session call, reconnecting with short backoff when the connection was
+/// lost. Only `Unreachable` is retried (never Auth/NotFound), and only for
+/// idempotent reads: Transfers are not retried here to avoid duplicating data.
+async fn retry_unreachable<F, T>(
+    sessions: &Sessions,
+    pool: &SqlitePool,
+    id: &str,
+    mut call: F,
+) -> Result<T, ConnectError>
+where
+    F: for<'a> FnMut(
+        &'a Session,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<T, ConnectError>> + Send + 'a>,
+    >,
+{
+    let mut backoff = Duration::from_millis(500);
+    for attempt in 0..3 {
+        let session = sessions.connect(pool, id, None).await?;
+        match call(&session).await {
+            Err(error) if error.kind == ErrorKind::Unreachable && attempt < 2 => {
+                sessions.forget_broken(id).await;
+                tokio::time::sleep(backoff).await;
+                backoff *= 2;
             }
-            result => result,
+            result => return result,
         }
-    }};
+    }
+    unreachable!("the loop above runs 3 attempts and returns on the last one")
 }
 
 /// A server path split into location and absolute server path.
@@ -525,9 +573,13 @@ pub async fn list_directory(
     path: &str,
 ) -> Result<Vec<DirectoryEntry>, String> {
     let at = server_path(path)?;
-    let entries = with_session!(sessions, pool, &at.id, |session| session
-        .list(&at.remote)
-        .await)?;
+    let remote_dir = at.remote.clone();
+    let entries = retry_unreachable(sessions, pool, &at.id, move |session| {
+        let remote_dir = remote_dir.clone();
+        Box::pin(async move { session.list(&remote_dir).await })
+    })
+    .await
+    .map_err(|error| error.message)?;
     Ok(entries
         .into_iter()
         .map(|entry| directory_entry(&at, &at.remote, entry))
@@ -549,7 +601,7 @@ pub async fn create_item(
     parent_path: &str,
     kind: &str,
     name: &str,
-) -> Result<DirectoryEntry, String> {
+) -> Result<DirectoryEntry, AppError> {
     let at = server_path(parent_path)?;
     let trimmed = name.trim();
     if trimmed.is_empty() || trimmed.contains('/') {
@@ -578,7 +630,7 @@ pub async fn rename_item(
     sessions: &Sessions,
     path: &str,
     new_name: &str,
-) -> Result<DirectoryEntry, String> {
+) -> Result<DirectoryEntry, AppError> {
     let at = server_path(path)?;
     let trimmed = new_name.trim();
     if trimmed.is_empty() || trimmed.contains('/') {
@@ -589,7 +641,9 @@ pub async fn rename_item(
     let target = join(&dir, trimmed);
     if target != at.remote {
         if sibling_names(&session, &dir).await?.contains(trimmed) {
-            return Err(format!("An item named “{trimmed}” already exists."));
+            return Err(AppError::other(format!(
+                "An item named “{trimmed}” already exists."
+            )));
         }
         session.rename(&at.remote, &target).await?;
     }
@@ -603,7 +657,7 @@ pub async fn move_item(
     sessions: &Sessions,
     path: &str,
     destination: &str,
-) -> Result<DirectoryEntry, String> {
+) -> Result<DirectoryEntry, AppError> {
     let (from, to) = (server_path(path)?, server_path(destination)?);
     if from.id != to.id {
         return Err("Items can only be moved within the same server.".into());
@@ -637,7 +691,7 @@ pub async fn delete_items(
     pool: &SqlitePool,
     sessions: &Sessions,
     paths: &[String],
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     for path in paths {
         let at = server_path(path)?;
         if at.remote == "/" {
@@ -1053,7 +1107,12 @@ async fn run_upload(
             continue;
         }
         progress.start_file(file_name(&step.remote));
-        session.upload(&step.local, &step.remote, progress).await?;
+        if let Err(error) = session.upload(&step.local, &step.remote, progress).await {
+            // 4d: SFTP no garantiza rename atómico; el archivo remoto puede
+            // haber quedado a medias. Limpiar el parcial es el mínimo viable.
+            let _ = session.remove_file(&step.remote).await;
+            return Err(error);
+        }
         progress.finish_file();
     }
     Ok(())
@@ -1074,7 +1133,7 @@ pub async fn upload_files(
     transfers: &TransferRegistry,
     destination: String,
     sources: Vec<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let at = server_path(&destination)?;
     let session = sessions.connect(pool, &at.id, None).await?;
     let mut names = sibling_names(&session, &at.remote).await?;
@@ -1099,10 +1158,13 @@ pub async fn download_items(
     transfers: &TransferRegistry,
     paths: Vec<String>,
     destination: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let folder = PathBuf::from(&destination);
     if !folder.is_dir() {
-        return Err(format!("{} is not a folder", folder.display()));
+        return Err(AppError::other(format!(
+            "{} is not a folder",
+            folder.display()
+        )));
     }
     let first = server_path(paths.first().ok_or("Nothing to download")?)?;
     let session = sessions.connect(pool, &first.id, None).await?;
@@ -1144,7 +1206,7 @@ pub async fn copy_item(
     sessions: &Sessions,
     path: &str,
     destination: &str,
-) -> Result<DirectoryEntry, String> {
+) -> Result<DirectoryEntry, AppError> {
     match (parse_server_path(path), parse_server_path(destination)) {
         (Some(_), Some(_)) => Err(
             "Copying within a server isn’t supported. Download the item and upload it again."
@@ -1153,14 +1215,17 @@ pub async fn copy_item(
         (Some(from), None) => {
             let folder = PathBuf::from(destination);
             if !folder.is_dir() {
-                return Err(format!("{} is not a folder", folder.display()));
+                return Err(AppError::other(format!(
+                    "{} is not a folder",
+                    folder.display()
+                )));
             }
             let session = sessions.connect(pool, &from.id, None).await?;
             let item = session.stat(&from.remote).await?;
             let top = folder.join(crate::unique_name(&folder, &item.name));
             let steps = plan_download(&session, &from.remote, top.clone(), &item).await?;
             run_download(&session, &steps, &mut Progress::silent()).await?;
-            crate::single_entry(&top)
+            crate::single_entry(&top).map_err(AppError::from)
         }
         (None, Some(to)) => {
             let session = sessions.connect(pool, &to.id, None).await?;

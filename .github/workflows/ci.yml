@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -76,3 +77,80 @@ jobs:
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: bun run tauri build --no-bundle ${{ matrix.args }}
+
+  test:
+    name: Test (Linux)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential curl file patchelf \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          key: ci-test-${{ runner.os }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: bun install --frozen-lockfile
+
+      - name: Tests TypeScript
+        working-directory: ${{ env.APP_DIR }}
+        run: bun run test:ts
+
+      - name: Tests Rust
+        working-directory: ${{ env.APP_DIR }}
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Lint TypeScript
+        working-directory: ${{ env.APP_DIR }}
+        run: bunx oxlint src
+
+      - name: Svelte check
+        working-directory: ${{ env.APP_DIR }}
+        run: bun run check
+
+      - name: Clippy (warnings are errors)
+        working-directory: ${{ env.APP_DIR }}
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+  test-macos:
+    name: Test (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          key: ci-test-macos
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: bun install --frozen-lockfile
+
+      - name: Tests TypeScript
+        working-directory: ${{ env.APP_DIR }}
+        run: bun run test:ts
+
+      - name: Tests Rust
+        working-directory: ${{ env.APP_DIR }}
+        run: cargo test --manifest-path src-tauri/Cargo.toml

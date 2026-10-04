@@ -3,6 +3,7 @@
 //! listing, preview and copy go through the local file code. All functions block.
 
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 #[allow(unused_imports)]
 use super::{ConnectError, ErrorKind, Protocol, Security};
@@ -116,7 +117,9 @@ pub fn mounted_shares(_target: &Target) -> Vec<(String, PathBuf)> {
 #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
 pub fn mount(target: &Target, credentials: &Credentials) -> Result<PathBuf, ConnectError> {
     require_share(target)?;
-    platform::mount(target, credentials)
+    let local = platform::mount(target, credentials)?;
+    register_mount(target, &local);
+    Ok(local)
 }
 
 /// Local folder of `target.path` when the share is already mounted.
@@ -129,6 +132,33 @@ pub fn find_mounted(target: &Target) -> Option<PathBuf> {
 #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
 pub fn unmount(target: &Target, local: &Path) -> Result<(), ConnectError> {
     platform::unmount(target, local)
+}
+
+/// Mounts created by this app session, so on exit only these are unmounted —
+/// never a share the user mounted on their own.
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+static SESSION_MOUNTS: OnceLock<Mutex<Vec<(Target, PathBuf)>>> = OnceLock::new();
+
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+fn register_mount(target: &Target, local: &Path) {
+    SESSION_MOUNTS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap()
+        .push((target.clone(), local.to_path_buf()));
+}
+
+/// Unmounts only the shares this app session mounted. Best-effort: a platform
+/// (or the OS) may refuse, which is fine for an on-exit cleanup.
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+pub fn cleanup_session_mounts() {
+    let Some(session) = SESSION_MOUNTS.get() else {
+        return;
+    };
+    let mounts = session.lock().unwrap();
+    for (target, local) in mounts.iter() {
+        let _ = platform::unmount(target, local);
+    }
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]

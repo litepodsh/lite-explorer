@@ -19,7 +19,10 @@ use russh_sftp::{
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::super::{ConnectError, ErrorKind};
-use super::{join, lost, untrusted, Progress, RemoteEntry, ServerTarget, CHUNK, CONNECT_TIMEOUT};
+use super::{
+    join, lost, untrusted, Progress, RemoteEntry, ServerTarget, CHUNK, CONNECT_TIMEOUT,
+    INACTIVITY_TIMEOUT,
+};
 
 pub struct SftpConnection {
     handle: client::Handle<HostKeyCheck>,
@@ -275,10 +278,24 @@ impl SftpConnection {
     pub async fn read_head(&self, path: &str, max: usize) -> Result<Vec<u8>, ConnectError> {
         let file = self.sftp.open(path).await.map_err(sftp_error)?;
         let mut bytes = Vec::new();
-        file.take(max as u64)
-            .read_to_end(&mut bytes)
-            .await
-            .map_err(|_| lost())?;
+        let mut reader = file;
+        let mut buffer = vec![0u8; CHUNK];
+        while bytes.len() < max {
+            let read =
+                match tokio::time::timeout(INACTIVITY_TIMEOUT, reader.read(&mut buffer)).await {
+                    Err(_) => {
+                        return Err(ConnectError::new(
+                            ErrorKind::Timeout,
+                            "The transfer stalled — no data received.",
+                        ))
+                    }
+                    Ok(result) => result.map_err(|_| lost())?,
+                };
+            if read == 0 {
+                break;
+            }
+            bytes.extend_from_slice(&buffer[..read]);
+        }
         Ok(bytes)
     }
 
@@ -297,7 +314,16 @@ impl SftpConnection {
             if progress.cancelled() {
                 return Err(ConnectError::other("Canceled."));
             }
-            let read = remote.read(&mut buffer).await.map_err(|_| lost())?;
+            let read =
+                match tokio::time::timeout(INACTIVITY_TIMEOUT, remote.read(&mut buffer)).await {
+                    Err(_) => {
+                        return Err(ConnectError::new(
+                            ErrorKind::Timeout,
+                            "The transfer stalled — no data received.",
+                        ))
+                    }
+                    Ok(result) => result.map_err(|_| lost())?,
+                };
             if read == 0 {
                 break;
             }
@@ -329,10 +355,16 @@ impl SftpConnection {
             if read == 0 {
                 break;
             }
-            remote
-                .write_all(&buffer[..read])
-                .await
-                .map_err(|_| lost())?;
+            match tokio::time::timeout(INACTIVITY_TIMEOUT, remote.write_all(&buffer[..read])).await
+            {
+                Err(_) => {
+                    return Err(ConnectError::new(
+                        ErrorKind::Timeout,
+                        "The transfer stalled — the server stopped accepting data.",
+                    ))
+                }
+                Ok(result) => result.map_err(|_| lost())?,
+            }
             progress.add_bytes(read as u64);
         }
         remote.shutdown().await.map_err(|_| lost())

@@ -4,6 +4,10 @@
   "description": "",
   "license": "MIT",
   "type": "module",
+  "imports": {
+    "#lib": "./src/lib/index.js",
+    "#lib/*": "./src/lib/*"
+  },
   "scripts": {
     "dev": "bun run gen:changelog && vite dev",
     "build": "bun run gen:changelog && vite build",
@@ -13,6 +17,11 @@
     "changelog": "bun scripts/changelog.ts",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "test:ts": "bun test --path-ignore-patterns \"**/controller.test.ts\" && vitest run src/lib/file-pane/controller.test.ts",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "lint:ts": "oxlint src",
+    "lint:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "test": "bun run test:ts",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -67,9 +76,5 @@
     "vaul-svelte": "^1.0.0-next.7",
     "vite": "^8.0.16",
     "vitest": "^5.0.0"
-  },
-  "imports": {
-    "#lib": "./src/lib/index.js",
-    "#lib/*": "./src/lib/*"
   }
 }

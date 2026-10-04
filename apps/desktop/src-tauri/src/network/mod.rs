@@ -4,4 +4,5 @@ mod mount;
 mod network;
 pub mod servers;
 
+pub use mount::cleanup_session_mounts;
 pub use network::*;

@@ -27,7 +27,10 @@ function flush() {
 
 export function requestThumbnails(paths: readonly string[]) {
   for (const path of paths) if (!thumbnails.has(path) && !pending.has(path)) pending.add(path);
-  if (pending.size && !scheduled) { scheduled = true; queueMicrotask(flush); }
+  if (pending.size && !scheduled) {
+    scheduled = true;
+    queueMicrotask(flush);
+  }
 }
 
 export function thumbnailFor(path: string) {

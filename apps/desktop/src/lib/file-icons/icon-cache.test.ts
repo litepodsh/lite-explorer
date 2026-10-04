@@ -1,7 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, mock } from "bun:test";
 
-const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
-vi.mock("@tauri-apps/api/core", () => ({ invoke }));
+var invoke: ReturnType<typeof mock>;
+mock.module("@tauri-apps/api/core", () => {
+  invoke = mock(() => {});
+  return { invoke };
+});
 
 import { iconFor, MAX_MEMORY_ENTRIES, requestIcon, resetIconCache } from "./icon-cache.svelte.js";
 
@@ -10,15 +13,27 @@ afterEach(() => {
   invoke.mockReset();
 });
 
+async function waitFor(assert: () => void): Promise<void> {
+  for (let i = 0; i < 50; i++) {
+    try {
+      assert();
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  assert();
+}
+
 describe("icon cache", () => {
   it("batches every request in a tick into one call", async () => {
     invoke.mockResolvedValue(["data:a", "data:b"]);
     requestIcon("/a");
     requestIcon("/b");
 
-    await vi.waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
     expect(invoke).toHaveBeenCalledWith("file_icons", { paths: ["/a", "/b"] });
-    await vi.waitFor(() => expect(iconFor("/b")).toBe("data:b"));
+    await waitFor(() => expect(iconFor("/b")).toBe("data:b"));
   });
 
   it("does not re-request queued or cached paths", async () => {
@@ -26,7 +41,7 @@ describe("icon cache", () => {
     requestIcon("/a");
     requestIcon("/a");
 
-    await vi.waitFor(() => expect(iconFor("/a")).toBeNull());
+    await waitFor(() => expect(iconFor("/a")).toBeNull());
     requestIcon("/a");
     await Promise.resolve();
 
@@ -37,7 +52,7 @@ describe("icon cache", () => {
     invoke.mockRejectedValue(new Error("no icon"));
     requestIcon("/a");
 
-    await vi.waitFor(() => expect(iconFor("/a")).toBeNull());
+    await waitFor(() => expect(iconFor("/a")).toBeNull());
     requestIcon("/a");
     await Promise.resolve();
 
@@ -49,7 +64,7 @@ describe("icon cache", () => {
     invoke.mockResolvedValue(paths.map((path) => `data:${path}`));
     paths.forEach(requestIcon);
 
-    await vi.waitFor(() => expect(iconFor(paths.at(-1)!)).toBe(`data:${paths.at(-1)}`));
+    await waitFor(() => expect(iconFor(paths.at(-1)!)).toBe(`data:${paths.at(-1)}`));
     expect(iconFor(paths[0])).toBeUndefined();
   });
 });

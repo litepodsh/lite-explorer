@@ -63,6 +63,33 @@ export type TrustRequest = {
 /** Error shape of the network commands. `trust` comes with host key and certificate kinds. */
 export type ConnectError = { kind: ConnectErrorKind; message: string; trust?: TrustRequest };
 
+/** Structured error from the file/remote/archive commands (Fase 1). */
+export type AppErrorKind =
+  | "io"
+  | "notFound"
+  | "permissionDenied"
+  | "invalidPath"
+  | "timeout"
+  | "unreachable"
+  | "cancelled"
+  | "partial"
+  | "unsupported"
+  | "panic"
+  | "other";
+
+export type FailedItem = { path: string; error: string };
+
+export type AppError = {
+  kind: AppErrorKind;
+  path?: string;
+  message?: string;
+  operation?: string;
+  completed?: number;
+  total?: number;
+  failed?: FailedItem[];
+  feature?: string;
+};
+
 export type ConnectionCheck = { message: string };
 
 /** SMB server found on the local network by Bonjour or by probing port 445. */
@@ -294,10 +321,54 @@ const ERROR_COPY: Partial<Record<ConnectErrorKind, string>> = {
   certificate_untrusted: "This computer doesn’t trust the server’s certificate.",
 };
 
-/** User-facing copy. Kinds whose backend message already names the server keep that message. */
-export function describeError(error: ConnectError): string {
+const APP_ERROR_COPY: Partial<Record<AppErrorKind, string>> = {
+  notFound: "This item no longer exists.",
+  permissionDenied: "You don’t have permission to change this item.",
+  invalidPath: "That’s not a valid location.",
+  timeout: "The operation timed out.",
+  unreachable: "The server can’t be reached.",
+  cancelled: "Cancelled.",
+  panic: "Something went wrong inside the app.",
+  unsupported: "This operation isn’t supported here.",
+};
+
+function describeAppError(error: AppError): string {
+  if (error.kind === "partial") {
+    const failed = error.failed?.length ?? 0;
+    const completed = error.completed ?? 0;
+    const total = error.total ?? completed + failed;
+    const first = error.failed?.[0];
+    const detail = first ? `, starting with ${first.path}` : "";
+    return `Completed ${completed} of ${total} items. ${failed} failed${detail}.`;
+  }
+  return (
+    error.message ||
+    APP_ERROR_COPY[error.kind] ||
+    `Couldn’t${error.path ? ` operate on ${error.path}` : " complete the operation"}.`
+  );
+}
+
+/**
+ * User-facing copy for both error shapes. Kinds whose backend message already
+ * names the server keep that message.
+ */
+export function describeError(error: ConnectError | AppError | string | unknown): string {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "kind" in error) {
+    const candidate = error as ConnectError | AppError;
+    if (isConnectErrorKinds(candidate.kind)) return describeConnectError(candidate as ConnectError);
+    return describeAppError(candidate as AppError);
+  }
+  return String(error ?? "");
+}
+
+function describeConnectError(error: ConnectError): string {
   return error.message || ERROR_COPY[error.kind] || "Couldn’t connect to the server.";
 }
+
+const isConnectErrorKinds = (kind: string): kind is ConnectErrorKind =>
+  (ERROR_KINDS as readonly string[]).includes(kind);
 
 export function needsTrust(error: ConnectError): error is ConnectError & { trust: TrustRequest } {
   return (

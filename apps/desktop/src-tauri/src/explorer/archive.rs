@@ -21,6 +21,7 @@ use ruzstd::decoding::StreamingDecoder;
 use serde::{Deserialize, Serialize};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
+use crate::app::error::AppError;
 use crate::explorer::local_path::{
     child_path, validate_directory, validate_existing, ExpectedKind,
 };
@@ -975,7 +976,7 @@ pub fn extract_targets(
     name = "create_archive",
     fields(sentry_op = "archive.create")
 )]
-pub async fn create_archive(paths: Vec<String>, destination: String) -> Result<(), String> {
+pub async fn create_archive(paths: Vec<String>, destination: String) -> Result<(), AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         let paths: Result<Vec<PathBuf>, String> = paths
             .iter()
@@ -990,7 +991,8 @@ pub async fn create_archive(paths: Vec<String>, destination: String) -> Result<(
         create(&paths?, &child_path(parent, name)?)
     })
     .await
-    .map_err(|error| error.to_string())?
+    .map_err(crate::app::error::from_join)?
+    .map_err(AppError::from)
 }
 
 /// Path of the external 7-Zip binary, or `None` when it is not installed.
@@ -1005,16 +1007,19 @@ pub async fn list_archive(
     database: tauri::State<'_, crate::Database>,
     clients: tauri::State<'_, crate::remote::RemoteClients>,
     path: String,
-) -> Result<ArchiveListing, String> {
+) -> Result<ArchiveListing, AppError> {
     if crate::remote::is_remote_path(&path) {
-        return crate::remote::list_archive(&database.0, &clients, &path).await;
+        return crate::remote::list_archive(&database.0, &clients, &path)
+            .await
+            .map_err(AppError::from);
     }
     tauri::async_runtime::spawn_blocking(move || {
         let path = validate_existing(Path::new(&path), ExpectedKind::File)?;
         read_listing(&path, Some(LIST_LIMIT))
     })
     .await
-    .map_err(to_string)?
+    .map_err(crate::app::error::from_join)?
+    .map_err(AppError::from)
 }
 
 #[tauri::command]
@@ -1023,14 +1028,15 @@ pub async fn plan_extraction(
     archive: String,
     destination: String,
     entries: Option<Vec<String>>,
-) -> Result<Vec<ExtractionTarget>, String> {
+) -> Result<Vec<ExtractionTarget>, AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         let archive = validate_existing(Path::new(&archive), ExpectedKind::File)?;
         let destination = validate_directory(Path::new(&destination))?;
         plan(&archive, &destination, entries.as_deref())
     })
     .await
-    .map_err(to_string)?
+    .map_err(crate::app::error::from_join)?
+    .map_err(AppError::from)
 }
 
 /// Extracts under a job id chosen by the frontend and resolves when the job ends.
@@ -1049,7 +1055,7 @@ pub async fn extract_archive(
     destination: String,
     entries: Option<Vec<String>>,
     resolutions: HashMap<String, Resolution>,
-) -> Result<ExtractionOutcome, String> {
+) -> Result<ExtractionOutcome, AppError> {
     let token = registry.register(&job_id);
     let id = job_id.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
@@ -1104,9 +1110,9 @@ pub async fn extract_archive(
         outcome
     })
     .await
-    .map_err(to_string);
+    .map_err(crate::app::error::from_join);
     registry.remove(&job_id);
-    result?
+    result.and_then(|inner| inner.map_err(AppError::from))
 }
 
 #[cfg(test)]

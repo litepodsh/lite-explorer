@@ -8,7 +8,6 @@ import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
-// @ts-expect-error type error without @types/node package
 import process from "node:process";
 const host = process.env.TAURI_DEV_HOST;
 
@@ -18,8 +17,8 @@ export default defineConfig(() => ({
     tailwindcss(),
     sveltekit({
       preprocess: vitePreprocess(),
-      adapter: adapter({ fallback: "index.html" })
-    })
+      adapter: adapter({ fallback: "index.html" }),
+    }),
   ],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

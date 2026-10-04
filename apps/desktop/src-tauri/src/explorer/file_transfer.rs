@@ -13,6 +13,7 @@ use tauri::{AppHandle, State};
 use tokio_util::sync::CancellationToken;
 
 use crate::app::db::Database;
+use crate::app::error::{AppError, FailedItem};
 use crate::explorer::entries::{
     coordinated_read, coordinated_write, single_entry, unique_name, DirectoryEntry,
 };
@@ -188,11 +189,12 @@ fn sort_dirs(dirs: Vec<PathBuf>) -> Vec<PathBuf> {
 
 /// Removes the trees in parallel, files first then directories.
 /// Returns `false` when cancelled or when some entries could not be removed.
+/// The failed paths are returned per item so callers can report `Partial`.
 pub fn delete_tree_parallel(
     roots: &[PathBuf],
     is_cancelled: &(dyn Fn() -> bool + Sync),
     on_file: impl Fn() + Sync + Send,
-) -> bool {
+) -> (bool, Vec<FailedItem>) {
     let (files, dirs) = collect_delete_tree(roots, is_cancelled);
     delete_planned(files, dirs, is_cancelled, on_file)
 }
@@ -204,28 +206,35 @@ pub fn delete_planned(
     dirs: Vec<PathBuf>,
     is_cancelled: &(dyn Fn() -> bool + Sync),
     on_file: impl Fn() + Sync + Send,
-) -> bool {
+) -> (bool, Vec<FailedItem>) {
     if is_cancelled() {
-        return false;
+        return (false, Vec::new());
     }
-    let files_ok = Mutex::new(true);
+    let failed = Mutex::new(Vec::<FailedItem>::new());
     run_workers(files, is_cancelled, |path| {
         if fs::remove_file(&path).is_ok() {
             on_file();
         } else {
-            *files_ok.lock().unwrap() = false;
+            failed.lock().unwrap().push(FailedItem {
+                path: path.to_string_lossy().into_owned(),
+                error: "Could not delete this file".into(),
+            });
         }
     });
     if is_cancelled() {
-        return false;
+        return (false, failed.into_inner().unwrap());
     }
-    let dirs_ok = Mutex::new(true);
     run_workers(dirs, is_cancelled, |path| {
         if fs::remove_dir(&path).is_err() {
-            *dirs_ok.lock().unwrap() = false;
+            failed.lock().unwrap().push(FailedItem {
+                path: path.to_string_lossy().into_owned(),
+                error: "Could not remove this folder".into(),
+            });
         }
     });
-    files_ok.into_inner().unwrap() && dirs_ok.into_inner().unwrap() && !is_cancelled()
+    let failed = failed.into_inner().unwrap();
+    let complete = failed.is_empty() && !is_cancelled();
+    (complete, failed)
 }
 
 /// Depth-first scanner feeding a streaming delete. Files are batched onto the
@@ -285,25 +294,28 @@ impl DeleteScanner<'_> {
 /// removal starts on the first directory read instead of after a full pre-scan.
 /// Batching keeps the per-message channel/lock cost marginal when deleting many
 /// small files. `on_discovered` reports the running count of files found;
-/// `on_files` reports how many files a worker removed.
+/// `on_files` reports how many files a worker removed. Returns whether the whole
+/// tree was removed plus the failed items for callers that report `Partial`.
 pub fn delete_tree_streaming(
     roots: &[PathBuf],
     is_cancelled: &(dyn Fn() -> bool + Sync),
     on_discovered: impl Fn(u64),
     on_files: impl Fn(u64) + Sync + Send,
-) -> bool {
+) -> (bool, Vec<FailedItem>) {
     if is_cancelled() {
-        return false;
+        return (false, Vec::new());
     }
     let (tx, rx) = mpsc::sync_channel::<Vec<PathBuf>>(DELETE_QUEUE_BATCHES);
     let rx = Arc::new(Mutex::new(rx));
     let dirs = Mutex::new(Vec::new());
     let files_ok = AtomicBool::new(true);
+    let failed = Mutex::new(Vec::<FailedItem>::new());
 
     thread::scope(|scope| {
         for _ in 0..worker_count(usize::MAX) {
             let rx = Arc::clone(&rx);
             let files_ok = &files_ok;
+            let failed = &failed;
             let on_files = &on_files;
             scope.spawn(move || loop {
                 let batch = {
@@ -322,6 +334,10 @@ pub fn delete_tree_streaming(
                         removed += 1;
                     } else {
                         files_ok.store(false, Ordering::Relaxed);
+                        failed.lock().unwrap().push(FailedItem {
+                            path: path.to_string_lossy().into_owned(),
+                            error: "Could not delete this file".into(),
+                        });
                     }
                 }
                 if removed > 0 {
@@ -350,16 +366,22 @@ pub fn delete_tree_streaming(
     });
 
     if is_cancelled() || !files_ok.load(Ordering::Relaxed) {
-        return false;
+        return (false, failed.into_inner().unwrap());
     }
     let dirs = sort_dirs(dirs.into_inner().unwrap());
     let dirs_ok = AtomicBool::new(true);
     run_workers(dirs, is_cancelled, |path| {
         if fs::remove_dir(&path).is_err() {
             dirs_ok.store(false, Ordering::Relaxed);
+            failed.lock().unwrap().push(FailedItem {
+                path: path.to_string_lossy().into_owned(),
+                error: "Could not remove this folder".into(),
+            });
         }
     });
-    dirs_ok.load(Ordering::Relaxed) && !is_cancelled()
+    let failed = failed.into_inner().unwrap();
+    let complete = dirs_ok.load(Ordering::Relaxed) && failed.is_empty() && !is_cancelled();
+    (complete, failed)
 }
 
 struct FileTask {
@@ -449,11 +471,11 @@ fn plan_copy_tree(
     (tasks, complete.into_inner() && !is_cancelled())
 }
 
-/// Copies one file. On macOS this prefers an APFS copy-on-write clone, which is
-/// effectively instant for same-volume copies; anything else falls back to a
-/// normal byte copy. `clonefile` refuses to overwrite, and the target is always
-/// new here.
-fn copy_one(source: &Path, target: &Path) -> std::io::Result<()> {
+/// Copies one file to `target` (does not need to exist yet). On macOS this
+/// prefers an APFS copy-on-write clone, which is effectively instant for
+/// same-volume copies; anything else falls back to a normal byte copy.
+/// `clonefile` refuses to overwrite, and `target` is always new here.
+fn copy_to_path(source: &Path, target: &Path) -> std::io::Result<()> {
     #[cfg(target_os = "macos")]
     {
         use std::{ffi::CString, os::unix::ffi::OsStrExt};
@@ -470,6 +492,33 @@ fn copy_one(source: &Path, target: &Path) -> std::io::Result<()> {
     fs::copy(source, target).map(|_| ())
 }
 
+/// Path used to stage a file before committing it with an atomic rename.
+/// Lives in the target's directory so the rename never crosses volumes.
+fn staging_path(target: &Path) -> PathBuf {
+    let name = target.file_name().unwrap_or_default().to_string_lossy();
+    target.with_file_name(format!(".{name}.partial-{}", uuid::Uuid::new_v4()))
+}
+
+/// Commits a copy atomically: writes to a `.partial-{uuid}` staging file next
+/// to `target` and renames it into place. The destination never shows a
+/// half-written file; failures and cancellation remove the staging file.
+fn copy_one_atomic(source: &Path, target: &Path) -> std::io::Result<()> {
+    let staging = staging_path(target);
+    match copy_to_path(source, &staging) {
+        Ok(()) => match fs::rename(&staging, target) {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                let _ = fs::remove_file(&staging);
+                Err(error)
+            }
+        },
+        Err(error) => {
+            let _ = fs::remove_file(&staging);
+            Err(error)
+        }
+    }
+}
+
 /// Copies already-planned tasks in parallel, reporting bytes and completed files.
 fn copy_file_tasks(
     tasks: Vec<FileTask>,
@@ -479,7 +528,7 @@ fn copy_file_tasks(
 ) -> bool {
     let copied = Mutex::new(true);
     run_workers(tasks, is_cancelled, |task| {
-        if copy_one(&task.source, &task.target).is_ok() {
+        if copy_one_atomic(&task.source, &task.target).is_ok() {
             on_bytes(task.size);
             on_file();
         } else {
@@ -744,83 +793,115 @@ pub async fn delete_items(
     paths: Vec<String>,
     permanent: bool,
     job_id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     if paths.is_empty() {
-        return Err("No paths to delete".into());
+        return Err(AppError::other("No paths to delete"));
     }
     let token = transfers.register(&job_id);
     let remove_id = job_id.clone();
-    let outcome = tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
-        let roots: Result<Vec<PathBuf>, String> = paths
-            .iter()
-            .map(|path| validate_existing(Path::new(path), ExpectedKind::Any))
-            .collect();
-        let roots = roots?;
-        let is_cancelled = || token.is_cancelled();
-        let label = format!("Delete {} items", roots.len());
-        if permanent {
-            // No pre-scan: scanning and unlinking overlap so removal starts on
-            // the first directory read. The total grows as files are discovered.
-            let progress = FileOpProgress::new(
-                app,
-                token.clone(),
-                job_id,
-                "delete",
-                label,
-                String::new(),
-                0,
-                0,
-            );
-            let mut complete = true;
-            for root in &roots {
-                complete &= coordinated_write(root, || {
-                    Ok(delete_tree_streaming(
-                        std::slice::from_ref(root),
-                        &is_cancelled,
-                        |discovered| progress.set_total(discovered),
-                        |removed| progress.add_files(removed),
-                    ))
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        crate::app::error::guarded(move || -> Result<(), AppError> {
+            let roots: Result<Vec<PathBuf>, AppError> = paths
+                .iter()
+                .map(|path| {
+                    validate_existing(Path::new(path), ExpectedKind::Any).map_err(AppError::from)
                 })
-                .unwrap_or(false);
-            }
-            if is_cancelled() || complete {
-                progress.finish();
-            } else {
-                progress.fail("Some items could not be deleted".into());
-            }
-        } else {
-            // Trash moves whole roots atomically, so there is nothing to measure
-            // first: start the move immediately and count roots as items.
-            let progress = FileOpProgress::new(
-                app,
-                token.clone(),
-                job_id,
-                "delete",
-                label,
-                String::new(),
-                roots.len() as u64,
-                0,
-            );
-            let ok = Mutex::new(true);
-            run_workers(roots, &is_cancelled, |root| {
-                let result =
-                    coordinated_write(&root, || crate::explorer::file_ops::trash_local_item(&root));
-                match result {
-                    Ok(()) => progress
-                        .finish_file(&root.file_name().unwrap_or_default().to_string_lossy()),
-                    Err(_) => *ok.lock().unwrap() = false,
+                .collect();
+            let roots = roots?;
+            let is_cancelled = || token.is_cancelled();
+            let label = format!("Delete {} items", roots.len());
+            if permanent {
+                // No pre-scan: scanning and unlinking overlap so removal starts on
+                // the first directory read. The total grows as files are discovered.
+                let progress = FileOpProgress::new(
+                    app,
+                    token.clone(),
+                    job_id,
+                    "delete",
+                    label,
+                    String::new(),
+                    0,
+                    0,
+                );
+                let mut failed: Vec<FailedItem> = Vec::new();
+                for root in &roots {
+                    let result = coordinated_write(root, || {
+                        Ok(delete_tree_streaming(
+                            std::slice::from_ref(root),
+                            &is_cancelled,
+                            |discovered| progress.set_total(discovered),
+                            |removed| progress.add_files(removed),
+                        ))
+                    });
+                    match result {
+                        Ok((true, _)) => {}
+                        Ok((false, items)) => failed.extend(items),
+                        Err(error) => failed.push(FailedItem {
+                            path: root.to_string_lossy().into_owned(),
+                            error,
+                        }),
+                    }
                 }
-            });
-            if is_cancelled() || ok.into_inner().unwrap() {
-                progress.finish();
+                if is_cancelled() {
+                    progress.finish();
+                    return Err(AppError::cancelled());
+                }
+                if failed.is_empty() {
+                    progress.finish();
+                    Ok(())
+                } else {
+                    progress.fail("Some items could not be deleted".into());
+                    Err(AppError::partial(
+                        roots.len() - failed.len(),
+                        roots.len(),
+                        failed,
+                    ))
+                }
             } else {
-                progress.fail("Some items could not be moved to the Trash".into());
+                // Trash moves whole roots atomically, so there is nothing to measure
+                // first: start the move immediately and count roots as items.
+                let progress = FileOpProgress::new(
+                    app,
+                    token.clone(),
+                    job_id,
+                    "delete",
+                    label,
+                    String::new(),
+                    roots.len() as u64,
+                    0,
+                );
+                let failed: Mutex<Vec<FailedItem>> = Mutex::new(Vec::new());
+                let total = roots.len();
+                run_workers(roots, &is_cancelled, |root| {
+                    let result = coordinated_write(&root, || {
+                        crate::explorer::file_ops::trash_local_item(&root)
+                    });
+                    match result {
+                        Ok(()) => progress
+                            .finish_file(&root.file_name().unwrap_or_default().to_string_lossy()),
+                        Err(error) => failed.lock().unwrap().push(FailedItem {
+                            path: root.to_string_lossy().into_owned(),
+                            error,
+                        }),
+                    }
+                });
+                let failed = failed.into_inner().unwrap();
+                if is_cancelled() {
+                    progress.finish();
+                    return Err(AppError::cancelled());
+                }
+                if failed.is_empty() {
+                    progress.finish();
+                    Ok(())
+                } else {
+                    progress.fail("Some items could not be moved to the Trash".into());
+                    Err(AppError::partial(total - failed.len(), total, failed))
+                }
             }
-        }
-        Ok(())
+        })
     })
     .await
-    .map_err(|error| error.to_string())?;
+    .map_err(crate::app::error::from_join)?;
     transfers.remove(&remove_id);
     outcome
 }
@@ -834,21 +915,21 @@ pub async fn copy_items(
     paths: Vec<String>,
     destination: String,
     job_id: String,
-) -> Result<Vec<DirectoryEntry>, String> {
+) -> Result<Vec<DirectoryEntry>, AppError> {
     let dest = PathBuf::from(&destination);
-    let planned = plan_targets(&paths, &dest)?;
+    let planned = plan_targets(&paths, &dest).map_err(AppError::from)?;
     if planned.is_empty() {
-        return Err("No paths to copy".into());
+        return Err(AppError::other("No paths to copy"));
     }
     let token = transfers.register(&job_id);
     let remove_id = job_id.clone();
-    let entries =
-        tauri::async_runtime::spawn_blocking(move || -> Result<Vec<DirectoryEntry>, String> {
+    let entries = tauri::async_runtime::spawn_blocking(move || {
+        crate::app::error::guarded(move || -> Result<Vec<DirectoryEntry>, AppError> {
             let is_cancelled = || token.is_cancelled();
             // Plan every tree once: creates the directory skeleton on the target
             // and yields the exact file/byte totals without a second walk.
             let mut groups: Vec<(PathBuf, PathBuf, Vec<FileTask>)> = Vec::new();
-            let mut complete = true;
+            let mut failed: Vec<FailedItem> = Vec::new();
             for (source, target) in &planned {
                 if is_cancelled() {
                     break;
@@ -860,10 +941,18 @@ pub async fn copy_items(
                     Ok(plan_copy_tree(source, target, device, &is_cancelled))
                 }) {
                     Ok((tasks, ok)) => {
-                        complete &= ok;
+                        if !ok {
+                            failed.push(FailedItem {
+                                path: source.to_string_lossy().into_owned(),
+                                error: "Some files could not be planned".into(),
+                            });
+                        }
                         groups.push((source.clone(), target.clone(), tasks));
                     }
-                    Err(_) => complete = false,
+                    Err(error) => failed.push(FailedItem {
+                        path: source.to_string_lossy().into_owned(),
+                        error,
+                    }),
                 }
             }
             let files_total: u64 = groups.iter().map(|(_, _, tasks)| tasks.len() as u64).sum();
@@ -905,18 +994,31 @@ pub async fn copy_items(
                         produced.lock().unwrap().push(entry);
                         progress.finish_item(&source.to_string_lossy());
                     }
-                    Err(_) => complete = false,
+                    Err(error) => failed.push(FailedItem {
+                        path: source.to_string_lossy().into_owned(),
+                        error,
+                    }),
                 }
             }
-            if is_cancelled() || complete {
+            if is_cancelled() {
                 progress.finish();
+                return Err(AppError::cancelled());
+            }
+            if failed.is_empty() {
+                progress.finish();
+                Ok(produced.into_inner().unwrap())
             } else {
                 progress.fail("Some items could not be copied".into());
+                Err(AppError::partial(
+                    produced.lock().unwrap().len(),
+                    planned.len(),
+                    failed,
+                ))
             }
-            Ok(produced.into_inner().unwrap())
         })
-        .await
-        .map_err(|error| error.to_string())??;
+    })
+    .await
+    .map_err(crate::app::error::from_join)??;
     transfers.remove(&remove_id);
     for entry in &entries {
         let _ = insert_recent(
@@ -939,22 +1041,22 @@ pub async fn move_items(
     paths: Vec<String>,
     destination: String,
     job_id: String,
-) -> Result<Vec<DirectoryEntry>, String> {
+) -> Result<Vec<DirectoryEntry>, AppError> {
     let dest = PathBuf::from(&destination);
-    let planned = plan_targets(&paths, &dest)?;
+    let planned = plan_targets(&paths, &dest).map_err(AppError::from)?;
     if planned.is_empty() {
-        return Err("No paths to move".into());
+        return Err(AppError::other("No paths to move"));
     }
     let token = transfers.register(&job_id);
     let remove_id = job_id.clone();
     let entries =
-        tauri::async_runtime::spawn_blocking(move || -> Result<Vec<DirectoryEntry>, String> {
+        tauri::async_runtime::spawn_blocking(move || crate::app::error::guarded(move || -> Result<Vec<DirectoryEntry>, AppError> {
             let is_cancelled = || token.is_cancelled();
             let label = format!("Move {} items", planned.len());
             let produced = Mutex::new(Vec::<DirectoryEntry>::new());
+            let failed: Mutex<Vec<FailedItem>> = Mutex::new(Vec::new());
             if planned.iter().all(|(source, _)| same_device(source, &dest)) {
                 // Same volume: a rename per item is atomic and needs no walk.
-                let mut complete = true;
                 let progress = FileOpProgress::new(
                     app.clone(),
                     token.clone(),
@@ -981,17 +1083,29 @@ pub async fn move_items(
                             produced.lock().unwrap().push(entry);
                             progress.finish_item(&source.to_string_lossy());
                         }
-                        Err(_) => complete = false,
+                        Err(error) => failed.lock().unwrap().push(FailedItem {
+                            path: source.to_string_lossy().into_owned(),
+                            error,
+                        }),
                     }
                 }
-                if is_cancelled() || complete {
+                if is_cancelled() {
                     progress.finish();
+                    return Err(AppError::cancelled());
+                }
+                if failed.lock().unwrap().is_empty() {
+                    progress.finish();
+                    Ok(produced.into_inner().unwrap())
                 } else {
                     progress.fail("Some items could not be moved".into());
+                    Err(AppError::partial(
+                        produced.lock().unwrap().len(),
+                        planned.len(),
+                        failed.into_inner().unwrap(),
+                    ))
                 }
             } else {
                 // Cross volume: plan once for exact totals, then copy and delete.
-                let mut complete = true;
                 let mut groups: Vec<(PathBuf, PathBuf, Vec<FileTask>)> = Vec::new();
                 for (source, target) in &planned {
                     if is_cancelled() {
@@ -1004,10 +1118,18 @@ pub async fn move_items(
                         Ok(plan_copy_tree(source, target, device, &is_cancelled))
                     }) {
                         Ok((tasks, ok)) => {
-                            complete &= ok;
+                            if !ok {
+                                failed.lock().unwrap().push(FailedItem {
+                                    path: source.to_string_lossy().into_owned(),
+                                    error: "Some files could not be planned".into(),
+                                });
+                            }
                             groups.push((source.clone(), target.clone(), tasks));
                         }
-                        Err(_) => complete = false,
+                        Err(error) => failed.lock().unwrap().push(FailedItem {
+                            path: source.to_string_lossy().into_owned(),
+                            error,
+                        }),
                     }
                 }
                 let files_total: u64 = groups.iter().map(|(_, _, tasks)| tasks.len() as u64).sum();
@@ -1038,12 +1160,26 @@ pub async fn move_items(
                                 |bytes| progress.add_bytes(bytes),
                                 || {},
                             );
-                            let removed = copied
-                                && delete_tree_parallel(
-                                    std::slice::from_ref(&source),
-                                    &is_cancelled,
-                                    || {},
-                                );
+                            let (deleted, delete_failed) = delete_tree_parallel(
+                                std::slice::from_ref(&source),
+                                &is_cancelled,
+                                || {},
+                            );
+                            let removed = copied && deleted;
+                            if copied && !deleted {
+                                // 4b: the copy was atomic and committed; only the
+                                // source removal failed. Report per item with a
+                                // retry hint instead of a silent "both" state.
+                                for item in delete_failed {
+                                    failed.lock().unwrap().push(FailedItem {
+                                        path: item.path,
+                                        error: format!(
+                                            "Copied to the destination, but the original could not be deleted: {}",
+                                            item.error
+                                        ),
+                                    });
+                                }
+                            }
                             if removed {
                                 progress.finish_file(&target.to_string_lossy());
                             }
@@ -1058,19 +1194,31 @@ pub async fn move_items(
                             produced.lock().unwrap().push(entry);
                             progress.finish_item(&source.to_string_lossy());
                         }
-                        Err(_) => complete = false,
+                        Err(error) => failed.lock().unwrap().push(FailedItem {
+                            path: source.to_string_lossy().into_owned(),
+                            error,
+                        }),
                     }
                 }
-                if is_cancelled() || complete {
+                if is_cancelled() {
                     progress.finish();
+                    return Err(AppError::cancelled());
+                }
+                if failed.lock().unwrap().is_empty() {
+                    progress.finish();
+                    Ok(produced.into_inner().unwrap())
                 } else {
                     progress.fail("Some items could not be moved".into());
+                    Err(AppError::partial(
+                        produced.lock().unwrap().len(),
+                        planned.len(),
+                        failed.into_inner().unwrap(),
+                    ))
                 }
             }
-            Ok(produced.into_inner().unwrap())
-        })
+        }))
         .await
-        .map_err(|error| error.to_string())??;
+        .map_err(crate::app::error::from_join)??;
     transfers.remove(&remove_id);
     for entry in &entries {
         let _ = insert_recent(
@@ -1110,13 +1258,13 @@ mod tests {
         fs::create_dir_all(root.join("nested/empty")).unwrap();
         fs::write(root.join("one"), [0; 3]).unwrap();
         fs::write(root.join("nested/two"), [0; 7]).unwrap();
-        let stats = measure_tree(&[root.clone()], &never);
+        let stats = measure_tree(std::slice::from_ref(&root), &never);
         assert_eq!((stats.files, stats.bytes, stats.complete), (2, 10, true));
 
         #[cfg(unix)]
         {
             std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
-            let with_link = measure_tree(&[root.clone()], &never);
+            let with_link = measure_tree(std::slice::from_ref(&root), &never);
             let link_len = fs::symlink_metadata(root.join("loop")).unwrap().len();
             assert_eq!((with_link.files, with_link.bytes), (3, 10 + link_len));
         }
@@ -1137,10 +1285,11 @@ mod tests {
         fs::write(root.join("one"), [0; 3]).unwrap();
         fs::write(root.join("nested/two"), [0; 7]).unwrap();
         let seen = std::sync::atomic::AtomicU64::new(0);
-        let complete = delete_tree_parallel(&[root.clone()], &never, || {
+        let (complete, failed) = delete_tree_parallel(std::slice::from_ref(&root), &never, || {
             seen.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         });
         assert!(complete);
+        assert!(failed.is_empty());
         assert_eq!(seen.load(std::sync::atomic::Ordering::Relaxed), 2);
         assert!(!root.exists());
     }
@@ -1152,7 +1301,8 @@ mod tests {
         for index in 0..8 {
             fs::write(root.join(format!("file-{index}")), [0; 1]).unwrap();
         }
-        let complete = delete_tree_parallel(&[root.clone()], &|| true, || {});
+        let (complete, _failed) =
+            delete_tree_parallel(std::slice::from_ref(&root), &|| true, || {});
         assert!(!complete);
         fs::remove_dir_all(&root).unwrap();
     }
@@ -1165,8 +1315,8 @@ mod tests {
         fs::write(root.join("nested/two"), [0; 7]).unwrap();
         let discovered = AtomicU64::new(0);
         let removed = AtomicU64::new(0);
-        let complete = delete_tree_streaming(
-            &[root.clone()],
+        let (complete, failed) = delete_tree_streaming(
+            std::slice::from_ref(&root),
             &never,
             |count| discovered.store(count, Ordering::Relaxed),
             |count| {
@@ -1174,6 +1324,7 @@ mod tests {
             },
         );
         assert!(complete);
+        assert!(failed.is_empty());
         assert_eq!(discovered.load(Ordering::Relaxed), 2);
         assert_eq!(removed.load(Ordering::Relaxed), 2);
         assert!(!root.exists());
@@ -1187,8 +1338,8 @@ mod tests {
             fs::write(root.join("bulk").join(format!("f-{index}")), b"x").unwrap();
         }
         let removed = AtomicU64::new(0);
-        let complete = delete_tree_streaming(
-            &[root.clone()],
+        let (complete, failed) = delete_tree_streaming(
+            std::slice::from_ref(&root),
             &never,
             |_| {},
             |count| {
@@ -1196,6 +1347,7 @@ mod tests {
             },
         );
         assert!(complete);
+        assert!(failed.is_empty());
         assert_eq!(removed.load(Ordering::Relaxed), 5000);
         assert!(!root.exists());
     }
@@ -1207,7 +1359,8 @@ mod tests {
         for index in 0..8 {
             fs::write(root.join(format!("file-{index}")), [0; 1]).unwrap();
         }
-        let complete = delete_tree_streaming(&[root.clone()], &|| true, |_| {}, |_| {});
+        let (complete, _failed) =
+            delete_tree_streaming(std::slice::from_ref(&root), &|| true, |_| {}, |_| {});
         assert!(!complete);
         fs::remove_dir_all(&root).unwrap();
     }
@@ -1222,8 +1375,10 @@ mod tests {
         #[cfg(unix)]
         {
             std::os::unix::fs::symlink(outside.join("keep"), root.join("link")).unwrap();
-            let complete = delete_tree_streaming(&[root.clone()], &never, |_| {}, |_| {});
+            let (complete, failed) =
+                delete_tree_streaming(std::slice::from_ref(&root), &never, |_| {}, |_| {});
             assert!(complete);
+            assert!(failed.is_empty());
             assert!(!root.exists());
             assert!(outside.join("keep").exists());
         }
@@ -1272,9 +1427,127 @@ mod tests {
     }
 
     #[test]
+    fn copy_one_atomic_commits_without_leftover_staging() {
+        let dir = temp_dir("atomic");
+        fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("src.bin");
+        let target = dir.join("dst.bin");
+        fs::write(&source, [1, 2, 3, 4]).unwrap();
+
+        copy_one_atomic(&source, &target).unwrap();
+
+        assert_eq!(fs::read(&target).unwrap(), [1, 2, 3, 4]);
+        // El staging se renombra: no queda ningún `.partial-*` en el destino.
+        let leftovers = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.contains(".partial-"))
+            .collect::<Vec<_>>();
+        assert!(
+            leftovers.is_empty(),
+            "leftover staging files: {leftovers:?}"
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn copy_one_atomic_missing_source_leaves_no_target() {
+        let dir = temp_dir("atomic-missing");
+        fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("dst.bin");
+
+        let result = copy_one_atomic(&dir.join("missing.bin"), &target);
+
+        assert!(result.is_err());
+        assert!(!target.exists());
+        let leftovers = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.contains(".partial-"))
+            .collect::<Vec<_>>();
+        assert!(
+            leftovers.is_empty(),
+            "leftover staging files: {leftovers:?}"
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn delete_planned_reports_failed_items() {
+        let dir = temp_dir("planned-fail");
+        fs::create_dir_all(dir.join("keep")).unwrap();
+        fs::write(dir.join("keep/file.txt"), [0; 1]).unwrap();
+        fs::write(dir.join("broken"), [0; 1]).unwrap();
+
+        // Un archivo desaparecido no se reporta como fallo (ya no existe) —
+        // pero un dir que no se puede borrar sí. Simular con un path que apunta
+        // a un archivo abierto por nosotros: en macOS/Unix fallar.
+
+        // Borrar un path inexistente: remove_file falla → FailedItem.
+        let (complete, failed) = delete_planned(
+            vec![dir.join("keep/file.txt"), dir.join("gone.txt")],
+            vec![dir.join("keep")],
+            &never,
+            || {},
+        );
+        // El archivo `gone.txt` no existía... pero `dir/keep` existe y se borra, y
+        // `keep/file.txt` se borra. El fallo es el `gone.txt`. `complete` depende
+        // de que el recurso `gone.txt` falló.
+        assert!(!complete);
+        assert!(
+            failed.iter().any(|item| item.path.ends_with("gone.txt")),
+            "expected gone.txt in failed: {failed:?}"
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn delete_tree_streaming_reports_failed_items() {
+        let dir = temp_dir("stream-fail");
+        fs::create_dir_all(dir.join("locked")).unwrap();
+        fs::write(dir.join("locked/secret.txt"), [0; 1]).unwrap();
+        fs::write(dir.join("ok.txt"), [0; 1]).unwrap();
+
+        // [cfg(unix)]: un dir sin permiso de escritura hace que remove_file de
+        // sus archivos falle con PermissionDenied → el scanner lo reporta.
+        // En CI (no-root) y macOS es portable; root ignora permisos, por eso el
+        // assert comprueba failed no vacío solo cuando el permiso aplicó.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let locked = dir.join("locked");
+            fs::set_permissions(&locked, fs::Permissions::from_mode(0o555)).unwrap();
+            let (complete, failed) =
+                delete_tree_streaming(std::slice::from_ref(&dir), &never, |_| {}, |_| {});
+            fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
+            if std::process::id() != 0 {
+                assert!(!complete);
+                assert!(
+                    failed.iter().any(|item| item.path.ends_with("secret.txt")),
+                    "expected secret.txt in failed: {failed:?}"
+                );
+            } else {
+                assert!(complete, "root ignores permissions; cannot force a failure");
+            }
+            fs::remove_dir_all(&dir).unwrap();
+        }
+        #[cfg(not(unix))]
+        {
+            // Sin permisos Unix portables: la lógica de recolección de fallos
+            // ya se cubre en `delete_planned_reports_failed_items`.
+            fs::remove_dir_all(&dir).unwrap();
+        }
+    }
+
+    #[test]
     fn plan_targets_rejects_missing_destination() {
         let missing = temp_dir("plan-missing");
         let error = plan_targets(&["/tmp/x".to_string()], &missing).unwrap_err();
-        assert!(error.contains("not a directory"));
+        assert!(error.contains("Invalid local path"));
     }
 }

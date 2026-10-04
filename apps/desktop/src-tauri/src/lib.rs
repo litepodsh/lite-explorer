@@ -210,4 +210,6 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+    // 5e: unmount only the shares this app session created.
+    network::cleanup_session_mounts();
 }

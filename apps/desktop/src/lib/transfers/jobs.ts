@@ -1,5 +1,37 @@
 import type { FileProgress } from "./download-progress.js";
 
+/** AppError returned by the Rust commands (Fase 1): `{ kind, path?, message?, failed? }`. */
+export type AppErrorLike = {
+  kind?: string;
+  path?: string;
+  message?: string;
+  completed?: number;
+  total?: number;
+  failed?: { path: string; error: string }[];
+};
+
+/** Turns any thrown value (string, Error, or serialized AppError) into drawer copy. */
+export function jobErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (typeof error === "object" && error !== null) {
+    const candidate = error as AppErrorLike;
+    if (candidate.kind === "partial") {
+      const completed = candidate.completed ?? 0;
+      const total = candidate.total ?? completed + (candidate.failed?.length ?? 0);
+      const first = candidate.failed?.[0]?.path;
+      const detail = first ? `, starting with ${first}` : "";
+      return `Completed ${completed} of ${total} items. ${candidate.failed?.length ?? 0} failed${detail}.`;
+    }
+    if (typeof candidate.message === "string" && candidate.message) return candidate.message;
+    if (typeof candidate.kind === "string") {
+      const path = candidate.path ? ` on ${candidate.path}` : "";
+      return `Operation failed${path} (${candidate.kind}).`;
+    }
+  }
+  return String(error);
+}
+
 export type JobKind =
   | "upload"
   | "download"
@@ -27,6 +59,12 @@ export type Job = {
   state: JobState;
   cancellable?: boolean;
   error?: string;
+  /** Re-runs the job with its original arguments. Set locally (not by Rust). */
+  retry?: () => Promise<unknown>;
+  /** Re-runs only the paths that failed in a `Partial` batch error. */
+  retryFailed?: () => Promise<unknown>;
+  /** Paths from the `Partial` error; drives the "Retry N items" label. */
+  failedPaths?: string[];
   startedAt: number;
   finishedAt?: number;
 };
@@ -45,6 +83,13 @@ export type TransferEventPayload = {
   state: JobState;
   cancellable?: boolean;
   error?: string | null;
+  /**
+   * Local-only, set by `trackJob`/`activity.fail` so the drawer can retry a
+   * failed job with its original arguments. Never sent by the Rust backend.
+   */
+  retry?: () => Promise<unknown>;
+  retryFailed?: () => Promise<unknown>;
+  failedPaths?: string[];
   startedAt?: number;
   finishedAt?: number | null;
   /** Set once when a whole queued item finished, so lists can drop it early. */
@@ -78,6 +123,11 @@ export function upsert(state: Job[], event: TransferEventPayload): Job[] {
     state: event.state,
     error: event.error ?? undefined,
     cancellable: event.cancellable,
+    // Retry handlers live on the local Job; keep the latest non-undefined value
+    // so an active re-run event does not wipe a failed job's retry closure.
+    retry: event.retry ?? existing?.retry,
+    retryFailed: event.retryFailed ?? existing?.retryFailed,
+    failedPaths: event.failedPaths ?? existing?.failedPaths,
     startedAt: existing?.startedAt ?? event.startedAt ?? now,
     finishedAt: running ? undefined : (existing?.finishedAt ?? event.finishedAt ?? now),
   };
@@ -131,7 +181,8 @@ export async function trackJob<T>(
       ...event,
       state: "failed",
       finishedAt: Date.now(),
-      error: error instanceof Error ? error.message : String(error),
+      error: jobErrorMessage(error),
+      retry: () => operation(),
     });
     throw error;
   }
@@ -157,7 +208,18 @@ export const activity = {
     });
     return id;
   },
-  fail(id: string, kind: JobKind, label: string, destination: string, error: unknown): void {
+  fail(
+    id: string,
+    kind: JobKind,
+    label: string,
+    destination: string,
+    error: unknown,
+    retry?: {
+      retry?: () => Promise<unknown>;
+      retryFailed?: () => Promise<unknown>;
+      failedPaths?: string[];
+    },
+  ): void {
     this.publish({
       id,
       kind,
@@ -168,7 +230,10 @@ export const activity = {
       bytesTotal: 0,
       bytesDone: 0,
       state: "failed",
-      error: error instanceof Error ? error.message : String(error),
+      error: jobErrorMessage(error),
+      retry: retry?.retry,
+      retryFailed: retry?.retryFailed,
+      failedPaths: retry?.failedPaths,
       startedAt: Date.now(),
       finishedAt: Date.now(),
     });

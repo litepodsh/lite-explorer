@@ -49,7 +49,7 @@ pub fn eject_volume(path: String) -> Result<(), String> {
         if output.status.success() {
             return Ok(());
         }
-        return Err(String::from_utf8_lossy(&output.stderr).trim().to_owned());
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_owned())
     }
 
     #[cfg(not(target_os = "macos"))]

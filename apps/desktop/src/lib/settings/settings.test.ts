@@ -74,7 +74,7 @@ describe("parseSettings", () => {
   });
 
   test("keeps valid appearance values and replaces invalid ones", () => {
-    const { settings, problems } = parseSettings(
+    const { settings } = parseSettings(
       JSON.stringify({
         theme: "oled",
         themeMode: "system",

@@ -112,7 +112,8 @@ mod tests {
     #[test]
     fn accepts_paths_under_symlinked_ancestors() {
         use std::os::unix::fs::symlink;
-        let root = std::env::temp_dir().join(format!("liteexplorer-ancestor-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("liteexplorer-ancestor-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let real = root.join("real");
         fs::create_dir_all(real.join("child")).unwrap();
