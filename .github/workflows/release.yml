@@ -60,6 +60,28 @@ jobs:
             exit 1
           fi
 
+      # git-cliff needs the full history and tags to find the commits since the last release.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      # Release notes from the conventional commits (feat:, fix:, ...) since the previous tag.
+      # A pushed tag already exists; a manual run may name a tag that isn't created yet.
+      - name: Generate release notes
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git checkout -q "$TAG"
+            git-cliff --config cliff.toml --current --strip all > "$RUNNER_TEMP/notes.md"
+          else
+            git-cliff --config cliff.toml --unreleased --tag "$TAG" --strip all > "$RUNNER_TEMP/notes.md"
+          fi
+          cat "$RUNNER_TEMP/notes.md"
+
       - name: Create or reuse the draft release
         id: release
         env:
@@ -67,7 +89,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require("fs");
             const tag = process.env.TAG;
+            const notes = fs.readFileSync(`${process.env.RUNNER_TEMP}/notes.md`, "utf8").trim();
             const draft = process.env.DRAFT === "true";
             const { owner, repo } = context.repo;
             // Drafts aren't returned by getReleaseByTag, so look through the list.
@@ -82,7 +106,9 @@ jobs:
               name: `Lite Explorer ${tag}`,
               draft,
               prerelease: tag.includes("-"),
-              generate_release_notes: true,
+              body: notes,
+              // Fall back to GitHub's notes when no conventional commits landed.
+              generate_release_notes: !notes,
             });
             return data.id;
 

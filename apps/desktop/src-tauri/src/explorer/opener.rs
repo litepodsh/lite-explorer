@@ -6,7 +6,7 @@ use std::{
 use serde::Serialize;
 
 use crate::app::icons;
-use crate::explorer::local_path::{validate_existing, ExpectedKind};
+use crate::explorer::local_path::validate_readable;
 
 #[derive(Serialize)]
 pub struct AppInfo {
@@ -324,7 +324,7 @@ fn linux_app_info(app: gio::AppInfo) -> Option<AppInfo> {
 
 #[tauri::command]
 pub fn open_path(path: String) -> Result<(), String> {
-    let path = validate_existing(Path::new(&path), ExpectedKind::Any)?;
+    let path = validate_readable(Path::new(&path))?;
     open_target(path.to_string_lossy().into_owned())
 }
 

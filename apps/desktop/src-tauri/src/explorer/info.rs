@@ -1,6 +1,6 @@
 //! Lightweight file information: never loads a preview or recursively walks a folder.
 use super::info_formats::{self, InfoSection};
-use super::local_path::{validate_existing, ExpectedKind};
+use super::local_path::validate_readable;
 use crate::epoch_millis;
 use serde::Serialize;
 use std::{fs, path::Path};
@@ -18,7 +18,7 @@ pub struct FileInfo {
 }
 
 fn inspect(path: &Path) -> Result<FileInfo, String> {
-    let path = validate_existing(path, ExpectedKind::Any)?;
+    let path = validate_readable(path)?;
     let meta = fs::metadata(&path).map_err(|error| error.to_string())?;
     let mut info = FileInfo {
         size: (!meta.is_dir()).then_some(meta.len()),

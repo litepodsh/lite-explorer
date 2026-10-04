@@ -22,16 +22,14 @@ pub fn validate_existing(path: &Path, expected: ExpectedKind) -> Result<PathBuf,
         return Err(INVALID_PATH.into());
     }
 
-    let mut current = PathBuf::new();
-    for component in path.components() {
-        current.push(component.as_os_str());
-        if fs::symlink_metadata(&current)
-            .map_err(|_| INVALID_PATH)?
-            .file_type()
-            .is_symlink()
-        {
-            return Err(INVALID_PATH.into());
-        }
+    // Only the final component must not be a symlink; ancestors may be
+    // (macOS: /var, /tmp and /etc link into /private).
+    if fs::symlink_metadata(path)
+        .map_err(|_| INVALID_PATH)?
+        .file_type()
+        .is_symlink()
+    {
+        return Err(INVALID_PATH.into());
     }
 
     let metadata = fs::metadata(path).map_err(|_| INVALID_PATH)?;
@@ -43,8 +41,23 @@ pub fn validate_existing(path: &Path, expected: ExpectedKind) -> Result<PathBuf,
     Ok(path.to_path_buf())
 }
 
+/// Read-only access (info, preview, open) follows symlinks to their target, like Finder.
+pub fn validate_readable(path: &Path) -> Result<PathBuf, String> {
+    if !path.is_absolute() {
+        return Err(INVALID_PATH.into());
+    }
+    let real = fs::canonicalize(path).map_err(|_| INVALID_PATH)?;
+    validate_existing(&real, ExpectedKind::Any)
+}
+
+/// Follows symlinks like Finder does (e.g. `/var` -> `/private/var`) and returns the real
+/// directory, so listings and destinations resolve to the link target.
 pub fn validate_directory(path: &Path) -> Result<PathBuf, String> {
-    validate_existing(path, ExpectedKind::Directory)
+    if !path.is_absolute() {
+        return Err(INVALID_PATH.into());
+    }
+    let real = fs::canonicalize(path).map_err(|_| INVALID_PATH)?;
+    validate_existing(&real, ExpectedKind::Directory)
 }
 
 pub fn validate_child_name(name: &str) -> Result<&str, String> {
@@ -92,6 +105,24 @@ mod tests {
         let link = root.join("link");
         symlink(&target, &link).unwrap();
         assert!(validate_existing(&link, ExpectedKind::File).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn accepts_paths_under_symlinked_ancestors() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("liteexplorer-ancestor-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let real = root.join("real");
+        fs::create_dir_all(real.join("child")).unwrap();
+        let link = root.join("link");
+        symlink(&real, &link).unwrap();
+        assert!(validate_directory(&link.join("child")).is_ok());
+        assert_eq!(
+            validate_directory(&link).unwrap(),
+            real.canonicalize().unwrap()
+        );
         fs::remove_dir_all(root).unwrap();
     }
 }
