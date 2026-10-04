@@ -123,10 +123,8 @@ codegen-units = 1
 lto = true
 opt-level = 3
 panic = "abort"
-# Keep symbols and line tables so Sentry can symbolicate crashes. The DWARF goes to a
-# separate file (.dSYM on macOS, .pdb on Windows) that CI uploads with sentry-cli.
-debug = "line-tables-only"
-split-debuginfo = "packed"
+# Keep the symbol table: Rustrak can't symbolicate native frames, so the Sentry SDK
+# resolves function names in-process and needs them in the binary.
 strip = false
 
 [target.'cfg(target_os = "macos")'.dependencies]
