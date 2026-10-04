@@ -221,7 +221,13 @@ pub fn init_sentry(gate: Arc<AtomicBool>, install_id: &str) -> sentry::ClientIni
             event.platform,
             event.message.as_deref().unwrap_or("<no message>")
         );
-        enabled.then_some(event)
+        // Monaco rejects cancelled work with a `Canceled` error; that is expected, not a bug.
+        let monaco_cancel = event
+            .exception
+            .values
+            .iter()
+            .any(|exception| exception.ty == "Canceled");
+        (enabled && !monaco_cancel).then_some(event)
     }));
     options.before_breadcrumb = Some(Arc::new(move |breadcrumb| {
         (gate.load(Ordering::Relaxed) && !cfg!(debug_assertions)).then_some(breadcrumb)

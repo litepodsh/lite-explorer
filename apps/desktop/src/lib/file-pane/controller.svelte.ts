@@ -1188,7 +1188,9 @@ export class FilePaneController {
     const copied = this.contextTargets
       .map(({ path }) => (isServerPath(path) ? this.displayPath(path) : toS3Uri(path)))
       .join("\n");
-    void navigator.clipboard.writeText(copied);
+    void navigator.clipboard
+      .writeText(copied)
+      .catch((error: unknown) => this.showError("Couldn’t copy", error));
   }
 
   async duplicateContextTargets() {

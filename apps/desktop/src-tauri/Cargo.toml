@@ -123,10 +123,16 @@ codegen-units = 1
 lto = true
 opt-level = 3
 panic = "abort"
-strip = true
+# Keep symbols and line tables so Sentry can symbolicate crashes. The DWARF goes to a
+# separate file (.dSYM on macOS, .pdb on Windows) that CI uploads with sentry-cli.
+debug = "line-tables-only"
+split-debuginfo = "packed"
+strip = false
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6"
+# `catch-all` turns an Objective-C exception into a Rust panic that carries its reason,
+# instead of an opaque "panic in a function that cannot unwind" abort.
+objc2 = { version = "0.6", features = ["exception", "catch-all"] }
 objc2-app-kit = { version = "0.3", features = ["NSEvent", "block2", "objc2-core-foundation"] }
 objc2-core-foundation = "0.3"
 core-foundation-sys = "0.8"
