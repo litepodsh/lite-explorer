@@ -75,7 +75,9 @@ pub async fn apply_migrations(pool: &SqlitePool) -> Result<(), sqlx::migrate::Mi
             .fetch_all(pool)
             .await
             .unwrap_or_default();
-    let migrator = sqlx::migrate!("./migrations");
+    let mut migrator = sqlx::migrate!("./migrations");
+    // A downgraded build must still open a database a newer build already migrated.
+    migrator.set_ignore_missing(true);
     for migration in migrator
         .iter()
         .filter(|migration| !applied.contains(&migration.version))

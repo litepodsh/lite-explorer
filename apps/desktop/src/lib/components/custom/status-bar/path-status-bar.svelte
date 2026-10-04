@@ -77,7 +77,12 @@
 
   async function copyPath() {
     if (!path) return;
-    await navigator.clipboard.writeText(path);
+    // WebKit rejects clipboard writes without a fresh user activation.
+    try {
+      await navigator.clipboard.writeText(path);
+    } catch {
+      return;
+    }
     copied = true;
     clearTimeout(copiedTimer);
     copiedTimer = setTimeout(() => (copied = false), 1500);
