@@ -1,5 +1,5 @@
-import { canDragOut } from "$lib/file-drag/native-drag.js";
-import type { Platform } from "$lib/state/platform.svelte.js";
+import { canDragOut } from "#lib/file-drag/native-drag.js";
+import type { Platform } from "#lib/state/platform.svelte.js";
 
 /**
  * macOS app bundles are directories that Finder treats as a single item: they

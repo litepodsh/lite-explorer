@@ -1,6 +1,6 @@
 <script lang="ts">
-  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-  import { formatSize } from "$lib/components/custom/preview/format.js";
+  import * as Tooltip from "#lib/components/ui/tooltip/index.js";
+  import { formatSize } from "#lib/components/custom/preview/format.js";
   import { downloadFraction, isPartialDownload, type DownloadSnapshot } from "./download-progress.js";
   import { fileDownloads } from "./download-progress.svelte.js";
 

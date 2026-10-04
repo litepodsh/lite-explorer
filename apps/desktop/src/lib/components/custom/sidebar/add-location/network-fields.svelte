@@ -13,7 +13,7 @@
     pathPlaceholder,
     type NetworkField,
     type NetworkLocationInput,
-  } from "$lib/remote/network-locations.js";
+  } from "#lib/remote/network-locations.js";
 
   let {
     input = $bindable(),

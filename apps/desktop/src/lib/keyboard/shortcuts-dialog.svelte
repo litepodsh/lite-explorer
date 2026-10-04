@@ -1,11 +1,11 @@
 <script lang="ts">
   import Fuse from "fuse.js";
   import KeyboardIcon from "@lucide/svelte/icons/keyboard";
-  import * as Command from "$lib/components/ui/command/index.js";
-  import * as Kbd from "$lib/components/ui/kbd/index.js";
-  import "$lib/components/custom/command-surface.css";
-  import { shortcutsDialogState } from "$lib/state/shortcuts-dialog.svelte.js";
-  import { highlightMatches } from "$lib/utils/highlight-matches.js";
+  import * as Command from "#lib/components/ui/command/index.js";
+  import * as Kbd from "#lib/components/ui/kbd/index.js";
+  import "#lib/components/custom/command-surface.css";
+  import { shortcutsDialogState } from "#lib/state/shortcuts-dialog.svelte.js";
+  import { highlightMatches } from "#lib/utils/highlight-matches.js";
   import { eventToken, formatToken, normalizeToken, type KeyPlatform } from "./keys.js";
   import type { Binding, Mode } from "./keymap.js";
   import type { Scope } from "./scope.js";

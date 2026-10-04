@@ -1,4 +1,4 @@
-import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
+import type { DirectoryEntry } from "#lib/components/custom/file-list/index.js";
 
 /** Folder sizes are measured on demand and live only in the listing, so a re-read has to keep them. */
 export function mergeListing(previous: DirectoryEntry[], next: DirectoryEntry[]): DirectoryEntry[] {

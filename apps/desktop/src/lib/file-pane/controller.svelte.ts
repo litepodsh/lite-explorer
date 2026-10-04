@@ -1,6 +1,6 @@
-import { activity } from "$lib/transfers/jobs.js";
+import { activity } from "#lib/transfers/jobs.js";
 import { homeDir } from "@tauri-apps/api/path";
-import { shouldCalculateSizes } from "$lib/settings/automatic-sizes.js";
+import { shouldCalculateSizes } from "#lib/settings/automatic-sizes.js";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { message, open } from "@tauri-apps/plugin-dialog";
 import {
@@ -8,10 +8,10 @@ import {
   createArchive,
   detectSevenZip,
   type CompressFormat,
-} from "$lib/file-ops/archive.js";
-import { extraction } from "$lib/archive/extraction.svelte.js";
-import { confirmation } from "$lib/components/custom/dialog/index.js";
-import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
+} from "#lib/file-ops/archive.js";
+import { extraction } from "#lib/archive/extraction.svelte.js";
+import { confirmation } from "#lib/components/custom/dialog/index.js";
+import type { DirectoryEntry } from "#lib/components/custom/file-list/index.js";
 import {
   chooseApplication,
   fetchDefaultApp,
@@ -20,7 +20,7 @@ import {
   openWithTarget,
   revealPath,
   type OpenWithApp,
-} from "$lib/file-ops/open.js";
+} from "#lib/file-ops/open.js";
 import {
   baseName,
   copyItem,
@@ -30,10 +30,10 @@ import {
   moveItems,
   parentPath,
   trashItems,
-} from "$lib/file-ops/files.js";
-import { createItemActions, nextDefaultName, type CreateKind } from "$lib/file-ops/items.js";
-import { isNetworkPath, isServerPath } from "$lib/remote/network-locations.js";
-import { networkStatus } from "$lib/remote/network-status.svelte.js";
+} from "#lib/file-ops/files.js";
+import { createItemActions, nextDefaultName, type CreateKind } from "#lib/file-ops/items.js";
+import { isNetworkPath, isServerPath } from "#lib/remote/network-locations.js";
+import { networkStatus } from "#lib/remote/network-status.svelte.js";
 import {
   deleteRemoteBucket,
   deleteRemoteItems,
@@ -43,10 +43,10 @@ import {
   toS3Uri,
   uploadRemoteFiles,
   type CreatedBucket,
-} from "$lib/remote/remote-locations.js";
-import type { Location } from "$lib/tabs/tabs.js";
-import type { TabsStore } from "$lib/tabs/tabs.svelte.js";
-import type { ClipboardMode, QueueEntry } from "$lib/transfer-clipboard/queue.js";
+} from "#lib/remote/remote-locations.js";
+import type { Location } from "#lib/tabs/tabs.js";
+import type { TabsStore } from "#lib/tabs/tabs.svelte.js";
+import type { ClipboardMode, QueueEntry } from "#lib/transfer-clipboard/queue.js";
 import {
   EMPTY_SELECTION,
   addRange,
@@ -65,16 +65,16 @@ import {
   type NavLayout,
   type Selection,
   type VisualState,
-} from "$lib/selection/selection.js";
-import { settings } from "$lib/settings/settings.svelte.js";
-import { platformState } from "$lib/state/platform.svelte.js";
-import { isAppBundle } from "$lib/file-ops/bundles.js";
-import { TypeSelectBuffer, typeSelectTarget } from "$lib/keyboard/type-select.js";
-import type { SortColumn, SortDir } from "$lib/components/custom/file-list/sort.js";
+} from "#lib/selection/selection.js";
+import { settings } from "#lib/settings/settings.svelte.js";
+import { platformState } from "#lib/state/platform.svelte.js";
+import { isAppBundle } from "#lib/file-ops/bundles.js";
+import { TypeSelectBuffer, typeSelectTarget } from "#lib/keyboard/type-select.js";
+import type { SortColumn, SortDir } from "#lib/components/custom/file-list/sort.js";
 import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
-import type { CopyTextKind } from "$lib/keyboard/context.js";
-import { fileStem } from "$lib/keyboard/text.js";
-import type { SwipeDirection } from "$lib/swipe/gesture.js";
+import type { CopyTextKind } from "#lib/keyboard/context.js";
+import { fileStem } from "#lib/keyboard/text.js";
+import type { SwipeDirection } from "#lib/swipe/gesture.js";
 
 type Recent = { name: string; path: string; kind: string; opened_at: number };
 export type SearchMode = "fuzzy" | "content";

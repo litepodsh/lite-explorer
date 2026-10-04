@@ -6,14 +6,14 @@
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import { Tween, prefersReducedMotion } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
-  import { formatCount, formatSize } from "$lib/components/custom/preview/format.js";
-  import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
+  import { formatCount, formatSize } from "#lib/components/custom/preview/format.js";
+  import type { DirectoryEntry } from "#lib/components/custom/file-list/list-item.svelte";
   import FpsMeter from "./fps-meter.svelte";
-  import { openCommandPaletteWith } from "$lib/state/command-palette.svelte";
+  import { openCommandPaletteWith } from "#lib/state/command-palette.svelte.js";
   import PencilIcon from "@lucide/svelte/icons/pencil";
-  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-  import { isRemotePath } from "$lib/remote/remote-locations.js";
-  import { isNetworkPath } from "$lib/remote/network-locations.js";
+  import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+  import { isRemotePath } from "#lib/remote/remote-locations.js";
+  import { isNetworkPath } from "#lib/remote/network-locations.js";
   import { breadcrumbSegments, collapseSegments } from "./breadcrumb.js";
 
   let { path = "", location = "", onNavigate, network = false, entries = [], selectedEntries = [], showFps = false, activity = null, keyboardMode = "standard", visual = false, pendingKeys = "", sizeScanning = false, sizeScanMessage = "", onCancelSizeScan } = $props<{

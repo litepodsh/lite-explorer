@@ -1,9 +1,9 @@
 <script lang="ts">
-  import * as Menubar from "$lib/components/ui/menubar/index.js";
+  import * as Menubar from "#lib/components/ui/menubar/index.js";
   import MenuNodes from "./menu-nodes.svelte";
-  import { appMenu } from "$lib/menu/app-menu.svelte.js";
-  import type { MenuNode } from "$lib/menu/menu.js";
-  import type { Platform } from "$lib/menu/accelerator.js";
+  import { appMenu } from "#lib/menu/app-menu.svelte.js";
+  import type { MenuNode } from "#lib/menu/menu.js";
+  import type { Platform } from "#lib/menu/accelerator.js";
 
   let { nodes, platform }: { nodes: MenuNode[]; platform: Platform } = $props();
   let root = $state<HTMLElement | null>(null);

@@ -2,15 +2,15 @@
   import CircleAlertIcon from "@lucide/svelte/icons/circle-alert";
   import DialogButton from "./dialog-button.svelte";
   import DialogShell from "./dialog-shell.svelte";
-  import type { DirectoryEntry } from "$lib/components/custom/file-list/index.js";
+  import type { DirectoryEntry } from "#lib/components/custom/file-list/index.js";
   import {
     availableCompressFormats,
     compressExtension,
     defaultArchiveName,
     pathExists,
     type CompressFormat,
-  } from "$lib/file-ops/archive.js";
-  import { parentPath } from "$lib/file-ops/files.js";
+  } from "#lib/file-ops/archive.js";
+  import { parentPath } from "#lib/file-ops/files.js";
 
   let {
     open = $bindable(false),

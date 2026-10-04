@@ -1,5 +1,5 @@
-import { dropTargetAt } from "$lib/file-drag/drop-target.js";
-import { favoritePathAt } from "$lib/favorites/favorites.js";
+import { dropTargetAt } from "#lib/file-drag/drop-target.js";
+import { favoritePathAt } from "#lib/favorites/favorites.js";
 
 /** What a mounted pane tells drags about where they can extract. */
 export type PaneFolder = {

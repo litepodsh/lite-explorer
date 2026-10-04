@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { dev } from "$app/environment";
+  import { dev } from '$app/env';
   import { invoke } from "@tauri-apps/api/core";
   import { open } from "@tauri-apps/plugin-dialog";
-  import { isWithinFolder } from "$lib/settings/automatic-sizes.js";
+  import { isWithinFolder } from "#lib/settings/automatic-sizes.js";
   import { emit } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount, tick } from "svelte";
@@ -10,18 +10,18 @@
   import PaletteIcon from "@lucide/svelte/icons/palette";
   import SlidersHorizontalIcon from "@lucide/svelte/icons/sliders-horizontal";
   import WrenchIcon from "@lucide/svelte/icons/wrench";
-  import WindowControls from "$lib/components/custom/titlebar/window-controls.svelte";
-  import { ConfirmHost, DialogSwitch, confirmation } from "$lib/components/custom/dialog/index.js";
-  import SegmentedControl from "$lib/settings/segmented-control.svelte";
-  import ThemePicker from "$lib/settings/theme-picker.svelte";
-  import TerminalPicker, { type TerminalOption } from "$lib/settings/terminal-picker.svelte";
-  import { settings } from "$lib/settings/settings.svelte.js";
-  import { detectTerminals, type TerminalInfo } from "$lib/file-ops/open.js";
-  import { analytics } from "$lib/analytics/analytics.svelte.js";
-  import type { ChordTimeout, Elevation, KeyboardMode, Radius, TerminalApp, Theme, WindowControlsMode } from "$lib/settings/settings.js";
-  import { settingsKeyAction } from "$lib/settings/settings-keys.js";
-  import { eventToken, toKeyPlatform } from "$lib/keyboard/keys.js";
-  import { platformState } from "$lib/state/platform.svelte.js";
+  import WindowControls from "#lib/components/custom/titlebar/window-controls.svelte";
+  import { ConfirmHost, DialogSwitch, confirmation } from "#lib/components/custom/dialog/index.js";
+  import SegmentedControl from "#lib/settings/segmented-control.svelte";
+  import ThemePicker from "#lib/settings/theme-picker.svelte";
+  import TerminalPicker, { type TerminalOption } from "#lib/settings/terminal-picker.svelte";
+  import { settings } from "#lib/settings/settings.svelte.js";
+  import { detectTerminals, type TerminalInfo } from "#lib/file-ops/open.js";
+  import { analytics } from "#lib/analytics/analytics.svelte.js";
+  import type { ChordTimeout, Elevation, KeyboardMode, Radius, TerminalApp, Theme, WindowControlsMode } from "#lib/settings/settings.js";
+  import { settingsKeyAction } from "#lib/settings/settings-keys.js";
+  import { eventToken, toKeyPlatform } from "#lib/keyboard/keys.js";
+  import { platformState } from "#lib/state/platform.svelte.js";
 
   settings.load();
 
@@ -56,9 +56,8 @@
 
   onMount(() => {
     void analytics.load();
-    void detectTerminals()
-      .then((detected) => (terminals = detected))
-      .catch(() => {});
+    void detectTerminals().then((detected) => terminals = detected).catch(() => {});
+
     void invoke<string>("os_detection").then((detected) => {
       platform = detected as typeof platform;
       platformState.current = platform;
@@ -128,13 +127,13 @@
 </script>
 
 <svelte:head><title>Settings - Lite Explorer</title></svelte:head>
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown}></svelte:window>
 
 <div class="settings-window" data-platform={platform}>
   <header class="settings-titlebar" data-tauri-drag-region>
     <span class="settings-title" data-tauri-drag-region>Settings</span>
     {#if platform === "windows" || platform === "linux"}
-      <WindowControls {platform} />
+      <WindowControls platform={platform} />
     {/if}
   </header>
 
@@ -157,29 +156,29 @@
       {#if active === "keyboard"}
         <h1>Keyboard</h1>
         <div class="card"><div class="card-core">
-          <SegmentedControl
-            label="Keyboard mode"
-            description="Yazi mode adds single keys like j, k and g g. Not recommended with a screen reader."
+            <SegmentedControl
+              label="Keyboard mode"
+              description="Yazi mode adds single keys like j, k and g g. Not recommended with a screen reader."
             options={[{ value: "standard", label: "Standard" }, { value: "yazi", label: "Yazi" }]}
-            value={current.keyboardMode}
+              value={current.keyboardMode}
             onchange={(value) => settings.set("keyboardMode", value as KeyboardMode)} />
-          <DialogSwitch
-            label="Show which-key popup"
-            description="Lists the keys that can follow while you type a chord."
-            checked={current.showWhichKey}
+            <DialogSwitch
+              label="Show which-key popup"
+              description="Lists the keys that can follow while you type a chord."
+              checked={current.showWhichKey}
             onchange={(checked) => settings.set("showWhichKey", checked)} />
-          <SegmentedControl
-            label="Chord timeout"
-            description="Time to type the second key of a chord."
+            <SegmentedControl
+              label="Chord timeout"
+              description="Time to type the second key of a chord."
             options={[{ value: 1000, label: "1 s" }, { value: 1500, label: "1.5 s" }, { value: 3000, label: "3 s" }]}
-            value={current.chordTimeoutMs}
+              value={current.chordTimeoutMs}
             onchange={(value) => settings.set("chordTimeoutMs", value as ChordTimeout)} />
         </div></div>
         <div class="card"><div class="card-core reset-row">
-          <div>
-            <span class="reset-label">All keyboard shortcuts</span>
-            <p>Opens the searchable shortcuts list in the main window.</p>
-          </div>
+            <div>
+              <span class="reset-label">All keyboard shortcuts</span>
+              <p>Opens the searchable shortcuts list in the main window.</p>
+            </div>
           <button type="button" class="secondary-button" onclick={() => void emit("open-shortcuts")}>View shortcuts</button>
         </div></div>
       {:else if active === "appearance"}
@@ -217,119 +216,119 @@
       {:else if active === "general"}
         <h1>General</h1>
         <div class="card"><div class="card-core">
-          {#if platform === "windows" || platform === "linux"}
-            <div class="field">
-              <div class="field-copy">
-                <label for="settings-window-controls">Window controls</label>
-                <p>Automatic reveals controls on hover in Hyprland and shows them elsewhere. Keyboard focus also reveals them.</p>
-              </div>
-              <select
-                id="settings-window-controls"
-                value={current.windowControls}
+            {#if platform === "windows" || platform === "linux"}
+              <div class="field">
+                <div class="field-copy">
+                  <label for="settings-window-controls">Window controls</label>
+                  <p>Automatic reveals controls on hover in Hyprland and shows them elsewhere. Keyboard focus also reveals them.</p>
+                </div>
+                <select
+                  id="settings-window-controls"
+                  value={current.windowControls}
                 onchange={(event) => settings.set("windowControls", event.currentTarget.value as WindowControlsMode)}>
-                <option value="automatic">Automatic</option>
-                <option value="visible">Always visible</option>
-                <option value="hover">Reveal on hover</option>
-                <option value="hidden">Hidden</option>
-              </select>
-            </div>
-          {/if}
-          <DialogSwitch
-            label="Show hidden files"
-            checked={current.showHiddenFiles}
-            onchange={(checked) => settings.set("showHiddenFiles", checked)} />
-          <DialogSwitch
-            label="Automatically calculate folder sizes in Home"
-            description="Calculate recursive folder sizes whenever you open your user folder or any folder inside it. Keeps your current sort order."
-            checked={current.automaticSizesInHome}
-            onchange={(checked) => settings.set("automaticSizesInHome", checked)} />
-          <div class="size-paths">
-            <div class="reset-row size-paths-heading">
-              <div>
-                <span class="reset-label">Other folders with automatic sizes</span>
-                <p>Includes subfolders. File sizes are always shown, regardless of these settings.</p>
+                  <option value="automatic">Automatic</option>
+                  <option value="visible">Always visible</option>
+                  <option value="hover">Reveal on hover</option>
+                  <option value="hidden">Hidden</option>
+                </select>
               </div>
-              <button type="button" class="secondary-button" disabled={choosingSizePath} onclick={() => void addSizePath()}>Add folder…</button>
-            </div>
-            {#each current.automaticSizePaths as path (path)}
-              <div class="size-path-row">
-                <span class="size-path" title={path}>{path}</span>
-                <button type="button" class="secondary-button" aria-label={`Remove ${path}`} onclick={() => settings.set("automaticSizePaths", current.automaticSizePaths.filter((item) => item !== path))}>Remove</button>
-              </div>
-            {/each}
-            {#if sizePathError}<p class="size-path-error" role="alert">{sizePathError}</p>{/if}
-          </div>
-          <DialogSwitch
-            label="Send anonymous crash reports"
-            description={analytics.locked
-              ? "Enabled while Lite Explorer is before 1.0. Anonymized and only used to fix crashes on different operating systems."
-              : "Anonymized and only used to fix crashes on different operating systems."}
-            checked={analytics.enabled || analytics.locked}
-            disabled={analytics.locked}
-            onchange={(checked) => void analytics.setEnabled(checked)} />
-          <SegmentedControl
-            label="View for new tabs"
-            options={[{ value: "list", label: "List" }, { value: "grid", label: "Icons" }]}
-            value={current.defaultViewMode}
-            onchange={(value) => settings.set("defaultViewMode", value as "list" | "grid")} />
-          <DialogSwitch
-            label="Open preview in new panes"
-            checked={current.previewOpenByDefault}
-            onchange={(checked) => settings.set("previewOpenByDefault", checked)} />
-          <SegmentedControl
-            label="Pane layout"
-            options={[{ value: "row", label: "Side by side" }, { value: "column", label: "Stacked" }]}
-            value={current.panesLayout}
-            onchange={(value) => settings.set("panesLayout", value as "row" | "column")} />
-          {#if platform === "macos"}
+            {/if}
             <DialogSwitch
-              label="Swipe to navigate"
-              description="Swipe on the trackpad to go back and forward in the open folder, with a drag-follow animation."
-              checked={current.swipeNavigation}
-              onchange={(checked) => settings.set("swipeNavigation", checked)} />
-          {/if}
-          <TerminalPicker
-            label="Terminal"
-            description="App opened by “Open Terminal Here”. Detected from what's installed."
-            options={terminalOptions}
-            value={current.terminalApp}
-            onchange={(id) => settings.set("terminalApp", id)} />
-          {#if current.terminalApp === "custom"}
-            <div class="field">
-              <div class="field-copy">
-                <label for="settings-terminal-command">Command</label>
-                <p>Use <code>{'{path}'}</code> for the focused folder.</p>
+              label="Show hidden files"
+              checked={current.showHiddenFiles}
+            onchange={(checked) => settings.set("showHiddenFiles", checked)} />
+            <DialogSwitch
+              label="Automatically calculate folder sizes in Home"
+              description="Calculate recursive folder sizes whenever you open your user folder or any folder inside it. Keeps your current sort order."
+              checked={current.automaticSizesInHome}
+            onchange={(checked) => settings.set("automaticSizesInHome", checked)} />
+            <div class="size-paths">
+              <div class="reset-row size-paths-heading">
+                <div>
+                  <span class="reset-label">Other folders with automatic sizes</span>
+                  <p>Includes subfolders. File sizes are always shown, regardless of these settings.</p>
+                </div>
+              <button type="button" class="secondary-button" disabled={choosingSizePath} onclick={() => void addSizePath()}>Add folder…</button>
               </div>
-              <input
-                id="settings-terminal-command"
-                type="text"
-                value={current.terminalCommand}
-                placeholder={"kitty --directory {path}"}
-                spellcheck="false"
-                onchange={(event) => settings.set("terminalCommand", event.currentTarget.value)} />
+              {#each current.automaticSizePaths as path (path)}
+                <div class="size-path-row">
+                  <span class="size-path" title={path}>{path}</span>
+                <button type="button" class="secondary-button" aria-label={`Remove ${path}`} onclick={() => settings.set("automaticSizePaths", current.automaticSizePaths.filter((item) => item !== path))}>Remove</button>
+                </div>
+              {/each}
+            {#if sizePathError}<p class="size-path-error" role="alert">{sizePathError}</p>{/if}
             </div>
-          {/if}
+            <DialogSwitch
+              label="Send anonymous crash reports"
+              description={analytics.locked
+                ? "Enabled while Lite Explorer is before 1.0. Anonymized and only used to fix crashes on different operating systems."
+                : "Anonymized and only used to fix crashes on different operating systems."}
+              checked={analytics.enabled || analytics.locked}
+              disabled={analytics.locked}
+            onchange={(checked) => void analytics.setEnabled(checked)} />
+            <SegmentedControl
+              label="View for new tabs"
+            options={[{ value: "list", label: "List" }, { value: "grid", label: "Icons" }]}
+              value={current.defaultViewMode}
+            onchange={(value) => settings.set("defaultViewMode", value as "list" | "grid")} />
+            <DialogSwitch
+              label="Open preview in new panes"
+              checked={current.previewOpenByDefault}
+            onchange={(checked) => settings.set("previewOpenByDefault", checked)} />
+            <SegmentedControl
+              label="Pane layout"
+            options={[{ value: "row", label: "Side by side" }, { value: "column", label: "Stacked" }]}
+              value={current.panesLayout}
+            onchange={(value) => settings.set("panesLayout", value as "row" | "column")} />
+            {#if platform === "macos"}
+              <DialogSwitch
+                label="Swipe to navigate"
+                description="Swipe on the trackpad to go back and forward in the open folder, with a drag-follow animation."
+                checked={current.swipeNavigation}
+              onchange={(checked) => settings.set("swipeNavigation", checked)} />
+            {/if}
+            <TerminalPicker
+              label="Terminal"
+              description="App opened by “Open Terminal Here”. Detected from what's installed."
+              options={terminalOptions}
+              value={current.terminalApp}
+            onchange={(id) => settings.set("terminalApp", id)} />
+            {#if current.terminalApp === "custom"}
+              <div class="field">
+                <div class="field-copy">
+                  <label for="settings-terminal-command">Command</label>
+                <p>Use <code>{'{path}'}</code> for the focused folder.</p>
+                </div>
+                <input
+                  id="settings-terminal-command"
+                  type="text"
+                  value={current.terminalCommand}
+                  placeholder={"kitty --directory {path}"}
+                  spellcheck="false"
+                onchange={(event) => settings.set("terminalCommand", event.currentTarget.value)} />
+              </div>
+            {/if}
         </div></div>
       {:else}
         <h1>Advanced</h1>
         <div class="card"><div class="card-core">
-          <DialogSwitch
-            label="Show FPS meter"
-            checked={current.showFps}
-            onchange={(checked) => settings.set("showFps", checked)} />
-          {#if dev}
             <DialogSwitch
-              label="Show prototype switcher"
-              description="Development builds only."
-              checked={current.prototypeSwitcher}
+              label="Show FPS meter"
+              checked={current.showFps}
+            onchange={(checked) => settings.set("showFps", checked)} />
+            {#if dev}
+              <DialogSwitch
+                label="Show prototype switcher"
+                description="Development builds only."
+                checked={current.prototypeSwitcher}
               onchange={(checked) => settings.set("prototypeSwitcher", checked)} />
-          {/if}
+            {/if}
         </div></div>
         <div class="card"><div class="card-core reset-row">
-          <div>
-            <span class="reset-label">Reset settings</span>
-            <p>Restores every setting on this page to its default.</p>
-          </div>
+            <div>
+              <span class="reset-label">Reset settings</span>
+              <p>Restores every setting on this page to its default.</p>
+            </div>
           <button type="button" class="reset-button" onclick={confirmReset}>Reset…</button>
         </div></div>
       {/if}

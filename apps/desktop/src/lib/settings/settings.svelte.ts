@@ -1,4 +1,4 @@
-import { dev } from "$app/environment";
+import { dev } from "$app/env";
 import { emit, listen } from "@tauri-apps/api/event";
 import {
   SETTINGS_STORAGE_KEY,

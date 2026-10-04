@@ -4,8 +4,8 @@
   import { flip } from "svelte/animate";
   import { quintOut } from "svelte/easing";
   import { prefersReducedMotion } from "svelte/motion";
-  import type { Tab } from "$lib/tabs/tabs.js";
-  import { drag as dragState } from "$lib/file-drag/drag.svelte.js";
+  import type { Tab } from "#lib/tabs/tabs.js";
+  import { drag as dragState } from "#lib/file-drag/drag.svelte.js";
 
   let {
     tabs,

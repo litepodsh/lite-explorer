@@ -1,7 +1,7 @@
 <script lang="ts">
   import EyeIcon from "@lucide/svelte/icons/eye";
   import EyeOffIcon from "@lucide/svelte/icons/eye-off";
-  import { AWS_REGIONS, isPendingProvider, type RemoteLocationInput } from "$lib/remote/remote-locations.js";
+  import { AWS_REGIONS, isPendingProvider, type RemoteLocationInput } from "#lib/remote/remote-locations.js";
 
   let { input = $bindable() }: { input: RemoteLocationInput } = $props();
 

@@ -3,8 +3,8 @@
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
   import LaptopIcon from "@lucide/svelte/icons/laptop";
   import MemoryStickIcon from "@lucide/svelte/icons/memory-stick";
-  import { formatSize } from "$lib/components/custom/preview/format.js";
-  import { UsageBar } from "$lib/components/custom/usage-bar/index.js";
+  import { formatSize } from "#lib/components/custom/preview/format.js";
+  import { UsageBar } from "#lib/components/custom/usage-bar/index.js";
   import type { DeviceInfo, VolumeInfo } from "./types.js";
   import { diskBreakdown } from "./usage.js";
 

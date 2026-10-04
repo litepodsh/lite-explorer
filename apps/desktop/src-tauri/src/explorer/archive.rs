@@ -454,7 +454,15 @@ pub(crate) fn for_each_tar_entry<R: Read>(
     visit: &mut dyn FnMut(&EntryInfo, &mut dyn Read) -> Result<Flow, String>,
 ) -> Result<(), String> {
     let mut tar = tar::Archive::new(reader);
-    for entry in tar.entries().map_err(to_string)? {
+    visit_tar_entries(tar.entries().map_err(to_string)?, visit)
+}
+
+/// Visits tar entries in archive order. Shared by streaming and seeking readers.
+fn visit_tar_entries<R: Read>(
+    entries: tar::Entries<'_, R>,
+    visit: &mut dyn FnMut(&EntryInfo, &mut dyn Read) -> Result<Flow, String>,
+) -> Result<(), String> {
+    for entry in entries {
         let mut entry = entry.map_err(to_string)?;
         let kind = entry.header().entry_type();
         let link = kind.is_symlink() || kind.is_hard_link();
@@ -510,9 +518,40 @@ fn with_implied_directories(entries: Vec<ArchiveEntry>) -> Vec<ArchiveEntry> {
 }
 
 pub fn read_listing(archive: &Path, limit: Option<usize>) -> Result<ArchiveListing, String> {
+    collect_listing(limit, |visit| for_each_entry(archive, visit))
+}
+
+/// Lists an archive named `name` through `reader`, for sources that aren't local
+/// files. Plain tars and zips seek past entry bodies and only read headers;
+/// compressed tars must decompress the whole stream.
+pub fn read_listing_from<R: Read + io::Seek>(
+    name: &str,
+    reader: R,
+    limit: Option<usize>,
+) -> Result<ArchiveListing, String> {
+    let kind = archive_kind(&name.to_lowercase()).ok_or(UNSUPPORTED)?;
+    collect_listing(limit, |visit| match kind {
+        ArchiveKind::Zip => for_each_zip_entry(reader, visit),
+        ArchiveKind::Tar(None) => {
+            let mut tar = tar::Archive::new(reader);
+            visit_tar_entries(tar.entries_with_seek().map_err(to_string)?, visit)
+        }
+        ArchiveKind::Tar(Some(codec)) => for_each_tar_entry(
+            decoder(codec, reader).map_err(|_| to_string(UNSUPPORTED))?,
+            visit,
+        ),
+    })
+}
+
+fn collect_listing(
+    limit: Option<usize>,
+    walk: impl FnOnce(
+        &mut dyn FnMut(&EntryInfo, &mut dyn Read) -> Result<Flow, String>,
+    ) -> Result<(), String>,
+) -> Result<ArchiveListing, String> {
     let mut raw = Vec::new();
     let mut truncated = false;
-    for_each_entry(archive, &mut |info, _| {
+    walk(&mut |info, _| {
         if limit.is_some_and(|limit| raw.len() >= limit) {
             truncated = true;
             return Ok(Flow::Stop);
@@ -962,7 +1001,14 @@ pub fn detect_7z() -> Option<String> {
 
 #[tauri::command]
 #[tracing::instrument(skip_all, name = "list_archive", fields(sentry_op = "archive.list"))]
-pub async fn list_archive(path: String) -> Result<ArchiveListing, String> {
+pub async fn list_archive(
+    database: tauri::State<'_, crate::Database>,
+    clients: tauri::State<'_, crate::remote::RemoteClients>,
+    path: String,
+) -> Result<ArchiveListing, String> {
+    if crate::remote::is_remote_path(&path) {
+        return crate::remote::list_archive(&database.0, &clients, &path).await;
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let path = validate_existing(Path::new(&path), ExpectedKind::File)?;
         read_listing(&path, Some(LIST_LIMIT))
@@ -1066,7 +1112,7 @@ pub async fn extract_archive(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cell::Cell;
+    use std::{cell::Cell, rc::Rc};
 
     fn temp_dir(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
@@ -1285,6 +1331,55 @@ mod tests {
             ]
         );
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn lists_plain_tar_from_reader_without_reading_bodies() {
+        struct Counted<R> {
+            inner: R,
+            read: Rc<Cell<usize>>,
+        }
+        impl<R: Read> Read for Counted<R> {
+            fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+                let count = self.inner.read(buf)?;
+                self.read.set(self.read.get() + count);
+                Ok(count)
+            }
+        }
+        impl<R: io::Seek> io::Seek for Counted<R> {
+            fn seek(&mut self, target: io::SeekFrom) -> io::Result<u64> {
+                self.inner.seek(target)
+            }
+        }
+
+        let body = vec![7u8; 1024 * 1024];
+        let mut builder = tar::Builder::new(Vec::new());
+        for name in ["backup/a.bin", "backup/b.bin"] {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(body.len() as u64);
+            header.set_mode(0o644);
+            header.set_cksum();
+            builder.append_data(&mut header, name, &body[..]).unwrap();
+        }
+        let bytes = builder.into_inner().unwrap();
+        let read = Rc::new(Cell::new(0));
+        let reader = Counted {
+            inner: io::Cursor::new(bytes),
+            read: read.clone(),
+        };
+
+        let listing = read_listing_from("Backup.TAR", reader, None).unwrap();
+
+        assert_eq!(
+            summary(&listing),
+            vec![
+                ("backup", true, false),
+                ("backup/a.bin", false, false),
+                ("backup/b.bin", false, false),
+            ]
+        );
+        assert_eq!(listing.uncompressed_size, 2 * 1024 * 1024);
+        assert!(read.get() < 64 * 1024, "read {} bytes", read.get());
     }
 
     #[test]

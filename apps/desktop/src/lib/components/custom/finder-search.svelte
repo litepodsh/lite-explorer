@@ -1,7 +1,7 @@
 <script lang="ts">
   import SearchIcon from "@lucide/svelte/icons/search";
   import XIcon from "@lucide/svelte/icons/x";
-  import type { FilePaneController } from "$lib/file-pane/controller.svelte.js";
+  import type { FilePaneController } from "#lib/file-pane/controller.svelte.js";
   let { controller }: { controller: FilePaneController } = $props();
   let input: HTMLInputElement;
   let focused = $state(false);

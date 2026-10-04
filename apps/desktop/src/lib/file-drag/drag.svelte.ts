@@ -1,4 +1,4 @@
-import type { PaneFolder } from "$lib/archive/drop-destination.js";
+import type { PaneFolder } from "#lib/archive/drop-destination.js";
 
 export type DraggedEntry = {
   path: string;

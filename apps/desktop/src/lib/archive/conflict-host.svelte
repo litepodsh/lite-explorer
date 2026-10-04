@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ConflictDialog } from "$lib/components/custom/dialog/index.js";
+  import { ConflictDialog } from "#lib/components/custom/dialog/index.js";
   import { extraction } from "./extraction.svelte.js";
 </script>
 

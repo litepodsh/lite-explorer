@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { ArchiveEntry } from "$lib/file-ops/archive.js";
-import { formatSize } from "$lib/components/custom/preview/format.js";
+import type { ArchiveEntry } from "#lib/file-ops/archive.js";
+import { formatSize } from "#lib/components/custom/preview/format.js";
 import {
   collapseSelection,
   dragIcon,

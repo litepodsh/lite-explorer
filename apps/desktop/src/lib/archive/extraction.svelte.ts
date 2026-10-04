@@ -5,8 +5,8 @@ import {
   planExtraction,
   type ExtractionTarget,
   type Resolution,
-} from "$lib/file-ops/archive.js";
-import type { TransferEventPayload } from "$lib/transfers/jobs.js";
+} from "#lib/file-ops/archive.js";
+import type { TransferEventPayload } from "#lib/transfers/jobs.js";
 import { runExtraction, type ExtractionRequest } from "./run-extraction.js";
 
 export type PendingConflict = {

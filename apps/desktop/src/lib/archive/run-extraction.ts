@@ -3,7 +3,7 @@ import type {
   ExtractionOutcome,
   ExtractionTarget,
   Resolution,
-} from "$lib/file-ops/archive.js";
+} from "#lib/file-ops/archive.js";
 
 export type ExtractionRequest = { archive: string; destination: string; entries?: string[] };
 

@@ -3,8 +3,8 @@
   import AboutDialog from "./about-dialog.svelte";
   import MenuBar from "./menu-bar.svelte";
   import WindowControls from "./window-controls.svelte";
-  import { appMenu } from "$lib/menu/app-menu.svelte.js";
-  import { findShortcut } from "$lib/menu/menu.js";
+  import { appMenu } from "#lib/menu/app-menu.svelte.js";
+  import { findShortcut } from "#lib/menu/menu.js";
 
   let { platform }: { platform: "windows" | "linux" } = $props();
   let menuBar = $state<ReturnType<typeof MenuBar>>();

@@ -4,7 +4,7 @@
   import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
   import { Tween } from "svelte/motion";
   import { quartOut } from "svelte/easing";
-  import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
+  import type { DirectoryEntry } from "#lib/components/custom/file-list/list-item.svelte";
   import { formatSize } from "./format.js";
 
   let { entries }: { entries: DirectoryEntry[] } = $props();

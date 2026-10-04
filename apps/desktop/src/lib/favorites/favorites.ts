@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { activity } from "$lib/transfers/jobs.js";
-import type { Location } from "$lib/tabs/tabs.js";
+import { activity } from "#lib/transfers/jobs.js";
+import type { Location } from "#lib/tabs/tabs.js";
 
 /** Every folder, including a connected share or remote folder, can be a favorite. */
 export function canFavorite(entry: {

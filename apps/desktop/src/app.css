@@ -352,6 +352,11 @@
   html {
     @apply font-sans;
   }
+  /* La ventana (documento) nunca se arrastra: el rebote queda solo en cada zona de scroll. */
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
 }
 
 :root {
@@ -1875,4 +1880,16 @@ html[data-keyboard] [data-key-scope="list"]:focus :is(.file-row, .file-tile)[dat
 html[data-keyboard] [data-sidebar-item]:focus-visible {
   outline: 2px solid rgb(10 155 255 / 0.6);
   outline-offset: -2px;
+}
+
+/* Rebound local por región (estilo app nativa, como Codex/ChatGPT desktop): cada lista
+   rebota en su sitio y vuelve al terminar el scroll, sin encadenar a la ventana. */
+.list-scroll,
+.finder-sidebar,
+.overview-panel,
+.settings-content,
+.activity-body,
+.markdown-body,
+[data-slot="command-list"] {
+  overscroll-behavior-y: contain;
 }

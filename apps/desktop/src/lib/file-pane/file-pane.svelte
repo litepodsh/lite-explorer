@@ -1,5 +1,5 @@
 <script lang="ts">
-  import FileInfoDialog from "$lib/components/custom/preview/file-info-dialog.svelte";
+  import FileInfoDialog from "#lib/components/custom/preview/file-info-dialog.svelte";
   let infoOpen = $state(false);
   let infoEntry = $state<DirectoryEntry | null>(null);
   function showInfo(entry: DirectoryEntry) { infoEntry = { ...entry }; infoOpen = true; }
@@ -31,23 +31,23 @@
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
   import InfoIcon from "@lucide/svelte/icons/info";
   import PackageOpenIcon from "@lucide/svelte/icons/package-open";
-  import type { Location } from "$lib/tabs/tabs.js";
-  import { networkStatus } from "$lib/remote/network-status.svelte.js";
-  import { isArchive } from "$lib/file-ops/archive.js";
-  import { isAppBundle } from "$lib/file-ops/bundles.js";
-  import { platformState } from "$lib/state/platform.svelte.js";
-  import { drag } from "$lib/file-drag/drag.svelte.js";
-  import type { DraggedEntry } from "$lib/file-drag/drag.svelte.js";
-  import { isNetworkPath } from "$lib/remote/network-locations.js";
-  import { canFavorite } from "$lib/favorites/favorites.js";
-  import PathStatusBar from "$lib/components/custom/status-bar/path-status-bar.svelte";
-  import CompressDialog from "$lib/components/custom/dialog/compress-dialog.svelte";
-  import { ListPanel, type DirectoryEntry } from "$lib/components/custom/file-list/index.js";
-  import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
-  import { folderScan, OverviewPanel } from "$lib/components/custom/overview/index.js";
-  import { TabBar } from "$lib/components/custom/tabs/index.js";
-  import { formatCount, formatSize } from "$lib/components/custom/preview/format.js";
-  import { swipeTransforms } from "$lib/swipe/gesture.js";
+  import type { Location } from "#lib/tabs/tabs.js";
+  import { networkStatus } from "#lib/remote/network-status.svelte.js";
+  import { isArchive } from "#lib/file-ops/archive.js";
+  import { isAppBundle } from "#lib/file-ops/bundles.js";
+  import { platformState } from "#lib/state/platform.svelte.js";
+  import { drag } from "#lib/file-drag/drag.svelte.js";
+  import type { DraggedEntry } from "#lib/file-drag/drag.svelte.js";
+  import { isNetworkPath } from "#lib/remote/network-locations.js";
+  import { canFavorite } from "#lib/favorites/favorites.js";
+  import PathStatusBar from "#lib/components/custom/status-bar/path-status-bar.svelte";
+  import CompressDialog from "#lib/components/custom/dialog/compress-dialog.svelte";
+  import { ListPanel, type DirectoryEntry } from "#lib/components/custom/file-list/index.js";
+  import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+  import { folderScan, OverviewPanel } from "#lib/components/custom/overview/index.js";
+  import { TabBar } from "#lib/components/custom/tabs/index.js";
+  import { formatCount, formatSize } from "#lib/components/custom/preview/format.js";
+  import { swipeTransforms } from "#lib/swipe/gesture.js";
   import type { FilePaneController } from "./controller.svelte.js";
 
   let {

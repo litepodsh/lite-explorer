@@ -2,12 +2,12 @@
   import ArchiveIcon from "@lucide/svelte/icons/archive";
   import XIcon from "@lucide/svelte/icons/x";
   import { open } from "@tauri-apps/plugin-dialog";
-  import { DialogButton } from "$lib/components/custom/dialog/index.js";
-  import { PathTree, type PathTreeDragHandlers } from "$lib/components/custom/path-tree/index.js";
-  import { formatSize } from "$lib/components/custom/preview/format.js";
-  import { drag } from "$lib/file-drag/drag.svelte.js";
-  import { listArchive, type ArchiveListing } from "$lib/file-ops/archive.js";
-  import { parentPath } from "$lib/file-ops/files.js";
+  import { DialogButton } from "#lib/components/custom/dialog/index.js";
+  import { PathTree, type PathTreeDragHandlers } from "#lib/components/custom/path-tree/index.js";
+  import { formatSize } from "#lib/components/custom/preview/format.js";
+  import { drag } from "#lib/file-drag/drag.svelte.js";
+  import { listArchive, type ArchiveListing } from "#lib/file-ops/archive.js";
+  import { parentPath } from "#lib/file-ops/files.js";
   import { dropCandidateAt, resolveDestination } from "./drop-destination.js";
   import { collapseSelection, dragIcon, dragLabel, sizeByTreePath, summaryLine, toTreePaths } from "./extraction.js";
   import { extraction } from "./extraction.svelte.js";

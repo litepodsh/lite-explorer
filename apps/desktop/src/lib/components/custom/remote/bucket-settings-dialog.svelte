@@ -1,13 +1,13 @@
 <script lang="ts">
   import CircleAlertIcon from "@lucide/svelte/icons/circle-alert";
   import GlobeIcon from "@lucide/svelte/icons/globe";
-  import { DialogButton, DialogShell, DialogSwitch, HoldToConfirm } from "$lib/components/custom/dialog/index.js";
+  import { DialogButton, DialogShell, DialogSwitch, HoldToConfirm } from "#lib/components/custom/dialog/index.js";
   import {
     getBucketSettings,
     setBucketPublic,
     setBucketVersioning,
     type BucketSettings,
-  } from "$lib/remote/remote-locations.js";
+  } from "#lib/remote/remote-locations.js";
 
   let {
     open = $bindable(false),

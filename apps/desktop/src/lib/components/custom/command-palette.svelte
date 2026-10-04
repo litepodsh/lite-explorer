@@ -7,16 +7,16 @@
 	import { tick, untrack } from "svelte";
 	import Fuse, { type FuseResult } from "fuse.js";
 	import { invoke } from "@tauri-apps/api/core";
-	import * as Command from "$lib/components/ui/command/index.js";
-	import * as Kbd from "$lib/components/ui/kbd/index.js";
-	import { highlightMatches } from "$lib/utils/highlight-matches.js";
-	import { commandPaletteState, closeCommandPalette } from "$lib/state/command-palette.svelte";
-	import { openTarget } from "$lib/file-ops/open.js";
-	import EntryIcon from "$lib/file-icons/entry-icon.svelte";
-	import { requestThumbnails, thumbnailFor } from "$lib/file-icons/thumbnail-cache.svelte.js";
-	import { categoryFor } from "$lib/file-icons/fallback.js";
-	import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
-	import type { Location } from "$lib/tabs/tabs.js";
+	import * as Command from "#lib/components/ui/command/index.js";
+	import * as Kbd from "#lib/components/ui/kbd/index.js";
+	import { highlightMatches } from "#lib/utils/highlight-matches.js";
+	import { commandPaletteState, closeCommandPalette } from "#lib/state/command-palette.svelte.js";
+	import { openTarget } from "#lib/file-ops/open.js";
+	import EntryIcon from "#lib/file-icons/entry-icon.svelte";
+	import { requestThumbnails, thumbnailFor } from "#lib/file-icons/thumbnail-cache.svelte.js";
+	import { categoryFor } from "#lib/file-icons/fallback.js";
+	import type { DirectoryEntry } from "#lib/components/custom/file-list/list-item.svelte";
+	import type { Location } from "#lib/tabs/tabs.js";
 
 	import GaugeIcon from "@lucide/svelte/icons/gauge";
 	import Clock3Icon from "@lucide/svelte/icons/clock-3";
@@ -28,7 +28,7 @@
 	import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
 	import FileIcon from "@lucide/svelte/icons/file";
 	import TerminalIcon from "@lucide/svelte/icons/square-terminal";
-	import { openShortcuts } from "$lib/state/shortcuts-dialog.svelte.js";
+	import { openShortcuts } from "#lib/state/shortcuts-dialog.svelte.js";
 
 	type Recent = { name: string; path: string; kind: string };
 	type PaletteItem = {

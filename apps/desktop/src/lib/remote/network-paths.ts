@@ -1,4 +1,4 @@
-import type { Location } from "$lib/tabs/tabs.js";
+import type { Location } from "#lib/tabs/tabs.js";
 import { formatLocationUrl } from "./location-url.js";
 import {
   isInsideMount,

@@ -1,8 +1,8 @@
-import { activity } from "$lib/transfers/jobs.js";
-import { baseName } from "$lib/file-ops/files.js";
+import { activity } from "#lib/transfers/jobs.js";
+import { baseName } from "#lib/file-ops/files.js";
 import { invoke } from "@tauri-apps/api/core";
-import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
-import type { Location } from "$lib/tabs/tabs.js";
+import type { DirectoryEntry } from "#lib/components/custom/file-list/list-item.svelte";
+import type { Location } from "#lib/tabs/tabs.js";
 
 export type Provider = "aws" | "r2" | "custom" | "gdrive" | "onedrive" | "dropbox" | "azblob";
 

@@ -9,7 +9,7 @@
   import FolderIcon from "@lucide/svelte/icons/folder";
   import ShieldCheck from "@lucide/svelte/icons/shield-check";
   import ShieldAlert from "@lucide/svelte/icons/shield-alert";
-  import type { DirectoryEntry } from "$lib/components/custom/file-list/list-item.svelte";
+  import type { DirectoryEntry } from "#lib/components/custom/file-list/list-item.svelte";
   import CodeView from "./code-view.svelte";
   import CsvView from "./csv-view.svelte";
   import FileInfo from "./file-info.svelte";
@@ -51,13 +51,13 @@
   import ParquetView from "./parquet-view.svelte";
   import ArrowView from "./arrow-view.svelte";
   import { fetchMediaUrl, openViewer } from "./media.js";
-  import ArchiveView from "$lib/archive/archive-view.svelte";
+  import ArchiveView from "#lib/archive/archive-view.svelte";
   import { fontSizeForShortcut, lineHeightFor, parseFontSize } from "./font-size.js";
   import { isCsvName, isDataName, isHtmlName, isMarkdownName, isMediaKind, languageFor } from "./languages.js";
   import { analyzeHtmlSafety } from "./html-safety.js";
   import type { FilePreview } from "./types.js";
-  import { fetchDefaultApp, type OpenWithApp } from "$lib/file-ops/open.js";
-  import { isRemotePath } from "$lib/remote/remote-locations.js";
+  import { fetchDefaultApp, type OpenWithApp } from "#lib/file-ops/open.js";
+  import { isRemotePath } from "#lib/remote/remote-locations.js";
 
   type Props = { entry: DirectoryEntry };
   type PdfViewComponent = typeof import("./pdf-view.svelte").default;

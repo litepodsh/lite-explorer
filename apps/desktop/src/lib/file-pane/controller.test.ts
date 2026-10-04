@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { FilePaneController } from "./controller.svelte.js";
-import { TabsStore } from "$lib/tabs/tabs.svelte.js";
-import { OVERVIEW } from "$lib/tabs/tabs.js";
+import { TabsStore } from "#lib/tabs/tabs.svelte.js";
+import { OVERVIEW } from "#lib/tabs/tabs.js";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(), Channel: class {} }));
-vi.mock("$lib/settings/settings.svelte.js", () => ({
+vi.mock("#lib/settings/settings.svelte.js", () => ({
   settings: { current: { previewOpenByDefault: false, automaticSizesInHome: false } },
 }));
 

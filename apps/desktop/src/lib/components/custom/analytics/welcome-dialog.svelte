@@ -4,7 +4,7 @@
   import DialogButton from "../dialog/dialog-button.svelte";
   import DialogShell from "../dialog/dialog-shell.svelte";
   import DialogSwitch from "../dialog/dialog-switch.svelte";
-  import { analytics } from "$lib/analytics/analytics.svelte.js";
+  import { analytics } from "#lib/analytics/analytics.svelte.js";
 
   let open = $state(true);
   let enabled = $state(analytics.enabled);

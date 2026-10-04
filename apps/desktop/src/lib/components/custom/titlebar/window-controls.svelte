@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { invoke } from "@tauri-apps/api/core";
-  import { settings } from "$lib/settings/settings.svelte.js";
+  import { settings } from "#lib/settings/settings.svelte.js";
   import { onMount } from "svelte";
 
   let { platform }: { platform: "windows" | "linux" } = $props();

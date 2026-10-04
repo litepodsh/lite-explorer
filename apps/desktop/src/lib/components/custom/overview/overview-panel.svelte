@@ -5,7 +5,7 @@
   import LayersIcon from "@lucide/svelte/icons/layers";
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
-  import { formatSize } from "$lib/components/custom/preview/format.js";
+  import { formatSize } from "#lib/components/custom/preview/format.js";
   import DeviceCard from "./device-card.svelte";
   import { folderScan } from "./folder-scan.svelte.js";
   import FolderUsageCard from "./folder-usage-card.svelte";

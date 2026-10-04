@@ -1,29 +1,29 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { isPartialDownload, type DownloadSnapshot } from "$lib/transfers/download-progress.js";
+  import { isPartialDownload, type DownloadSnapshot } from "#lib/transfers/download-progress.js";
   import { tick, untrack } from "svelte";
   import { get } from "svelte/store";
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
   import ArrowUpDownIcon from "@lucide/svelte/icons/arrow-up-down";
-  import { PreviewPanel } from "$lib/components/custom/preview/index.js";
-  import * as Resizable from "$lib/components/ui/resizable/index.js";
-  import { createRowVirtualizer } from "$lib/virtual/row-virtualizer.svelte.js";
+  import { PreviewPanel } from "#lib/components/custom/preview/index.js";
+  import * as Resizable from "#lib/components/ui/resizable/index.js";
+  import { createRowVirtualizer } from "#lib/virtual/row-virtualizer.svelte.js";
   import ListItem, { type DirectoryEntry } from "./list-item.svelte";
   import { orderEntries, entryType, type ListOrder, type SortColumn, type SortDir } from "./sort.js";
   import { DEFAULT_COLUMNS, COLUMN_LABELS, loadColumns, saveColumns, moveColumn, type ListColumn } from "./columns.js";
   import { loadFolderSort, saveFolderSort } from "./folder-sort.js";
-  import { drag, type DraggedEntry } from "$lib/file-drag/drag.svelte.js";
-  import { dropTargetAt } from "$lib/file-drag/drop-target.js";
-  import { trackPointerDrag } from "$lib/file-drag/pointer-drag.js";
-  import { atWindowEdge, canDragOut, startNativeDrag, type DragIcon } from "$lib/file-drag/native-drag.js";
-  import { canFavorite } from "$lib/favorites/favorites.js";
-  import type { ListNavigator } from "$lib/file-pane/controller.svelte.js";
-  import { formatDate, formatSize } from "$lib/components/custom/preview/format.js";
-  import SelectionSummary from "$lib/components/custom/preview/selection-summary.svelte";
+  import { drag, type DraggedEntry } from "#lib/file-drag/drag.svelte.js";
+  import { dropTargetAt } from "#lib/file-drag/drop-target.js";
+  import { trackPointerDrag } from "#lib/file-drag/pointer-drag.js";
+  import { atWindowEdge, canDragOut, startNativeDrag, type DragIcon } from "#lib/file-drag/native-drag.js";
+  import { canFavorite } from "#lib/favorites/favorites.js";
+  import type { ListNavigator } from "#lib/file-pane/controller.svelte.js";
+  import { formatDate, formatSize } from "#lib/components/custom/preview/format.js";
+  import SelectionSummary from "#lib/components/custom/preview/selection-summary.svelte";
   import SelectionCheckbox from "./selection-checkbox.svelte";
-  import { requestThumbnails, thumbnailFor } from "$lib/file-icons/thumbnail-cache.svelte.js";
-  import { categoryFor } from "$lib/file-icons/fallback.js";
+  import { requestThumbnails, thumbnailFor } from "#lib/file-icons/thumbnail-cache.svelte.js";
+  import { categoryFor } from "#lib/file-icons/fallback.js";
 
   let {
     entries = [],
