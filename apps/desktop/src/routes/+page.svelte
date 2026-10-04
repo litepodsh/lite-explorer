@@ -19,6 +19,8 @@
   import CalculatorIcon from "@lucide/svelte/icons/calculator";
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import Rows2Icon from "@lucide/svelte/icons/rows-2";
+  import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
+  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import FinderSearch from "$lib/components/custom/finder-search.svelte";
   import AppSidebar from "$lib/components/custom/sidebar/app-sidebar.svelte";
   import { isVolumeLocation } from "$lib/components/custom/sidebar/sidebar-sections.js";
@@ -1148,7 +1150,7 @@
         </div>
       </div>
       <button class="location-title" aria-label="Go to folder" onclick={() => openCommandPaletteWith(withTrailingSlash(activeController.listingPath))}
-        >{activeController.selected}<ChevronDownIcon /></button>
+        ><span class="location-title-text">{activeController.selected}</span><ChevronDownIcon /></button>
       <div class="toolbar-actions">
         {#if activeController.tabs.active.location.kind !== "overview"}
           <div class="toolbar-group">
@@ -1156,12 +1158,13 @@
             <button aria-label="Icon view" aria-pressed={activeController.viewMode === "grid"} onclick={() => activeController.tabs.update({ viewMode: "grid" })}><Grid2X2Icon /></button>
           </div>
           {#if activeController.viewMode === "grid"}
-            <div class="toolbar-group px-2" aria-label="Icon size">
+            <div class="toolbar-group toolbar-zoom px-2" aria-label="Icon size">
               <Slider type="single" bind:value={gridZoom} min={0.75} max={6} step={0.05} class="grid-zoom-slider w-24" aria-label="Icon size" />
             </div>
           {/if}
           <div class="toolbar-group">
             <button
+              class="toolbar-secondary"
               aria-label={itemCheckboxes ? "Hide item checkboxes" : "Show item checkboxes"}
               aria-pressed={itemCheckboxes}
               title="Item Checkboxes"
@@ -1172,6 +1175,7 @@
               title={activeController.previewOpen ? "Hide preview" : "Show preview"}
               onclick={() => (activeController.previewOpen = !activeController.previewOpen)}>{#if activeController.previewOpen}<PanelRightCloseIcon />{:else}<PanelRightOpenIcon />{/if}</button>
             <button
+              class="toolbar-secondary"
               aria-label={activeController.sizeScanning ? "Cancel Size Calculation" : "Calculate Folder Sizes"}
               title={activeController.sizeScanning ? "Cancel Size Calculation" : `Calculate Folder Sizes · ${activeController.selected}`}
               disabled={!activeController.canCalculateSizes && !activeController.sizeScanning}
@@ -1184,7 +1188,7 @@
             </button>
           </div>
         {/if}
-        <div class="toolbar-group">
+        <div class="toolbar-group toolbar-secondary">
           <button
             aria-label="Toggle second pane"
             aria-pressed={panes.panes.length > 1}
@@ -1205,6 +1209,31 @@
             <RotateCwIcon />
             {#if jobs.activeCount > 0}<span class="activity-badge">{jobs.activeCount}</span>{/if}
           </button>
+        </div>
+        <!-- Narrow windows fold the secondary toolbar actions into this menu (see `.toolbar-overflow` in app.css). -->
+        <div class="toolbar-group toolbar-overflow">
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger aria-label="More actions" title="More actions"><EllipsisIcon /></DropdownMenu.Trigger>
+            <DropdownMenu.Content align="end" sideOffset={8} class="w-auto min-w-56">
+              {#if activeController.tabs.active.location.kind !== "overview"}
+                <DropdownMenu.CheckboxItem checked={itemCheckboxes} onCheckedChange={(checked) => setItemCheckboxes(checked)}>
+                  <ListChecksIcon /> Item Checkboxes
+                </DropdownMenu.CheckboxItem>
+                <DropdownMenu.Item
+                  disabled={!activeController.canCalculateSizes && !activeController.sizeScanning}
+                  onSelect={() => activeController.sizeScanning ? activeController.cancelSizeScan() : void activeController.calculateSizes()}>
+                  <CalculatorIcon /> {activeController.sizeScanning ? "Cancel Size Calculation" : "Calculate Folder Sizes"}
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator />
+              {/if}
+              <DropdownMenu.CheckboxItem checked={panes.panes.length > 1} onCheckedChange={() => panes.togglePane()}>
+                <Columns2Icon /> Second Pane
+              </DropdownMenu.CheckboxItem>
+              <DropdownMenu.Item onSelect={() => panes.toggleLayout()}>
+                <Rows2Icon /> Split Horizontally/Vertically
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
         </div>
         <FinderSearch bind:this={finderSearch} controller={activeController} />
       </div>
