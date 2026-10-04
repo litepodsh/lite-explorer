@@ -39,6 +39,7 @@ use tokio::{
 };
 
 use super::write;
+use crate::explorer::archive;
 use crate::{
     apply_text_extension_kind, classify_preview_bytes, media_preview_kind, now_secs,
     preview::arrow, preview::avro, preview::calendar, preview::certificate, preview::dicom,
@@ -918,6 +919,123 @@ pub(crate) async fn read_object(
     object_bytes(&client, &bucket, &remote.key, None, Some(max_bytes as i64)).await
 }
 
+/// Lists an archive object for the preview without downloading it. Reads go
+/// through [`RangedObject`], so nothing lands in the cache or a temp file.
+pub(crate) async fn list_archive(
+    pool: &SqlitePool,
+    clients: &RemoteClients,
+    path: &str,
+) -> Result<archive::ArchiveListing, String> {
+    let remote = parse_remote_path(path).ok_or("Not a remote path")?;
+    let bucket = remote.bucket.ok_or("Buckets can't be opened as files")?;
+    let name = entry_name(&remote.key).to_string();
+    let kind = archive::archive_kind(&name.to_lowercase()).ok_or("Unsupported archive")?;
+    let client = client_for(pool, clients, &remote.id).await?;
+    let head = client
+        .head_object()
+        .bucket(&bucket)
+        .key(&remote.key)
+        .send()
+        .await
+        .map_err(|error| object_error(&remote.key, error))?;
+    let size = head
+        .content_length()
+        .and_then(|size| u64::try_from(size).ok())
+        .unwrap_or(0);
+    // Compressed tars have no index: listing streams every byte, so cap it.
+    if matches!(kind, archive::ArchiveKind::Tar(Some(_))) && size > DOWNLOAD_MAX_BYTES {
+        return Err(format!(
+            "{name} is larger than {} MB",
+            DOWNLOAD_MAX_BYTES / (1024 * 1024)
+        ));
+    }
+    let reader = RangedObject {
+        client,
+        bucket,
+        key: remote.key,
+        size,
+        position: 0,
+        chunk: Vec::new(),
+        chunk_start: 0,
+        next_len: RANGE_MIN,
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        archive::read_listing_from(&name, reader, Some(archive::LIST_LIMIT))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+/// Smallest ranged GET; also the alignment of reads after a seek.
+const RANGE_MIN: usize = 64 * 1024;
+/// Largest ranged GET, reached by sequential reads.
+const RANGE_MAX: usize = 8 * 1024 * 1024;
+
+/// Blocking `Read + Seek` over an object through ranged GETs. Holds one chunk in
+/// memory: a seek fetches a small aligned chunk, so header walks stay cheap, and
+/// each sequential refill doubles the chunk, so streams make few requests.
+/// Call only from a blocking thread.
+struct RangedObject {
+    client: Client,
+    bucket: String,
+    key: String,
+    size: u64,
+    position: u64,
+    chunk: Vec<u8>,
+    chunk_start: u64,
+    next_len: usize,
+}
+
+impl std::io::Read for RangedObject {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.is_empty() || self.position >= self.size {
+            return Ok(0);
+        }
+        let chunk_end = self.chunk_start + self.chunk.len() as u64;
+        if self.position < self.chunk_start || self.position >= chunk_end {
+            let start = if !self.chunk.is_empty() && self.position == chunk_end {
+                self.next_len = (self.next_len * 2).min(RANGE_MAX);
+                self.position
+            } else {
+                self.next_len = RANGE_MIN;
+                // Aligned so short backward steps (zip's end-record search) hit the chunk.
+                self.position - self.position % RANGE_MIN as u64
+            };
+            let last = (start + self.next_len as u64).min(self.size) - 1;
+            self.chunk = tauri::async_runtime::block_on(object_bytes(
+                &self.client,
+                &self.bucket,
+                &self.key,
+                Some(format!("bytes={start}-{last}")),
+                None,
+            ))
+            .map_err(std::io::Error::other)?;
+            self.chunk_start = start;
+            if self.position >= self.chunk_start + self.chunk.len() as u64 {
+                return Ok(0);
+            }
+        }
+        let offset = (self.position - self.chunk_start) as usize;
+        let count = buf.len().min(self.chunk.len() - offset);
+        buf[..count].copy_from_slice(&self.chunk[offset..offset + count]);
+        self.position += count as u64;
+        Ok(count)
+    }
+}
+
+impl std::io::Seek for RangedObject {
+    fn seek(&mut self, target: std::io::SeekFrom) -> std::io::Result<u64> {
+        let position = match target {
+            std::io::SeekFrom::Start(offset) => Some(offset),
+            std::io::SeekFrom::End(delta) => self.size.checked_add_signed(delta),
+            std::io::SeekFrom::Current(delta) => self.position.checked_add_signed(delta),
+        }
+        .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::InvalidInput))?;
+        self.position = position;
+        Ok(position)
+    }
+}
+
 /// Reads a remote workbook and parses it for the spreadsheet preview.
 pub(crate) async fn read_spreadsheet(
     pool: &SqlitePool,
@@ -999,6 +1117,12 @@ pub async fn file_preview(
         .and_then(|size| u64::try_from(size).ok())
         .unwrap_or(0);
     preview.modified = millis(head.last_modified());
+
+    if archive::archive_kind_for(Path::new(&key)).is_some() {
+        // Archives are listed on demand by `list_archive`.
+        preview.kind = PreviewKind::Archive;
+        return Ok(preview);
+    }
 
     if let Some(kind) = Path::new(&key)
         .extension()
