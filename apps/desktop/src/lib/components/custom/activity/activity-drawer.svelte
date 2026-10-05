@@ -143,6 +143,15 @@
                 <button class="icon" aria-label="Remove" onclick={() => jobs.remove(job.id)}><XIcon class="size-4" /></button>
               {:else if job.state === "failed"}
                 <span class="state-fail"><TriangleAlertIcon class="size-4" /></span>
+                {#if job.retry}
+                  <button class="ghost" onclick={() => jobs.retry(job.id)}>
+                    {#if job.failedPaths?.length}
+                      Retry {job.failedPaths.length} {job.failedPaths.length === 1 ? "item" : "items"}
+                    {:else}
+                      Retry
+                    {/if}
+                  </button>
+                {/if}
                 <button class="icon" aria-label="Dismiss" onclick={() => jobs.remove(job.id)}><XIcon class="size-4" /></button>
               {:else if isRunning(job) && job.cancellable !== false}
                 <button class="icon" aria-label="Cancel" onclick={() => jobs.cancel(job.id)}><XIcon class="size-4" /></button>

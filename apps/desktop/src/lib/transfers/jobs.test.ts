@@ -165,6 +165,53 @@ test("generic actions publish active and terminal states", async () => {
   expect(published[3].error).toBe("busy");
 });
 
+describe("retry handlers", () => {
+  test("upsert keeps a failed job's retry closure across an active update", () => {
+    const retry = () => Promise.resolve("again");
+    const failed = upsert(
+      createJobsState(),
+      event({ state: "failed", retry, failedPaths: ["/a", "/b"] }),
+    );
+    // Un evento activo (re-run) sin retry no borra el closure del job anterior.
+    const activeAgain = upsert(failed, event({ state: "active" }));
+    expect(activeAgain[0].retry).toBe(retry);
+    expect(activeAgain[0].failedPaths).toEqual(["/a", "/b"]);
+  });
+
+  test("trackJob attaches a working retry that re-runs the operation", async () => {
+    const events: TransferEventPayload[] = [];
+    const publish = (event: TransferEventPayload) => events.push(event);
+    let calls = 0;
+    const pending = trackJob(publish, "copy", "Copy: x", "/dest", async () => {
+      calls += 1;
+      if (calls === 1) throw new Error("boom");
+      return "copied";
+    }).catch((error) => error);
+    expect(await pending).toEqual(new Error("boom"));
+    const retry = events[events.length - 1].retry;
+    expect(typeof retry).toBe("function");
+    expect(await retry!()).toBe("copied");
+    expect(calls).toBe(2);
+  });
+
+  test("activity.fail forwards retry/failedPaths into the published event", () => {
+    const published: TransferEventPayload[] = [];
+    const original = activity.publish;
+    activity.publish = (event) => published.push(event);
+    const retry = () => Promise.resolve();
+    const retryFailed = () => Promise.resolve();
+    activity.fail("j9", "copy", "Copy: z", "/dest", { kind: "partial" }, {
+      retry,
+      retryFailed,
+      failedPaths: ["/p1"],
+    });
+    activity.publish = original;
+    expect(published[0].retry).toBe(retry);
+    expect(published[0].retryFailed).toBe(retryFailed);
+    expect(published[0].failedPaths).toEqual(["/p1"]);
+  });
+});
+
 test("activity timestamps cover every kind and freeze on every terminal state", () => {
   const kinds = [
     "copy",

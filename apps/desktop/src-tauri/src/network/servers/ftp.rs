@@ -28,7 +28,10 @@ use suppaftp::{
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::super::{ConnectError, ErrorKind, Security};
-use super::{lost, untrusted, Progress, RemoteEntry, ServerTarget, CHUNK, CONNECT_TIMEOUT};
+use super::{
+    lost, untrusted, Progress, RemoteEntry, ServerTarget, CHUNK, CONNECT_TIMEOUT,
+    INACTIVITY_TIMEOUT,
+};
 
 type Stream = ImplAsyncFtpStream<AsyncRustlsStream>;
 
@@ -369,7 +372,16 @@ impl FtpConnection {
         let mut bytes = Vec::new();
         let mut buffer = vec![0u8; CHUNK];
         while bytes.len() < max {
-            let read = transfer.read(&mut buffer).await.map_err(|_| lost())?;
+            let read =
+                match tokio::time::timeout(INACTIVITY_TIMEOUT, transfer.read(&mut buffer)).await {
+                    Err(_) => {
+                        return Err(ConnectError::new(
+                            ErrorKind::Timeout,
+                            "The transfer stalled — no data received.",
+                        ))
+                    }
+                    Ok(result) => result.map_err(|_| lost())?,
+                };
             if read == 0 {
                 break;
             }
@@ -401,7 +413,16 @@ impl FtpConnection {
             if progress.cancelled() {
                 return Err(ConnectError::other("Canceled."));
             }
-            let read = transfer.read(&mut buffer).await.map_err(|_| lost())?;
+            let read =
+                match tokio::time::timeout(INACTIVITY_TIMEOUT, transfer.read(&mut buffer)).await {
+                    Err(_) => {
+                        return Err(ConnectError::new(
+                            ErrorKind::Timeout,
+                            "The transfer stalled — no data received.",
+                        ))
+                    }
+                    Ok(result) => result.map_err(|_| lost())?,
+                };
             if read == 0 {
                 break;
             }
@@ -435,10 +456,17 @@ impl FtpConnection {
             if read == 0 {
                 break;
             }
-            transfer
-                .write_all(&buffer[..read])
-                .await
-                .map_err(|_| lost())?;
+            let written =
+                tokio::time::timeout(INACTIVITY_TIMEOUT, transfer.write_all(&buffer[..read])).await;
+            match written {
+                Err(_) => {
+                    return Err(ConnectError::new(
+                        ErrorKind::Timeout,
+                        "The transfer stalled — the server stopped accepting data.",
+                    ))
+                }
+                Ok(result) => result.map_err(|_| lost())?,
+            }
             progress.add_bytes(read as u64);
         }
         transfer.flush().await.map_err(|_| lost())?;

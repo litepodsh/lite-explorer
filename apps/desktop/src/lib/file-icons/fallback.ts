@@ -201,16 +201,51 @@ export function categoryFor(name: string): IconCategory {
 export function customIconFor(name: string, directory = false): CustomIcon | undefined {
   if (directory) return "folder";
   switch (extensionOf(name)) {
-    case "zip": case "tar": case "gz": case "tgz": case "bz2": case "tbz2": case "xz": case "txz": case "7z": case "rar":
+    case "zip":
+    case "tar":
+    case "gz":
+    case "tgz":
+    case "bz2":
+    case "tbz2":
+    case "xz":
+    case "txz":
+    case "7z":
+    case "rar":
       return "file_archive";
-    case "conf": case "cfg": case "ini": case "json": case "jsonc": case "yml": case "yaml": case "toml": case "xml": case "plist":
+    case "conf":
+    case "cfg":
+    case "ini":
+    case "json":
+    case "jsonc":
+    case "yml":
+    case "yaml":
+    case "toml":
+    case "xml":
+    case "plist":
       return "file_config";
-    case "doc": case "docx": case "odt": case "rtf": case "pages": case "wpd": case "tex":
+    case "doc":
+    case "docx":
+    case "odt":
+    case "rtf":
+    case "pages":
+    case "wpd":
+    case "tex":
       return "file_document";
-    case "pdf": return "file_pdf";
-    case "srt": case "vtt": return "file_subtitle";
-    case "xls": case "xlsx": case "xlsm": case "ods": case "numbers": case "csv": return "file_spreadsheet";
-    case "xmp": return "file_metadata";
-    default: return categoryFor(name) === "default" ? "file" : undefined;
+    case "pdf":
+      return "file_pdf";
+    case "srt":
+    case "vtt":
+      return "file_subtitle";
+    case "xls":
+    case "xlsx":
+    case "xlsm":
+    case "ods":
+    case "numbers":
+    case "csv":
+      return "file_spreadsheet";
+    case "xmp":
+      return "file_metadata";
+    default:
+      return categoryFor(name) === "default" ? "file" : undefined;
   }
 }

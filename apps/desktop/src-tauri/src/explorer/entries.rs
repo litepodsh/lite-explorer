@@ -214,7 +214,7 @@ pub fn directory_entries(path: &Path) -> Result<Vec<DirectoryEntry>, String> {
                 name,
                 path: entry.path().to_string_lossy().into_owned(),
                 is_directory,
-                size: (!is_directory).then(|| metadata.len()),
+                size: (!is_directory).then_some(metadata.len()),
                 created: epoch_millis(metadata.created()),
                 modified: epoch_millis(metadata.modified()),
                 kind: None,
@@ -303,7 +303,7 @@ fn entry_details_for(path: &str) -> EntryDetails {
         path: path.to_string(),
         size: metadata
             .as_ref()
-            .and_then(|metadata| (!metadata.is_dir()).then(|| metadata.len())),
+            .and_then(|metadata| (!metadata.is_dir()).then_some(metadata.len())),
         created: metadata
             .as_ref()
             .and_then(|metadata| epoch_millis(metadata.created())),

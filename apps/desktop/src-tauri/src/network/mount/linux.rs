@@ -11,6 +11,9 @@ use std::{
 use super::super::{ConnectError, ErrorKind};
 use super::{targets, Credentials, Target};
 
+/// A stuck `gio mount` is killed after this long (same bound as smbutil on macOS).
+const GIO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+
 fn gio_missing(error: std::io::Error) -> ConnectError {
     if error.kind() == std::io::ErrorKind::NotFound {
         ConnectError::new(
@@ -43,6 +46,23 @@ pub fn mount(target: &Target, credentials: &Credentials) -> Result<PathBuf, Conn
     // password out of the process arguments.
     if let Some(mut stdin) = child.stdin.take() {
         let _ = stdin.write_all(targets::gio_answers(target.protocol, credentials).as_bytes());
+    }
+    // 5d: a stuck `gio mount` must not hang the app; kill it after 15s (same
+    // pattern as smbutil on macOS).
+    let started = std::time::Instant::now();
+    loop {
+        if child.try_wait().map_err(ConnectError::other)?.is_some() {
+            break;
+        }
+        if started.elapsed() > GIO_TIMEOUT {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(ConnectError::new(
+                ErrorKind::Timeout,
+                "The mount didn’t complete in time.",
+            ));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(40));
     }
     let output = child.wait_with_output().map_err(ConnectError::other)?;
     if !output.status.success() {

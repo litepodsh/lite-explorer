@@ -8,6 +8,7 @@ use tauri::State;
 use trash::macos::{DeleteMethod, TrashContextExtMacos};
 
 use crate::app::db::Database;
+use crate::app::error::AppError;
 use crate::explorer::entries::{
     coordinated_read, coordinated_write, single_entry, unique_name, DirectoryEntry,
 };
@@ -25,19 +26,22 @@ pub async fn create_item(
     parent: String,
     kind: String,
     name: String,
-) -> Result<DirectoryEntry, String> {
+) -> Result<DirectoryEntry, AppError> {
     if network::servers::is_server_path(&parent) {
         return network::servers::create_item(&database.0, &sessions, &parent, &kind, &name).await;
     }
     if remote::is_remote_path(&parent) {
-        return remote::write::create_item(&database.0, &clients, &parent, &kind, &name).await;
+        return remote::write::create_item(&database.0, &clients, &parent, &kind, &name)
+            .await
+            .map_err(AppError::from);
     }
     tauri::async_runtime::spawn_blocking(move || {
         let parent_path = PathBuf::from(&parent);
         coordinated_write(&parent_path, || create_local_item(parent, kind, name))
     })
     .await
-    .map_err(|error| error.to_string())?
+    .map_err(crate::app::error::from_join)?
+    .map_err(AppError::from)
 }
 
 pub fn create_local_item(
@@ -66,19 +70,22 @@ pub async fn rename_item(
     sessions: State<'_, network::servers::Sessions>,
     path: String,
     new_name: String,
-) -> Result<DirectoryEntry, String> {
+) -> Result<DirectoryEntry, AppError> {
     if network::servers::is_server_path(&path) {
         return network::servers::rename_item(&database.0, &sessions, &path, &new_name).await;
     }
     if remote::is_remote_path(&path) {
-        return remote::write::rename_item(&database.0, &clients, &path, &new_name).await;
+        return remote::write::rename_item(&database.0, &clients, &path, &new_name)
+            .await
+            .map_err(AppError::from);
     }
     tauri::async_runtime::spawn_blocking(move || {
         let source = PathBuf::from(&path);
         coordinated_write(&source, || rename_local_item(path, new_name))
     })
     .await
-    .map_err(|error| error.to_string())?
+    .map_err(crate::app::error::from_join)?
+    .map_err(AppError::from)
 }
 
 pub fn rename_local_item(path: String, new_name: String) -> Result<DirectoryEntry, String> {
@@ -96,12 +103,14 @@ pub async fn copy_item(
     database: State<'_, Database>,
     clients: State<'_, remote::RemoteClients>,
     sessions: State<'_, network::servers::Sessions>,
-) -> Result<DirectoryEntry, String> {
+) -> Result<DirectoryEntry, AppError> {
     if network::servers::is_server_path(&path) || network::servers::is_server_path(&destination) {
         return network::servers::copy_item(&database.0, &sessions, &path, &destination).await;
     }
     if remote::is_remote_path(&path) || remote::is_remote_path(&destination) {
-        return remote::write::copy_item(&database.0, &clients, &path, &destination).await;
+        return remote::write::copy_item(&database.0, &clients, &path, &destination)
+            .await
+            .map_err(AppError::from);
     }
     copy_item_inner(&database, &path, &destination).await
 }
@@ -110,15 +119,15 @@ pub async fn copy_item_inner(
     database: &Database,
     path: &str,
     destination: &str,
-) -> Result<DirectoryEntry, String> {
-    let source = validate_existing(Path::new(path), ExpectedKind::Any)?;
-    let dest_dir = validate_directory(Path::new(destination))?;
+) -> Result<DirectoryEntry, AppError> {
+    let source = validate_existing(Path::new(path), ExpectedKind::Any).map_err(AppError::from)?;
+    let dest_dir = validate_directory(Path::new(destination)).map_err(AppError::from)?;
     let base = source
         .file_name()
         .ok_or("invalid source path")?
         .to_string_lossy()
         .into_owned();
-    let target = child_path(&dest_dir, &unique_name(&dest_dir, &base))?;
+    let target = child_path(&dest_dir, &unique_name(&dest_dir, &base)).map_err(AppError::from)?;
     let entry = coordinated_read(&source, || {
         coordinated_write(&target, || {
             if source.is_dir() {
@@ -128,14 +137,16 @@ pub async fn copy_item_inner(
             }
             single_entry(&target)
         })
-    })?;
+    })
+    .map_err(AppError::from)?;
     insert_recent(
         database,
         &entry.path,
         &entry.name,
         &recent_kind(entry.is_directory),
     )
-    .await?;
+    .await
+    .map_err(AppError::from)?;
     Ok(entry)
 }
 
@@ -148,17 +159,17 @@ pub async fn move_item(
     destination: String,
     database: State<'_, Database>,
     sessions: State<'_, network::servers::Sessions>,
-) -> Result<DirectoryEntry, String> {
+) -> Result<DirectoryEntry, AppError> {
     if network::servers::is_server_path(&path) && network::servers::is_server_path(&destination) {
         return network::servers::move_item(&database.0, &sessions, &path, &destination).await;
     }
     if network::servers::is_server_path(&path) || network::servers::is_server_path(&destination) {
-        return Err(
-            "Moving between a server and this computer isn’t supported. Copy instead.".into(),
-        );
+        return Err(AppError::other(
+            "Moving between a server and this computer isn’t supported. Copy instead.",
+        ));
     }
     if remote::is_remote_path(&path) || remote::is_remote_path(&destination) {
-        return Err("Moving remote items isn’t supported yet".into());
+        return Err(AppError::other("Moving remote items isn’t supported yet"));
     }
     move_item_inner(&database, &path, &destination).await
 }
@@ -167,15 +178,15 @@ pub async fn move_item_inner(
     database: &Database,
     path: &str,
     destination: &str,
-) -> Result<DirectoryEntry, String> {
-    let source = validate_existing(Path::new(path), ExpectedKind::Any)?;
-    let dest_dir = validate_directory(Path::new(destination))?;
+) -> Result<DirectoryEntry, AppError> {
+    let source = validate_existing(Path::new(path), ExpectedKind::Any).map_err(AppError::from)?;
+    let dest_dir = validate_directory(Path::new(destination)).map_err(AppError::from)?;
     let base = source
         .file_name()
         .ok_or("invalid source path")?
         .to_string_lossy()
         .into_owned();
-    let target = child_path(&dest_dir, &unique_name(&dest_dir, &base))?;
+    let target = child_path(&dest_dir, &unique_name(&dest_dir, &base)).map_err(AppError::from)?;
     let entry = coordinated_write(&source, || {
         coordinated_write(&target, || {
             if fs::rename(&source, &target).is_err() {
@@ -190,26 +201,28 @@ pub async fn move_item_inner(
             }
             single_entry(&target)
         })
-    })?;
+    })
+    .map_err(AppError::from)?;
     insert_recent(
         database,
         &entry.path,
         &entry.name,
         &recent_kind(entry.is_directory),
     )
-    .await?;
+    .await
+    .map_err(AppError::from)?;
     Ok(entry)
 }
 
 #[tauri::command]
-pub async fn trash_item(path: String) -> Result<(), String> {
+pub async fn trash_item(path: String) -> Result<(), AppError> {
     let result = tauri::async_runtime::spawn_blocking(move || {
         let path = validate_existing(Path::new(&path), ExpectedKind::Any)?;
         coordinated_write(&path, || trash_local_item(&path))
     })
     .await
-    .map_err(|error| error.to_string())?;
-    result
+    .map_err(crate::app::error::from_join)?;
+    result.map_err(AppError::from)
 }
 
 pub fn trash_local_item(path: &Path) -> Result<(), String> {
@@ -226,14 +239,14 @@ pub fn trash_local_item(path: &Path) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn delete_item(path: String) -> Result<(), String> {
+pub async fn delete_item(path: String) -> Result<(), AppError> {
     let result = tauri::async_runtime::spawn_blocking(move || {
         let path = validate_existing(Path::new(&path), ExpectedKind::Any)?;
         coordinated_write(&path, || delete_item_path(&path))
     })
     .await
-    .map_err(|error| error.to_string())?;
-    result
+    .map_err(crate::app::error::from_join)?;
+    result.map_err(AppError::from)
 }
 
 pub fn delete_item_path(path: &Path) -> Result<(), String> {

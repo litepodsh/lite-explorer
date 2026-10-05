@@ -1,4 +1,4 @@
-import { activity } from "#lib/transfers/jobs.js";
+import { activity, type AppErrorLike } from "#lib/transfers/jobs.js";
 import { invoke } from "@tauri-apps/api/core";
 import type { DirectoryEntry } from "#lib/components/custom/file-list/list-item.svelte";
 
@@ -34,10 +34,18 @@ export async function copyItems(
 ): Promise<DirectoryEntry[]> {
   const id = activity.start("copy", label, destination);
   onStart?.(id);
+  const run = () => invoke<DirectoryEntry[]>("copy_items", { paths, destination, jobId: id });
   try {
-    return await invoke<DirectoryEntry[]>("copy_items", { paths, destination, jobId: id });
+    return await run();
   } catch (error) {
-    activity.fail(id, "copy", label, destination, error);
+    const failedPaths = failedPathsFrom(error);
+    activity.fail(id, "copy", label, destination, error, {
+      retry: () => run(),
+      retryFailed: failedPaths.length
+        ? () => copyItems(failedPaths, destination, `${label} (retry)`)
+        : undefined,
+      failedPaths,
+    });
     throw error;
   }
 }
@@ -50,32 +58,63 @@ export async function moveItems(
 ): Promise<DirectoryEntry[]> {
   const id = activity.start("move", label, destination);
   onStart?.(id);
+  const run = () => invoke<DirectoryEntry[]>("move_items", { paths, destination, jobId: id });
   try {
-    return await invoke<DirectoryEntry[]>("move_items", { paths, destination, jobId: id });
+    return await run();
   } catch (error) {
-    activity.fail(id, "move", label, destination, error);
+    const failedPaths = failedPathsFrom(error);
+    activity.fail(id, "move", label, destination, error, {
+      retry: () => run(),
+      retryFailed: failedPaths.length
+        ? () => moveItems(failedPaths, destination, `${label} (retry)`)
+        : undefined,
+      failedPaths,
+    });
     throw error;
   }
 }
 
 export async function deleteItems(paths: string[], label: string): Promise<void> {
   const id = activity.start("delete", label, "");
+  const run = () => invoke<void>("delete_items", { paths, permanent: true, jobId: id });
   try {
-    await invoke<void>("delete_items", { paths, permanent: true, jobId: id });
+    await run();
   } catch (error) {
-    activity.fail(id, "delete", label, "", error);
+    const failedPaths = failedPathsFrom(error);
+    activity.fail(id, "delete", label, "", error, {
+      retry: () => run(),
+      retryFailed: failedPaths.length
+        ? () => deleteItems(failedPaths, `${label} (retry)`)
+        : undefined,
+      failedPaths,
+    });
     throw error;
   }
 }
 
 export async function trashItems(paths: string[], label: string): Promise<void> {
   const id = activity.start("delete", label, "");
+  const run = () => invoke<void>("delete_items", { paths, permanent: false, jobId: id });
   try {
-    await invoke<void>("delete_items", { paths, permanent: false, jobId: id });
+    await run();
   } catch (error) {
-    activity.fail(id, "delete", label, "", error);
+    const failedPaths = failedPathsFrom(error);
+    activity.fail(id, "delete", label, "", error, {
+      retry: () => run(),
+      retryFailed: failedPaths.length
+        ? () => trashItems(failedPaths, `${label} (retry)`)
+        : undefined,
+      failedPaths,
+    });
     throw error;
   }
+}
+
+/** Extracts the failed paths when the error is an `AppError::Partial`. */
+function failedPathsFrom(error: unknown): string[] {
+  const candidate = error as AppErrorLike;
+  if (candidate?.kind !== "partial") return [];
+  return candidate.failed?.map((item) => item.path) ?? [];
 }
 
 const isSeparator = (character: string) => character === "/" || character === "\\";

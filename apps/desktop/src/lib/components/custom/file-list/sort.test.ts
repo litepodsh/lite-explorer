@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { orderEntries, sortEntries, type SortColumn } from "./sort.js";
 import type { DirectoryEntry } from "./list-item.svelte";
 

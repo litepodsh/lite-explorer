@@ -1,5 +1,10 @@
 //! Windows: SMB and WebDAV connect to UNC paths with WNet (WebDAV needs the WebClient
 //! service); NFS uses `mount.exe` from the "Client for NFS" feature and a drive letter.
+//!
+//! Límite (5d): Windows no expone un timeout por operación para conexiones SMB/WNet,
+//! y `mount.exe` (NFS) no tiene un modo de timeout propio. El retry/cleanup es
+//! best-effort: si la conexión cuelga, la app reporta el fallo al reintentar y el
+//! usuario decide; no hay forma portable de matar la llamada de red de Windows.
 
 use std::{
     ffi::OsStr,

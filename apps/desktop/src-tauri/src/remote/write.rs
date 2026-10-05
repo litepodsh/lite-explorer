@@ -23,6 +23,7 @@ use tokio_util::sync::CancellationToken;
 use super::{
     bucket_error, client_for, entry_name, object_error, parse_remote_path, RemoteClients, SCHEME,
 };
+use crate::app::error::AppError;
 use crate::remote::transfer::{self, TransferEvent, TransferRegistry};
 use crate::{image_mime, unique_name, Database, DirectoryEntry};
 
@@ -436,7 +437,7 @@ pub async fn delete_remote_items(
     clients: State<'_, RemoteClients>,
     sessions: State<'_, crate::network::servers::Sessions>,
     paths: Vec<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     if paths
         .iter()
         .any(|path| crate::network::servers::is_server_path(path))
@@ -446,7 +447,9 @@ pub async fn delete_remote_items(
     for path in paths {
         let item = target(&path)?;
         if item.key.is_empty() {
-            return Err("Buckets can’t be deleted here".into());
+            return Err(AppError::Unsupported {
+                feature: "deleting bucket roots".into(),
+            });
         }
         let client = client_for(&database.0, &clients, &item.id).await?;
         let keys = if is_folder(&item.key) {
@@ -591,7 +594,7 @@ pub async fn upload_remote_files(
     sessions: State<'_, crate::network::servers::Sessions>,
     destination: String,
     sources: Vec<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     if crate::network::servers::is_server_path(&destination) {
         return crate::network::servers::upload_files(
             app,
@@ -638,10 +641,9 @@ pub async fn upload_remote_files(
         .iter()
         .find(|item| item.size > SINGLE_REQUEST_MAX_BYTES)
     {
-        return Err(format!(
-            "{} is larger than 5 GB, which can’t be uploaded yet",
-            entry_name(&item.key)
-        ));
+        return Err(AppError::Unsupported {
+            feature: format!("{} is larger than 5 GB", entry_name(&item.key)),
+        });
     }
 
     let total_bytes = items.iter().map(|item| item.size).sum();
@@ -657,8 +659,18 @@ pub async fn upload_remote_files(
         total_bytes,
     );
     let result = async {
-        for item in &items {
+        let mut index = 0usize;
+        while index < items.len() {
+            let item = &items[index];
             if progress.cancelled() {
+                // 4e: limpiar el parcial remoto del item en curso al cancelar.
+                let current = &items[index];
+                let _ = client
+                    .delete_object()
+                    .bucket(&folder.bucket)
+                    .key(&current.key)
+                    .send()
+                    .await;
                 break;
             }
             progress.start_file(entry_name(&item.key));
@@ -677,12 +689,24 @@ pub async fn upload_remote_files(
             if let Some(content_type) = content_type(&item.key) {
                 request = request.content_type(content_type);
             }
-            request
+            if let Err(error) = request
                 .send()
                 .await
-                .map_err(|error| object_error(&item.key, error))?;
+                .map_err(|error| object_error(&item.key, error))
+            {
+                // 4d: un PUT interrumpido puede dejar un objeto parcial en S3;
+                // limpiarlo es simétrico al download (que borra el file local).
+                let _ = client
+                    .delete_object()
+                    .bucket(&folder.bucket)
+                    .key(&item.key)
+                    .send()
+                    .await;
+                return Err(error);
+            }
             progress.add_bytes(item.size);
             progress.finish_file();
+            index += 1;
         }
         Ok::<_, String>(())
     }
@@ -692,7 +716,7 @@ pub async fn upload_remote_files(
         Err(error) => progress.fail(error.clone()),
     }
     transfers.remove(&id);
-    result
+    result.map_err(AppError::from)
 }
 
 /// Streams an object into `local`, creating parent folders. A partial file is removed on error.
@@ -764,7 +788,7 @@ pub async fn download_remote_items(
     sessions: State<'_, crate::network::servers::Sessions>,
     paths: Vec<String>,
     destination: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     if paths
         .iter()
         .any(|path| crate::network::servers::is_server_path(path))
@@ -782,7 +806,10 @@ pub async fn download_remote_items(
     let destination_label = destination.clone();
     let destination = PathBuf::from(destination);
     if !destination.is_dir() {
-        return Err(format!("{} is not a folder", destination.display()));
+        return Err(AppError::other(format!(
+            "{} is not a folder",
+            destination.display()
+        )));
     }
     let first = target(paths.first().ok_or("Nothing to download")?)?;
     let client = client_for(&database.0, &clients, &first.id).await?;
@@ -855,7 +882,7 @@ pub async fn download_remote_items(
         Err(error) => progress.fail(error.clone()),
     }
     transfers.remove(&id);
-    result
+    result.map_err(AppError::from)
 }
 
 #[cfg(test)]
