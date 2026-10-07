@@ -27,7 +27,7 @@
 <div class="h-full min-h-0" aria-label={`Parquet preview of ${name}`}>
   {#if error}
     <div class="grid h-full place-content-center justify-items-center px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if parquet}
     <RecordGrid schema={parquet.schema} columns={parquet.columns} rows={parquet.rows} truncated={parquet.truncated} />

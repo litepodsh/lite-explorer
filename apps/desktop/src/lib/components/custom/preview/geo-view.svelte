@@ -53,20 +53,20 @@
   });
 </script>
 
-<div class="flex h-full min-h-0 flex-col bg-[#1f1d1b]" aria-label={`Map preview of ${name}`}>
+<div class="flex h-full min-h-0 flex-col bg-[var(--app-input)]" aria-label={`Map preview of ${name}`}>
   {#if error}
     <div class="grid flex-1 place-content-center justify-items-center px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if geo && view}
-    <p class="shrink-0 border-b border-[#3a3734] px-3 py-1 text-[11px] text-[#9c9895]">
+    <p class="shrink-0 border-b border-[var(--app-border)] px-3 py-1 text-[11px] text-[var(--app-fg-muted)]">
       {geo.format.toUpperCase()} · {geo.features.length} features · {geo.pointCount} puntos
     </p>
     <div class="min-h-0 flex-1">
       <svg class="h-full w-full" viewBox="0 0 {view.width} {view.height}" preserveAspectRatio="xMidYMid meet">
         <defs>
           <pattern id="geo-grid" width="50" height="50" patternUnits="userSpaceOnUse">
-            <path d="M50 0H0V50" fill="none" stroke="#2c2a28" stroke-width="1" />
+            <path d="M50 0H0V50" fill="none" stroke="var(--app-surface-raised)" stroke-width="1" />
           </pattern>
         </defs>
         <rect width={view.width} height={view.height} fill="url(#geo-grid)" />
@@ -78,7 +78,7 @@
           {:else}
             {#each feature.points as point, pointIndex (pointIndex)}
               {@const projected = view.project(point)}
-              <circle cx={projected[0]} cy={projected[1]} r="5" fill="#e0af68" stroke="#1f1d1b" stroke-width="1.5">
+              <circle cx={projected[0]} cy={projected[1]} r="5" fill="#e0af68" stroke="var(--app-input)" stroke-width="1.5">
                 <title>{feature.name || `${point[1].toFixed(4)}, ${point[0].toFixed(4)}`}</title>
               </circle>
             {/each}

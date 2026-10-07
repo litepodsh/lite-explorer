@@ -220,7 +220,7 @@
       : ''}">
     {#if error}
       <div class="grid flex-1 place-content-center justify-items-center gap-1 px-4 text-center">
-        <FileIcon class="mb-2 size-12 stroke-[1.2] text-[#67635f]" />
+        <FileIcon class="mb-2 size-12 stroke-[1.2] text-[var(--app-fg-faint)]" />
         <p class="text-[14px] font-semibold text-[var(--app-fg)]">Can’t preview this file</p>
         <p class="text-[12px] break-all text-[var(--app-fg-muted)]">{error}</p>
       </div>

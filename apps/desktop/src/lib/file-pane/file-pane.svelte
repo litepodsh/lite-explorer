@@ -218,7 +218,7 @@
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="flex items-center justify-end px-3 pt-2">
         <button
-          class="flex items-center gap-1.5 rounded-md border-0 bg-transparent px-2 py-1 text-[13px] text-[#9c9895] hover:bg-[#353230] hover:text-[#e8e5e2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0a9bff]"
+          class="flex items-center gap-1.5 rounded-md border-0 bg-transparent px-2 py-1 text-[13px] text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)]"
           aria-label="Clear recents history"
           onclick={() => void controller.clearRecents()}><Trash2Icon class="size-4" /> Clear history</button>
       </div>

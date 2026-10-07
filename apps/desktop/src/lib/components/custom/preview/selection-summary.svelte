@@ -40,7 +40,7 @@
   const icons = { folder: FolderIcon, file: FileIcon, drive: HardDriveIcon };
 </script>
 
-<aside class="flex h-full min-w-0 flex-col bg-[#242220]" aria-label="Selection summary">
+<aside class="flex h-full min-w-0 flex-col bg-[var(--app-surface)]" aria-label="Selection summary">
   <div class="summary-shell m-3 mb-0 flex min-h-0 flex-1 flex-col">
     <div class="summary-core flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-6">
       <div class="summary-stack" aria-hidden="true">
@@ -52,23 +52,23 @@
       </div>
       <div class="flex flex-col items-center gap-1 text-center" aria-live="polite">
         <p class="summary-count">{Math.round(count.current)}</p>
-        <p class="text-[12px] tracking-[0.14em] text-[#9c9895] uppercase">items selected</p>
+        <p class="text-[12px] tracking-[0.14em] text-[var(--app-fg-muted)] uppercase">items selected</p>
       </div>
     </div>
   </div>
   <section class="shrink-0 px-4 pt-3 pb-4" aria-label="Selection information">
-    <h2 class="truncate text-[15px] font-semibold text-[#e8e5e2]">{entries.length} Items</h2>
-    <p class="mt-0.5 text-[13px] text-[#9c9895]">
+    <h2 class="truncate text-[15px] font-semibold text-[var(--app-fg)]">{entries.length} Items</h2>
+    <p class="mt-0.5 text-[13px] text-[var(--app-fg-muted)]">
       {#if folders}{folders} {folders === 1 ? "folder" : "folders"}{/if}{#if folders && files} · {/if}{#if files}{files} {files === 1 ? "file" : "files"}{/if}
     </p>
-    <h3 class="mt-4 mb-1.5 text-[13px] font-semibold text-[#e8e5e2]">Information</h3>
+    <h3 class="mt-4 mb-1.5 text-[13px] font-semibold text-[var(--app-fg)]">Information</h3>
     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12px]">
-      <dt class="text-[#9c9895]">Total size</dt>
-      <dd class="m-0 text-right tabular-nums text-[#e8e5e2]">{sizesPending ? "≥ " : ""}{formatSize(Math.round(size.current))}</dd>
-      <dt class="text-[#9c9895]">Kinds</dt>
+      <dt class="text-[var(--app-fg-muted)]">Total size</dt>
+      <dd class="m-0 text-right tabular-nums text-[var(--app-fg)]">{sizesPending ? "≥ " : ""}{formatSize(Math.round(size.current))}</dd>
+      <dt class="text-[var(--app-fg-muted)]">Kinds</dt>
       <dd class="m-0 flex flex-wrap justify-end gap-1">
         {#each kinds as [kind, n] (kind)}
-          <span class="summary-chip">{kind}<span class="text-[#9c9895]">{n}</span></span>
+          <span class="summary-chip">{kind}<span class="text-[var(--app-fg-muted)]">{n}</span></span>
         {/each}
       </dd>
     </dl>
@@ -80,14 +80,14 @@
     --ease: cubic-bezier(0.32, 0.72, 0, 1);
     padding: 4px;
     border-radius: 12px;
-    background: rgb(255 255 255 / 0.025);
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.05);
+    background: var(--app-hover);
+    box-shadow: inset 0 0 0 1px var(--app-border);
   }
 
   .summary-core {
     border-radius: 8px;
-    background: radial-gradient(120% 80% at 50% 38%, rgb(10 132 255 / 0.07), transparent 60%), #1f1d1b;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+    background: radial-gradient(120% 80% at 50% 38%, color-mix(in srgb, var(--app-accent) 7%, transparent), transparent 60%), var(--app-input);
+    box-shadow: inset 0 1px 0 var(--app-inset-highlight);
     animation: summary-in 360ms var(--ease) both;
   }
 
@@ -103,19 +103,19 @@
     display: grid;
     place-items: center;
     border-radius: 14px;
-    background: linear-gradient(180deg, #34312e, #2a2725);
+    background: linear-gradient(180deg, var(--app-surface-raised), var(--app-surface));
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.08),
-      0 0 0 1px rgb(255 255 255 / 0.06),
+      inset 0 1px 0 var(--app-inset-highlight),
+      0 0 0 1px var(--app-border-strong),
       0 12px 28px -12px rgb(0 0 0 / 0.7);
-    color: #aaa5a1;
+    color: var(--app-fg-faint);
     transition: transform 420ms var(--ease);
     animation: summary-card-in 420ms var(--ease) both;
   }
 
   .summary-card[data-icon="folder"],
   .summary-card[data-icon="drive"] {
-    color: #0a9bff;
+    color: var(--app-accent);
   }
 
   .summary-card :global(svg) {
@@ -142,7 +142,7 @@
 
   .summary-count {
     margin: 0;
-    color: #eceae8;
+    color: var(--app-fg);
     font-size: 30px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
@@ -157,9 +157,9 @@
     height: 20px;
     padding: 0 7px;
     border-radius: 999px;
-    background: rgb(255 255 255 / 0.05);
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
-    color: #e8e5e2;
+    background: var(--app-hover);
+    box-shadow: inset 0 0 0 1px var(--app-border);
+    color: var(--app-fg);
     font-size: 11px;
     font-variant-numeric: tabular-nums;
   }

@@ -95,16 +95,16 @@
     pointer-events: auto;
     padding: 0.375rem;
     border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+    background: var(--app-hover);
+    box-shadow: 0 0 0 1px var(--app-border-strong);
     animation: toast-in 500ms cubic-bezier(0.32, 0.72, 0, 1) both;
   }
   .core {
     border-radius: calc(1rem - 0.375rem);
-    background: #1a1a1c;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
+    background: var(--app-surface);
+    box-shadow: inset 0 1px 1px var(--app-inset-highlight);
     padding: 0.75rem;
-    color: #e7e5e4;
+    color: var(--app-fg);
   }
   header {
     display: flex;
@@ -122,13 +122,13 @@
     margin: 0.625rem 0 0.5rem;
     height: 0.25rem;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--app-hover-strong);
     overflow: hidden;
   }
   .fill {
     height: 100%;
     transform-origin: left;
-    background: #0a9bff;
+    background: var(--app-accent);
     transition:
       transform 500ms cubic-bezier(0.32, 0.72, 0, 1),
       background-color 400ms cubic-bezier(0.32, 0.72, 0, 1);
@@ -142,10 +142,10 @@
     background: #34d399;
   }
   .toast-cancelled .fill {
-    background: #9c9895;
+    background: var(--app-fg-muted);
   }
   .toast-failed .fill {
-    background: #ff6b5e;
+    background: var(--app-danger);
   }
   .check {
     display: inline-flex;
@@ -182,21 +182,21 @@
     flex-wrap: wrap;
     gap: 0.5rem 0.75rem;
     font-size: 0.6875rem;
-    color: #9c9895;
+    color: var(--app-fg-muted);
   }
   .error {
-    color: #ff6b6b;
+    color: var(--app-danger-fg);
   }
   .dismiss,
   .cancel {
     background: none;
     border: 0;
-    color: #9c9895;
+    color: var(--app-fg-muted);
     cursor: pointer;
     font: inherit;
   }
   .cancel {
-    color: #0a9bff;
+    color: var(--app-accent);
   }
   @keyframes toast-in {
     from {

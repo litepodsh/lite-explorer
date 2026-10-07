@@ -39,44 +39,44 @@
   });
 </script>
 
-<div class="h-full min-h-0 overflow-auto bg-[#1f1d1b] text-[#e8e5e2]" aria-label={`Calendar preview of ${name}`}>
+<div class="h-full min-h-0 overflow-auto bg-[var(--app-input)] text-[var(--app-fg)]" aria-label={`Calendar preview of ${name}`}>
   {#if error}
     <div class="grid h-full place-content-center justify-items-center px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if calendar}
     <div class="mx-auto max-w-2xl p-4">
       <header class="mb-3 flex items-center gap-2">
-        <CalendarDays class="size-5 text-[#9c9895]" />
+        <CalendarDays class="size-5 text-[var(--app-fg-muted)]" />
         <h1 class="text-[15px] font-semibold">{calendar.name || name}</h1>
-        <span class="text-[12px] text-[#67635f]">{calendar.events.length}</span>
+        <span class="text-[12px] text-[var(--app-fg-faint)]">{calendar.events.length}</span>
       </header>
       <ul class="flex flex-col gap-2">
         {#each calendar.events as event, index (event.uid || index)}
-          <li class="flex gap-3 rounded-lg border border-[#3a3734] bg-[#242220] p-3">
+          <li class="flex gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3">
             <div class="grid w-11 shrink-0 place-items-start justify-items-center pt-0.5">
               <span class="text-[15px] font-semibold leading-none">{dayOf(event.start)}</span>
-              <span class="text-[11px] text-[#67635f]">{event.allDay ? "todo el día" : timeOf(event.start)}</span>
+              <span class="text-[11px] text-[var(--app-fg-faint)]">{event.allDay ? "todo el día" : timeOf(event.start)}</span>
             </div>
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1.5">
                 {#if event.kind === "todo"}
-                  <CheckSquare class="size-3.5 text-[#9c9895]" />
+                  <CheckSquare class="size-3.5 text-[var(--app-fg-muted)]" />
                 {/if}
                 <h2 class="truncate text-[13.5px] font-medium">{event.summary}</h2>
               </div>
               {#if event.location}
-                <p class="mt-0.5 flex items-center gap-1.5 text-[12px] text-[#9c9895]">
+                <p class="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--app-fg-muted)]">
                   <MapPin class="size-3.5" /><span class="truncate">{event.location}</span>
                 </p>
               {/if}
               {#if event.organizer}
-                <p class="mt-0.5 flex items-center gap-1.5 text-[12px] text-[#9c9895]">
+                <p class="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--app-fg-muted)]">
                   <UserRound class="size-3.5" /><span class="truncate">{event.organizer}</span>
                 </p>
               {/if}
               {#if event.description}
-                <p class="mt-1 text-[12px] whitespace-pre-wrap text-[#c0bbb5]">{event.description}</p>
+                <p class="mt-1 text-[12px] whitespace-pre-wrap text-[var(--app-fg-muted)]">{event.description}</p>
               {/if}
             </div>
           </li>

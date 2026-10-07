@@ -60,11 +60,11 @@
     gap: 10px;
     padding: 6px 6px 6px 12px;
     border-radius: 10px;
-    background: #2b2927;
+    background: var(--app-surface);
     box-shadow:
-      inset 0 0 0 1px rgb(255 255 255 / 0.08),
+      inset 0 0 0 1px var(--app-border-strong),
       0 12px 32px rgb(0 0 0 / 0.35);
-    color: #e8e5e2;
+    color: var(--app-fg);
     font-size: 12px;
     animation: update-in 320ms cubic-bezier(0.32, 0.72, 0, 1);
   }
@@ -80,14 +80,14 @@
     border: 0;
     border-radius: 6px;
     background: transparent;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
-    color: #cfccc9;
+    box-shadow: inset 0 0 0 1px var(--app-border-strong);
+    color: var(--app-fg-muted);
     font-size: 12px;
     font-weight: 500;
   }
   .update-notes:hover {
-    background: #3a3734;
-    color: #e8e5e2;
+    background: var(--app-surface-raised);
+    color: var(--app-fg);
   }
   .update-notes:active {
     transform: scale(0.98);
@@ -97,8 +97,8 @@
     padding: 4px 10px;
     border: 0;
     border-radius: 6px;
-    background: #e8e5e2;
-    color: #1f1d1b;
+    background: var(--app-fg);
+    color: var(--app-bg);
     font-size: 12px;
     font-weight: 500;
     transition: transform 120ms cubic-bezier(0.32, 0.72, 0, 1);
@@ -118,16 +118,16 @@
     border: 0;
     border-radius: 5px;
     background: transparent;
-    color: #9c9895;
+    color: var(--app-fg-muted);
   }
   .update-dismiss:hover {
-    background: #3a3734;
-    color: #e8e5e2;
+    background: var(--app-surface-raised);
+    color: var(--app-fg);
   }
   .update-notes:focus-visible,
   .update-restart:focus-visible,
   .update-dismiss:focus-visible {
-    outline: 2px solid rgb(255 255 255 / 0.32);
+    outline: 2px solid var(--app-accent);
     outline-offset: 2px;
   }
   @keyframes update-in {

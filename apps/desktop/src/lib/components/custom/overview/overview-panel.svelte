@@ -93,7 +93,7 @@
 <section class="overview-panel @container min-h-0 flex-1 overflow-auto" aria-label="Overview">
   <div class="grid content-start gap-6 px-7 pt-6 pb-8">
     {#if loadError}
-      <p class="text-[13px] text-[#ff8a80]">Couldn’t read your disks: {loadError}</p>
+      <p class="text-[13px] text-[var(--app-danger)]">Couldn’t read your disks: {loadError}</p>
     {:else if !overview || !primary || !split}
       <div class="grid grid-cols-2 gap-2 @3xl:grid-cols-4" aria-hidden="true">
         {#each [0, 1, 2, 3] as item (item)}

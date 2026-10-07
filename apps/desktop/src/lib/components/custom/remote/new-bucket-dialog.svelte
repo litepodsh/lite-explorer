@@ -138,7 +138,7 @@
   }
   label {
     margin-bottom: 6px;
-    color: #a8a4a1;
+    color: var(--app-fg-muted);
     font-size: 11.5px;
     font-weight: 500;
   }
@@ -148,25 +148,25 @@
     border: 0;
     border-radius: 7px;
     outline: none;
-    background: #201e1d;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07);
-    color: #eceae8;
+    background: var(--app-input);
+    box-shadow: inset 0 0 0 1px var(--app-border);
+    color: var(--app-fg);
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
     font-size: 12px;
     transition: box-shadow 180ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   input::placeholder {
-    color: #8a8683;
+    color: var(--app-fg-faint);
   }
   input:focus {
     box-shadow:
-      inset 0 0 0 1px rgb(10 155 255 / 0.9),
-      0 0 0 3px rgb(10 155 255 / 0.18);
+      inset 0 0 0 1px var(--app-accent),
+      0 0 0 3px color-mix(in srgb, var(--app-accent) 18%, transparent);
   }
   .help,
   .note {
     margin: 5px 0 0;
-    color: #8f8b88;
+    color: var(--app-fg-muted);
     font-size: 11px;
     line-height: 1.4;
   }
@@ -178,14 +178,14 @@
     gap: 14px;
     margin-top: 16px;
     padding-top: 14px;
-    border-top: 1px solid rgb(255 255 255 / 0.06);
+    border-top: 1px solid var(--app-border);
   }
   .error {
     display: flex;
     align-items: flex-start;
     gap: 6px;
     margin: 12px 0 0;
-    color: #ff6b5e;
+    color: var(--app-danger);
     font-size: 11.5px;
     line-height: 1.4;
   }

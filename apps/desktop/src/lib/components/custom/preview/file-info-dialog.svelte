@@ -171,29 +171,29 @@
 </DialogShell>
 
 <style>
-  .metadata-search { width: 100%; margin: 0 0 14px; padding: 8px 10px; border: 0; border-radius: 7px; background: rgb(0 0 0 / 14%); color: inherit; font: inherit; font-size: 12px; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%); }
-  .metadata-search:focus-visible { outline: 2px solid #70b7ff; }
+  .metadata-search { width: 100%; margin: 0 0 14px; padding: 8px 10px; border: 0; border-radius: 7px; background: var(--app-input); color: inherit; font: inherit; font-size: 12px; box-shadow: inset 0 0 0 1px var(--app-border); }
+  .metadata-search:focus-visible { outline: 2px solid var(--app-accent); }
   .exif-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
-  .exif-fields dt { overflow-wrap: anywhere; color: #dedbd8; }
-  small { display: block; color: #928d89; font-size: 10px; }
+  .exif-fields dt { overflow-wrap: anywhere; color: var(--app-fg-muted); }
+  small { display: block; color: var(--app-fg-faint); font-size: 10px; }
   .exif-actions { padding: 0 0 14px 14px; }
   .confirm-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
   .reason { margin-top: 7px; padding-bottom: 0; font-size: 11px; }
   .identity { display: flex; align-items: center; gap: 14px; padding: 12px 0 18px; }
-  .file-emblem { display: grid; place-items: center; width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: rgb(255 255 255 / 4%); box-shadow: inset 0 1px rgb(255 255 255 / 8%); color: #8ac4ff; }
+  .file-emblem { display: grid; place-items: center; width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: var(--app-hover); box-shadow: inset 0 1px var(--app-inset-highlight); color: var(--app-accent); }
   .file-emblem svg { width: 30px; height: 30px; }
   .identity-text { min-width: 0; }
   h2 { margin: 0; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; user-select: text; }
-  p { margin: 4px 0 0; color: #aaa6a2; font-size: 12px; }
+  p { margin: 4px 0 0; color: var(--app-fg-muted); font-size: 12px; }
   .sections { max-height: min(60dvh, 580px); overflow: auto; scrollbar-gutter: stable; }
-  details { box-shadow: inset 0 1px rgb(255 255 255 / 7%); }
+  details { box-shadow: inset 0 1px var(--app-inset-highlight); }
   summary { cursor: pointer; padding: 12px 0; font-size: 12px; font-weight: 600; }
-  summary::marker { color: #aaa6a2; font-size: 10px; }
-  summary:focus-visible { outline: 2px solid #70b7ff; outline-offset: -2px; border-radius: 4px; }
+  summary::marker { color: var(--app-fg-muted); font-size: 10px; }
+  summary:focus-visible { outline: 2px solid var(--app-accent); outline-offset: -2px; border-radius: 4px; }
   dl { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 9px 14px; margin: 0; padding: 0 0 16px 14px; font-size: 12px; line-height: 1.5; user-select: text; }
-  dt { color: #aaa6a2; } dd { margin: 0; overflow-wrap: anywhere; }
+  dt { color: var(--app-fg-muted); } dd { margin: 0; overflow-wrap: anywhere; }
   details[open] dl, details[open] .application { animation: reveal 180ms cubic-bezier(.32,.72,0,1); }
-  .notice { margin: 0; padding: 0 0 12px; line-height: 1.5; } .error { color: #f5b5aa; }
+  .notice { margin: 0; padding: 0 0 12px; line-height: 1.5; } .error { color: var(--app-danger); }
   .application { display: flex; align-items: center; gap: 8px; padding: 0 0 16px 14px; font-size: 12px; } .application img { width: 24px; height: 24px; }
   @keyframes reveal { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
   @media (prefers-reduced-motion: reduce) { details[open] dl, details[open] .application { animation: none; } }

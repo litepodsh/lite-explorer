@@ -168,7 +168,7 @@
   }
   .muted {
     margin: 4px 0 0;
-    color: #8f8b88;
+    color: var(--app-fg-muted);
     font-size: 11.5px;
     line-height: 1.45;
   }
@@ -178,13 +178,13 @@
     margin-top: -4px;
     padding: 10px 12px;
     border-radius: 9px;
-    background: rgb(10 155 255 / 0.08);
-    box-shadow: inset 0 0 0 1px rgb(10 155 255 / 0.2);
+    background: color-mix(in srgb, var(--app-accent) 8%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 20%, transparent);
     animation: confirm-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   .confirm p {
     margin: 0;
-    color: #cfe8ff;
+    color: var(--app-fg);
     font-size: 11.5px;
     line-height: 1.4;
   }

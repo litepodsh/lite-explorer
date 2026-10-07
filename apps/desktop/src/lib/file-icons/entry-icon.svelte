@@ -28,13 +28,13 @@
     video: { icon: VideoIcon, class: "text-[#b48ad0]" },
     audio: { icon: MusicIcon, class: "text-[#d08a9f]" },
     code: { icon: CodeIcon, class: "text-[#7fa8d0]" },
-    text: { icon: TypeIcon, class: "text-[#9c9895]" },
+    text: { icon: TypeIcon, class: "text-[var(--app-fg-muted)]" },
     pdf: { icon: PdfIcon, class: "text-[#d08a7f]" },
     document: { icon: DocumentIcon, class: "text-[#8fa3c0]" },
     sheet: { icon: SheetIcon, class: "text-[#7fb3a0]" },
     slides: { icon: PresentationIcon, class: "text-[#c9a06a]" },
     font: { icon: FontIcon, class: "text-[#b0a0c0]" },
-    default: { icon: DocumentIcon, class: "text-[#aaa5a1]" },
+    default: { icon: DocumentIcon, class: "text-[var(--app-fg-faint)]" },
   };
 
   const category = $derived(categoryFor(name));

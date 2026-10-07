@@ -234,22 +234,22 @@
   }
   .crumb-separator {
     flex-shrink: 0;
-    color: #5c5854;
+    color: var(--app-fg-faint);
   }
 
   .key-pill {
     padding: 0 6px;
     border-radius: 999px;
-    background: rgb(255 255 255 / 6%);
-    color: #a8a4a1;
+    background: var(--app-hover);
+    color: var(--app-fg-muted);
     font-size: 9.5px;
     font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 16px;
   }
   .key-pill-visual {
-    background: rgb(10 155 255 / 18%);
-    color: #5cb9ff;
+    background: color-mix(in srgb, var(--app-accent) 18%, transparent);
+    color: var(--app-accent);
   }
   .key-pill-pending {
     background: rgb(255 184 76 / 16%);

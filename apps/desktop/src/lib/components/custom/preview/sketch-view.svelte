@@ -40,19 +40,19 @@
   });
 </script>
 
-<div class="flex h-full min-h-0 flex-col bg-[#1f1d1b]" aria-label={`Sketch preview of ${name}`}>
+<div class="flex h-full min-h-0 flex-col bg-[var(--app-input)]" aria-label={`Sketch preview of ${name}`}>
   {#if error}
     <div class="grid flex-1 place-content-center justify-items-center px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if sketch}
-    <div class="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[#3a3734] px-2 py-1.5">
+    <div class="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--app-border)] px-2 py-1.5">
       {#each sketch.pages as item, index (index)}
         <button
           type="button"
           class="shrink-0 rounded px-2 py-1 text-[11.5px] {index === selected
-            ? 'bg-[#3b3836] text-[#e8e5e2]'
-            : 'text-[#9c9895] hover:bg-[#2a2825]'}"
+            ? 'bg-[var(--app-surface-raised)] text-[var(--app-fg)]'
+            : 'text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)]'}"
           onclick={() => (selected = index)}>
           {item.name}
         </button>
@@ -84,7 +84,7 @@
           {/each}
         </svg>
       </div>
-      <p class="shrink-0 border-t border-[#3a3734] px-3 py-1 text-[11px] text-[#9c9895]">
+      <p class="shrink-0 border-t border-[var(--app-border)] px-3 py-1 text-[11px] text-[var(--app-fg-muted)]">
         {page.layers.length} capas · {page.width}×{page.height}
       </p>
     {/if}

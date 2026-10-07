@@ -123,16 +123,16 @@
   .path-tree {
     height: 100%;
     min-height: 0;
-    --trees-bg-override: #1f1d1b;
-    --trees-bg-muted-override: #2d2a28;
-    --trees-fg-override: #e8e5e2;
-    --trees-fg-muted-override: #9c9895;
-    --trees-border-color-override: #3a3734;
-    --trees-selected-bg-override: #3b3836;
-    --trees-accent-override: #60a5fa;
+    --trees-bg-override: var(--app-input);
+    --trees-bg-muted-override: var(--app-surface-raised);
+    --trees-fg-override: var(--app-fg);
+    --trees-fg-muted-override: var(--app-fg-muted);
+    --trees-border-color-override: var(--app-border);
+    --trees-selected-bg-override: var(--app-surface-raised);
+    --trees-accent-override: var(--app-accent);
     --trees-border-radius-override: 6px;
-    --trees-input-bg-override: #2d2a28;
-    --trees-search-bg-override: #2d2a28;
-    --trees-search-fg-override: #e8e5e2;
+    --trees-input-bg-override: var(--app-surface-raised);
+    --trees-search-bg-override: var(--app-surface-raised);
+    --trees-search-fg-override: var(--app-fg);
   }
 </style>

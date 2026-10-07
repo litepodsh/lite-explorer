@@ -26,33 +26,33 @@
   });
 </script>
 
-<div class="h-full min-h-0 overflow-auto bg-[#1f1d1b] text-[#e8e5e2]" aria-label={`Photoshop preview of ${name}`}>
+<div class="h-full min-h-0 overflow-auto bg-[var(--app-input)] text-[var(--app-fg)]" aria-label={`Photoshop preview of ${name}`}>
   {#if error}
     <div class="grid h-full place-content-center justify-items-center px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if psd}
     <div class="mx-auto max-w-2xl p-4">
       <header class="mb-3 flex items-center gap-2">
-        <Layers class="size-5 text-[#9c9895]" />
+        <Layers class="size-5 text-[var(--app-fg-muted)]" />
         <h1 class="text-[15px] font-semibold">{name}</h1>
-        <span class="text-[12px] text-[#67635f]">{psd.width}×{psd.height} · {psd.colorMode} · {psd.layers.length} capas</span>
+        <span class="text-[12px] text-[var(--app-fg-faint)]">{psd.width}×{psd.height} · {psd.colorMode} · {psd.layers.length} capas</span>
       </header>
-      <ul class="rounded-lg border border-[#3a3734] bg-[#242220]">
+      <ul class="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)]">
         {#each psd.layers as layer (layer.name)}
-          <li class="flex items-center gap-2 border-b border-[#3a3734] px-3 py-1.5 text-[12.5px] last:border-0">
+          <li class="flex items-center gap-2 border-b border-[var(--app-border)] px-3 py-1.5 text-[12.5px] last:border-0">
             {#if layer.visible}
-              <Eye class="size-3.5 shrink-0 text-[#9c9895]" />
+              <Eye class="size-3.5 shrink-0 text-[var(--app-fg-muted)]" />
             {:else}
-              <EyeOff class="size-3.5 shrink-0 text-[#67635f]" />
+              <EyeOff class="size-3.5 shrink-0 text-[var(--app-fg-faint)]" />
             {/if}
-            <span class="min-w-0 flex-1 truncate {layer.visible ? '' : 'text-[#67635f]'}">{layer.name}</span>
-            <span class="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[10.5px] text-[#c0bbb5]">{layer.kind}</span>
-            <span class="shrink-0 text-[11px] text-[#67635f]">{layer.width}×{layer.height}</span>
+            <span class="min-w-0 flex-1 truncate {layer.visible ? '' : 'text-[var(--app-fg-faint)]'}">{layer.name}</span>
+            <span class="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[10.5px] text-[var(--app-fg-muted)]">{layer.kind}</span>
+            <span class="shrink-0 text-[11px] text-[var(--app-fg-faint)]">{layer.width}×{layer.height}</span>
           </li>
         {/each}
       </ul>
-      {#if psd.truncated}<p class="mt-2 text-[11px] text-[#67635f]">Mostrando las primeras 2000 capas</p>{/if}
+      {#if psd.truncated}<p class="mt-2 text-[11px] text-[var(--app-fg-faint)]">Mostrando las primeras 2000 capas</p>{/if}
     </div>
   {/if}
 </div>

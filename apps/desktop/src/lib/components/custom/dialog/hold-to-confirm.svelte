@@ -116,7 +116,7 @@
 <style>
   .hold {
     --hold-ease: cubic-bezier(0.32, 0.72, 0, 1);
-    --hold-tone: #ff453a;
+    --hold-tone: var(--app-danger);
     position: relative;
     display: flex;
     align-items: center;
@@ -128,9 +128,9 @@
     border: 0;
     /* Idle look matches DialogButton (Cancel); the tone only shows in the icon and fill. */
     border-radius: 7px;
-    background: #33302e;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
-    color: #eceae8;
+    background: var(--app-surface-raised);
+    box-shadow: inset 0 0 0 1px var(--app-border-strong);
+    color: var(--app-fg);
     font: inherit;
     font-size: 12.5px;
     font-weight: 500;
@@ -142,16 +142,16 @@
       background-color 160ms var(--hold-ease);
   }
   .hold:hover {
-    background: #3b3836;
+    background: var(--app-hover-strong);
   }
   .face :global(svg) {
     color: var(--hold-tone);
   }
   .hold.primary {
-    --hold-tone: #0a9bff;
+    --hold-tone: var(--app-accent);
   }
   .hold:focus-visible {
-    outline: 2px solid rgb(10 155 255 / 0.6);
+    outline: 2px solid var(--app-accent);
     outline-offset: 1px;
   }
   .hold:active {

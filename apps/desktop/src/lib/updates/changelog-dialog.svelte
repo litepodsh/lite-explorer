@@ -50,20 +50,20 @@
     {#each sections as section (section.version)}
       <article class="grid gap-2">
         <header class="flex items-baseline gap-2">
-          <span class="text-[12.5px] font-semibold text-[#eceae8]">{section.version}</span>
+          <span class="text-[12.5px] font-semibold text-[var(--app-fg)]">{section.version}</span>
           {#if section.date}
-            <span class="text-[11.5px] text-[#8f8b88]">{formatDate(section.date)}</span>
+            <span class="text-[11.5px] text-[var(--app-fg-muted)]">{formatDate(section.date)}</span>
           {/if}
         </header>
         {#each section.groups as group (group.kind)}
           <div class="grid grid-cols-[66px_1fr] items-start gap-2.5">
             <span
-              class="py-0.5 text-[11px] font-medium tracking-wide text-[#8f8b88] uppercase kind-{group
+              class="py-0.5 text-[11px] font-medium tracking-wide text-[var(--app-fg-muted)] uppercase kind-{group
                 .kind as ChangeKind}">{group.label}</span>
             <ul class="m-0 grid list-none gap-1 p-0">
               {#each group.items as item (item)}
                 <li
-                  class="relative pl-3 text-[12.5px] leading-relaxed text-[#cfccc9] before:absolute before:top-[7px] before:left-[2px] before:size-1 before:rounded-full before:bg-[#6b6764] before:content-['']">
+                  class="relative pl-3 text-[12.5px] leading-relaxed text-[var(--app-fg-muted)] before:absolute before:top-[7px] before:left-[2px] before:size-1 before:rounded-full before:bg-[var(--app-fg-faint)] before:content-['']">
                   {item}
                 </li>
               {/each}

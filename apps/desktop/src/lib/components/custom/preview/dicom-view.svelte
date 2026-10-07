@@ -106,41 +106,41 @@
   }
 </script>
 
-<div class="flex h-full min-h-0 bg-[#1f1d1b] text-[#e8e5e2]" aria-label={`DICOM preview of ${name}`}>
+<div class="flex h-full min-h-0 bg-[var(--app-input)] text-[var(--app-fg)]" aria-label={`DICOM preview of ${name}`}>
   {#if error}
     <div class="grid h-full flex-1 place-content-center justify-items-center px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if dicom}
     <div class="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto p-4">
       <canvas
         bind:this={canvas}
-        class="max-h-full max-w-full rounded border border-[#3a3734]"
+        class="max-h-full max-w-full rounded border border-[var(--app-border)]"
         style="image-rendering: pixelated; background: #000;"></canvas>
     </div>
-    <aside class="flex w-64 shrink-0 flex-col gap-4 overflow-auto border-l border-[#3a3734] bg-[#242220] p-4">
+    <aside class="flex w-64 shrink-0 flex-col gap-4 overflow-auto border-l border-[var(--app-border)] bg-[var(--app-surface)] p-4">
       <div>
         <h2 class="truncate text-[13px] font-semibold">{dicom.patient || name}</h2>
-        {#if dicom.patientId}<p class="text-[11.5px] text-[#9c9895]">{dicom.patientId}</p>{/if}
+        {#if dicom.patientId}<p class="text-[11.5px] text-[var(--app-fg-muted)]">{dicom.patientId}</p>{/if}
       </div>
       <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12px]">
         {#if dicom.modality}
-          <dt class="text-[#9c9895]">Modalidad</dt><dd>{dicom.modality}</dd>
+          <dt class="text-[var(--app-fg-muted)]">Modalidad</dt><dd>{dicom.modality}</dd>
         {/if}
         {#if dicom.studyDate}
-          <dt class="text-[#9c9895]">Fecha</dt><dd>{dicom.studyDate}</dd>
+          <dt class="text-[var(--app-fg-muted)]">Fecha</dt><dd>{dicom.studyDate}</dd>
         {/if}
         {#if dicom.studyDescription}
-          <dt class="text-[#9c9895]">Estudio</dt><dd class="break-words">{dicom.studyDescription}</dd>
+          <dt class="text-[var(--app-fg-muted)]">Estudio</dt><dd class="break-words">{dicom.studyDescription}</dd>
         {/if}
-        <dt class="text-[#9c9895]">Tamaño</dt><dd>{dicom.columns}×{dicom.rows}</dd>
-        <dt class="text-[#9c9895]">Bits</dt><dd>{dicom.bitsAllocated}</dd>
+        <dt class="text-[var(--app-fg-muted)]">Tamaño</dt><dd>{dicom.columns}×{dicom.rows}</dd>
+        <dt class="text-[var(--app-fg-muted)]">Bits</dt><dd>{dicom.bitsAllocated}</dd>
         {#if dicom.photometric}
-          <dt class="text-[#9c9895]">Fotometría</dt><dd>{dicom.photometric}</dd>
+          <dt class="text-[var(--app-fg-muted)]">Fotometría</dt><dd>{dicom.photometric}</dd>
         {/if}
       </dl>
-      <div class="flex flex-col gap-3 border-t border-[#3a3734] pt-3">
-        <label class="text-[11.5px] text-[#9c9895]">
+      <div class="flex flex-col gap-3 border-t border-[var(--app-border)] pt-3">
+        <label class="text-[11.5px] text-[var(--app-fg-muted)]">
           Centro {Math.round(center)}
           <input
             type="range"
@@ -151,7 +151,7 @@
             value={center}
             oninput={(event) => (center = Number(event.currentTarget.value))} />
         </label>
-        <label class="text-[11.5px] text-[#9c9895]">
+        <label class="text-[11.5px] text-[var(--app-fg-muted)]">
           Ancho {Math.round(width)}
           <input
             type="range"
@@ -164,7 +164,7 @@
         </label>
         <button
           type="button"
-          class="flex items-center justify-center gap-1.5 rounded border border-[#3a3734] bg-transparent px-2 py-1 text-[12px] text-[#c0bbb5] hover:bg-[#3b3836] hover:text-white"
+          class="flex items-center justify-center gap-1.5 rounded border border-[var(--app-border)] bg-transparent px-2 py-1 text-[12px] text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)] hover:text-white"
           onclick={reset}>
           <RotateCcw class="size-3.5" />Reiniciar
         </button>

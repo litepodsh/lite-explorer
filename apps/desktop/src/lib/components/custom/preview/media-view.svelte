@@ -332,10 +332,10 @@
 
   {#if kind === "audio" && !error}
     <div class="flex select-none flex-col items-center gap-4 px-8 text-center" aria-hidden="true">
-      <span class="grid size-24 place-items-center rounded-full bg-[linear-gradient(180deg,rgb(255_255_255/0.08),rgb(255_255_255/0.02))] text-[#c9c4c0] shadow-[inset_0_1px_0_rgb(255_255_255/0.1)]">
+      <span class="grid size-24 place-items-center rounded-full bg-[linear-gradient(180deg,rgb(255_255_255/0.08),rgb(255_255_255/0.02))] text-[var(--app-fg-muted)] shadow-[inset_0_1px_0_rgb(255_255_255/0.1)]">
         <MusicIcon class="size-10 stroke-[1.4]" />
       </span>
-      <p class="max-w-[240px] truncate text-[13px] font-medium text-[#9c9895]" title={name}>{name}</p>
+      <p class="max-w-[240px] truncate text-[13px] font-medium text-[var(--app-fg-muted)]" title={name}>{name}</p>
     </div>
   {/if}
 
@@ -357,12 +357,12 @@
   {#if error}
     <div class="grid max-w-[80%] place-content-center justify-items-center gap-2 text-center">
       <AlertTriangleIcon class="size-10 stroke-[1.4] text-[#d8a24a]" />
-      <p class="text-[13.5px] font-semibold text-[#e8e5e2]">Can’t play this file</p>
-      <p class="text-[12px] text-[#9c9895]">{error}</p>
+      <p class="text-[13.5px] font-semibold text-[var(--app-fg)]">Can’t play this file</p>
+      <p class="text-[12px] text-[var(--app-fg-muted)]">{error}</p>
       {#if path}
         <button
           type="button"
-          class="mt-1 flex items-center gap-1.5 rounded-full border-0 bg-white/[0.06] px-3.5 py-1.5 text-[12px] font-medium text-[#e8e5e2] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.12] active:scale-[0.97]"
+          class="mt-1 flex items-center gap-1.5 rounded-full border-0 bg-white/[0.06] px-3.5 py-1.5 text-[12px] font-medium text-[var(--app-fg)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.12] active:scale-[0.97]"
           onclick={() => path && openTarget(path)}
         >
           <ExternalLinkIcon class="size-3.5 stroke-[1.8]" /> Open with default app
@@ -405,8 +405,8 @@
         </MediaTool>
       </span>
 
-      <span class="hidden shrink-0 px-1 text-[11px] tabular-nums text-[#c9c4c0] @[23rem]:inline" aria-live="off">
-        {formatTime(current)}<span class="text-[#8d8986]"> / {formatTime(duration)}</span>
+      <span class="hidden shrink-0 px-1 text-[11px] tabular-nums text-[var(--app-fg-muted)] @[23rem]:inline" aria-live="off">
+        {formatTime(current)}<span class="text-[var(--app-fg-muted)]"> / {formatTime(duration)}</span>
       </span>
 
       <Tooltip.Root delayDuration={400}>
@@ -425,7 +425,7 @@
               onpointerdown={startScrub}
             >
               <div class="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-white/20" style="width: {bufferedPercent}%"></div>
-              <div class="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-[#0a9bff]" style="width: {playedPercent}%"></div>
+              <div class="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-[var(--app-accent)]" style="width: {playedPercent}%"></div>
               <div
                 class="pointer-events-none absolute top-1/2 size-3 -translate-y-1/2 rounded-full bg-white opacity-0 shadow-[0_2px_8px_rgb(0_0_0/0.6)] transition-opacity duration-150 group-hover/track:opacity-100 {scrubbing
                   ? 'opacity-100'
@@ -472,7 +472,7 @@
             <button
               {...props}
               type="button"
-              class="hidden min-w-9 shrink-0 rounded-full border-0 bg-transparent px-1.5 text-center text-[11px] tabular-nums text-[#c9c4c0] transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.08] hover:text-[#f2f1f0] @[32rem]:inline-block"
+              class="hidden min-w-9 shrink-0 rounded-full border-0 bg-transparent px-1.5 text-center text-[11px] tabular-nums text-[var(--app-fg-muted)] transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.08] hover:text-[var(--app-fg)] @[32rem]:inline-block"
               aria-label="Playback speed"
               onclick={cycleSpeed}>{rate}×</button
             >
@@ -519,7 +519,7 @@
   }
   @media (prefers-reduced-transparency: reduce) {
     .media-toolbar {
-      background: #2d2a28;
+      background: var(--app-surface-raised);
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
     }
@@ -535,7 +535,7 @@
     width: 11px;
     height: 11px;
     border-radius: 999px;
-    background: #f2f1f0;
+    background: var(--app-fg);
     box-shadow: 0 2px 6px rgb(0 0 0 / 0.5);
   }
   .volume-slider::-moz-range-thumb {
@@ -543,7 +543,7 @@
     height: 11px;
     border: 0;
     border-radius: 999px;
-    background: #f2f1f0;
+    background: var(--app-fg);
   }
   @media (prefers-reduced-motion: reduce) {
     .media-toolbar {

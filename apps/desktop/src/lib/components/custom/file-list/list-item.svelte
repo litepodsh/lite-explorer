@@ -182,7 +182,7 @@
     <div role="gridcell" class:column-source={draggedColumn === column} class="flex min-w-0 items-center gap-2 px-2">
       <span class="min-w-0 flex-1 truncate">
       {#if renaming}
-        <span class="relative flex w-full items-center gap-0.5 overflow-hidden rounded-sm border border-[#0a84ff]/60 bg-[#1f1d1b] pr-1 transition-colors duration-300 motion-reduce:transition-none">
+        <span class="relative flex w-full items-center gap-0.5 overflow-hidden rounded-sm border border-[var(--app-accent)]/60 bg-[var(--app-input)] pr-1 transition-colors duration-300 motion-reduce:transition-none">
           <input
             bind:value={editName}
             use:focusRename
@@ -252,7 +252,7 @@
     {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
     </span>
     {#if renaming}
-      <span class="relative flex max-w-full items-center gap-0.5 overflow-hidden rounded-sm border border-[#0a84ff]/60 bg-[#1f1d1b] pr-1 transition-colors duration-300 motion-reduce:transition-none">
+      <span class="relative flex max-w-full items-center gap-0.5 overflow-hidden rounded-sm border border-[var(--app-accent)]/60 bg-[var(--app-input)] pr-1 transition-colors duration-300 motion-reduce:transition-none">
         <input
           bind:value={editName}
           use:focusRename
@@ -296,7 +296,7 @@
   }
 
   .file-row[data-zebra] {
-    background: rgb(255 255 255 / 0.03);
+    background: var(--app-hover);
   }
 
   .file-row:hover {
@@ -304,13 +304,13 @@
   }
 
   .file-row[data-selected] {
-    background: rgb(10 132 255 / 0.18);
+    background: color-mix(in srgb, var(--app-accent) 18%, transparent);
     box-shadow: none;
     border-radius: calc(var(--app-radius) - 5px);
   }
 
   .file-row[data-selected]:hover {
-    background: rgb(10 132 255 / 0.25);
+    background: color-mix(in srgb, var(--app-accent) 25%, transparent);
   }
 
   /* Contiguous selected rows read as one block: only its outer corners are rounded. */
@@ -322,14 +322,14 @@
   .file-row[data-selected][data-join-next] {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
-    box-shadow: inset 0 -1px 0 rgb(10 132 255 / 0.1);
+    box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--app-accent) 10%, transparent);
   }
 
   /* Keyboard focus that is not selected (moved with Ctrl/Cmd + arrows). */
   .file-row[data-focused]:not([data-selected]),
   .file-tile[data-focused]:not([data-selected]) {
     border-radius: calc(var(--app-radius) - 5px);
-    box-shadow: inset 0 0 0 1px rgb(10 132 255 / 0.6);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 60%, transparent);
   }
 
   .file-tile {
@@ -341,12 +341,12 @@
   }
 
   .file-tile[data-selected] {
-    background: rgb(10 132 255 / 0.18);
-    box-shadow: inset 0 0 0 1px rgb(10 132 255 / 0.32);
+    background: color-mix(in srgb, var(--app-accent) 18%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 32%, transparent);
   }
 
   .file-tile[data-selected]:hover {
-    background: rgb(10 132 255 / 0.25);
+    background: color-mix(in srgb, var(--app-accent) 25%, transparent);
   }
 
   /* Like Explorer, the selection turns gray while its pane is not the active one. */
@@ -356,7 +356,7 @@
   }
 
   :global(.file-pane:not(.active)) .file-tile[data-selected] {
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+    box-shadow: inset 0 0 0 1px var(--app-border-strong);
   }
 
   @media (prefers-reduced-motion: reduce) {

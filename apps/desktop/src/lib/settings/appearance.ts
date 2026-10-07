@@ -1,6 +1,6 @@
 import type { Settings, Theme, ThemeMode } from "./settings.js";
 
-type Appearance = Pick<Settings, "theme" | "themeMode" | "radius" | "elevation" | "texture">;
+type Appearance = Pick<Settings, "theme" | "themeMode" | "radius" | "elevation" | "texture" | "reduceEffects">;
 
 export function resolveTheme(theme: Theme, mode: ThemeMode, prefersDark: boolean): Theme {
   return mode === "system" ? (prefersDark ? "dark" : "light") : theme;
@@ -17,6 +17,7 @@ export function applyAppearance(
   root.dataset.radius = settings.radius;
   root.dataset.elevation = settings.elevation;
   root.dataset.texture = settings.texture;
+  root.dataset.reduceEffects = settings.reduceEffects ? "true" : "";
   root.style.colorScheme = theme === "light" || theme === "off-white" ? "light" : "dark";
   return theme;
 }

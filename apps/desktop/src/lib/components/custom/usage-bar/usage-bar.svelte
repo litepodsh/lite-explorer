@@ -76,12 +76,12 @@
 
 <style>
   .usage-bar {
-    --usage-bar-track: #3a3734;
+    --usage-bar-track: var(--app-surface-raised);
     height: var(--usage-bar-height);
     border-radius: 999px;
   }
   .usage-bar-joined {
-    --usage-bar-track: #1a1918;
+    --usage-bar-track: var(--app-input);
     overflow: hidden;
     background: var(--usage-bar-track);
   }
@@ -100,7 +100,7 @@
   }
   .usage-bar-segment {
     min-width: var(--usage-bar-height);
-    background: #0a9bff;
+    background: var(--app-accent);
   }
   .usage-bar-segment:hover {
     filter: brightness(1.15);

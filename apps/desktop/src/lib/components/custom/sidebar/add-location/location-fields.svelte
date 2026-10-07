@@ -167,8 +167,8 @@
   .provider-pending {
     padding: 14px;
     border-radius: 10px;
-    background: rgb(10 155 255 / 0.08);
-    box-shadow: inset 0 0 0 1px rgb(10 155 255 / 0.2);
+    background: color-mix(in srgb, var(--app-accent) 8%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 20%, transparent);
     color: var(--loc-text);
   }
   .provider-pending p {

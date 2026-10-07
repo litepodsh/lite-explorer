@@ -135,54 +135,54 @@
 <div bind:this={root} data-archive-view class="flex min-h-0 flex-1 flex-col">
   {#if error}
     <div class="grid flex-1 place-content-center justify-items-center gap-1 px-4 text-center">
-      <ArchiveIcon class="mb-2 size-12 stroke-[1.2] text-[#67635f]" />
-      <p class="text-[14px] font-semibold text-[#e8e5e2]">Can’t preview this archive</p>
-      <p class="text-[12px] break-all text-[#9c9895]">{error}</p>
+      <ArchiveIcon class="mb-2 size-12 stroke-[1.2] text-[var(--app-fg-faint)]" />
+      <p class="text-[14px] font-semibold text-[var(--app-fg)]">Can’t preview this archive</p>
+      <p class="text-[12px] break-all text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if !listing}
     <div class="archive-skeleton flex flex-col gap-2.5 p-3" class:visible={slow} aria-hidden="true">
       {#each SKELETON_INDENTS as indent, index (index)}
         <div
-          class="h-3.5 rounded-md bg-[#2d2a28]"
+          class="h-3.5 rounded-md bg-[var(--app-surface-raised)]"
           style:margin-left="{indent * 14}px"
           style:width="{64 - indent * 10 + (index % 3) * 8}%"></div>
       {/each}
     </div>
   {:else if treePaths.length === 0}
     <div class="grid flex-1 place-content-center justify-items-center gap-1 px-4 text-center">
-      <ArchiveIcon class="mb-2 size-12 stroke-[1.2] text-[#67635f]" />
-      <p class="text-[13px] text-[#9c9895]">This archive is empty</p>
+      <ArchiveIcon class="mb-2 size-12 stroke-[1.2] text-[var(--app-fg-faint)]" />
+      <p class="text-[13px] text-[var(--app-fg-muted)]">This archive is empty</p>
     </div>
   {:else}
     <header class="shrink-0 px-3 pt-3 pb-2">
-      <p class="truncate text-[13px] font-semibold text-[#e8e5e2]" title={name}>{name}</p>
+      <p class="truncate text-[13px] font-semibold text-[var(--app-fg)]" title={name}>{name}</p>
       <p
-        class="truncate text-[12px] text-[#9c9895] tabular-nums"
+        class="truncate text-[12px] text-[var(--app-fg-muted)] tabular-nums"
         title={hasSkipped ? "Unsafe paths and links are not extracted" : undefined}>
         {summaryLine(listing)}
       </p>
     </header>
     {#if listing.truncated}
-      <p class="shrink-0 border-y border-[#3a3734] px-3 py-1 text-[11px] text-[#9c9895]">Showing first 100,000 items</p>
+      <p class="shrink-0 border-y border-[var(--app-border)] px-3 py-1 text-[11px] text-[var(--app-fg-muted)]">Showing first 100,000 items</p>
     {/if}
     <div class="min-h-0 flex-1">
       <PathTree bind:this={tree} paths={treePaths} bind:selected {decorate} search initialExpansion={1} {dragHandlers} />
     </div>
-    <footer class="flex h-11 shrink-0 items-center gap-2 border-t border-[#3a3734] px-3">
+    <footer class="flex h-11 shrink-0 items-center gap-2 border-t border-[var(--app-border)] px-3">
       {#if progress}
         <div class="archive-fade flex min-w-0 flex-1 items-center gap-3">
-          <div class="h-1 flex-1 overflow-hidden rounded-full bg-[#3a3734]">
-            <div class="archive-progress h-full w-full origin-left bg-[#0a9bff]" style:transform="scaleX({fraction})"></div>
+          <div class="h-1 flex-1 overflow-hidden rounded-full bg-[var(--app-surface-raised)]">
+            <div class="archive-progress h-full w-full origin-left bg-[var(--app-accent)]" style:transform="scaleX({fraction})"></div>
           </div>
-          <span class="text-[11px] text-[#9c9895] tabular-nums">{progress.filesDone} of {progress.filesTotal}</span>
+          <span class="text-[11px] text-[var(--app-fg-muted)] tabular-nums">{progress.filesDone} of {progress.filesTotal}</span>
           <DialogButton onclick={() => extraction.cancel(path)}>Cancel</DialogButton>
         </div>
       {:else}
         {#if chosen.length}
-          <span class="archive-fade flex items-center gap-1 text-[12px] text-[#9c9895] tabular-nums">
+          <span class="archive-fade flex items-center gap-1 text-[12px] text-[var(--app-fg-muted)] tabular-nums">
             {chosen.length} selected
             <button
-              class="grid size-5 place-items-center rounded border-0 bg-transparent text-[#9c9895] hover:bg-[#3b3836] hover:text-[#e8e5e2]"
+              class="grid size-5 place-items-center rounded border-0 bg-transparent text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)]"
               aria-label="Clear selection"
               onclick={() => (selected = [])}><XIcon class="size-3.5" /></button>
           </span>

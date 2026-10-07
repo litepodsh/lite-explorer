@@ -749,15 +749,15 @@
 
 <style>
   .column-resize { position: absolute; right: -5px; top: 0; width: 11px; height: 100%; cursor: col-resize; touch-action: none; z-index: 1; }
-  .column-resize::after { content: ""; position: absolute; left: 5px; top: 4px; bottom: 4px; width: 1px; background: rgb(232 229 226 / 28%); }
-  .column-resize:focus-visible { outline: 1px solid #70b7ff; border-radius: 3px; }
-  .column-resize:hover::after { background: #70b7ff; width: 2px; }
+  .column-resize::after { content: ""; position: absolute; left: 5px; top: 4px; bottom: 4px; width: 1px; background: color-mix(in srgb, var(--app-fg) 28%, transparent); }
+  .column-resize:focus-visible { outline: 1px solid var(--app-accent); border-radius: 3px; }
+  .column-resize:hover::after { background: var(--app-accent); width: 2px; }
   .column-source { opacity: 0.35; }
-  .column-target-before { box-shadow: inset 2px 0 #70b7ff; }
-  .column-target-after { box-shadow: inset -2px 0 #70b7ff; }
+  .column-target-before { box-shadow: inset 2px 0 var(--app-accent); }
+  .column-target-after { box-shadow: inset -2px 0 var(--app-accent); }
   .column-ghost { position: fixed; top: 0; left: 0; z-index: 40; pointer-events: none; padding: 4px; border-radius: var(--app-radius); background: var(--app-surface-raised); color: var(--app-fg); box-shadow: var(--app-shadow), inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 28%, transparent); }
-  .ghost-title { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 9px; border-radius: 6px 6px 0 0; background: #45413d; color: #c0dfff; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-  .ghost-cell { padding: 7px 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; background: #2b2826; box-shadow: inset 0 1px rgb(255 255 255 / 5%); }
+  .ghost-title { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 9px; border-radius: 6px 6px 0 0; background: var(--app-surface-raised); color: var(--app-fg); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .ghost-cell { padding: 7px 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; background: var(--app-surface); box-shadow: inset 0 1px var(--app-inset-highlight); }
   .ghost-cell:last-child { border-radius: 0 0 6px 6px; }
   /* `--content-overlap` is the toolbar height the pane slides under (0 when the tab bar is open). */
   .list-scroll {
@@ -772,7 +772,7 @@
   .list-header {
     top: 0;
     isolation: isolate;
-    box-shadow: inset 0 -1px 0 rgb(255 255 255 / 7%);
+    box-shadow: inset 0 -1px 0 var(--app-border);
 
   }
   /* One frosted band from the top of the pane (under the toolbar) to the header's bottom edge. Full blur

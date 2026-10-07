@@ -30,14 +30,14 @@
   });
 </script>
 
-<div class="h-full min-h-0 overflow-auto bg-[#1f1d1b] text-[#e8e5e2]" aria-label={`Notebook preview of ${name}`}>
+<div class="h-full min-h-0 overflow-auto bg-[var(--app-input)] text-[var(--app-fg)]" aria-label={`Notebook preview of ${name}`}>
   {#if error}
     <div class="grid h-full place-content-center justify-items-center px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if notebook}
     <div class="mx-auto max-w-3xl px-4 py-4">
-      <div class="mb-3 flex items-center gap-2 text-[11.5px] text-[#9c9895]">
+      <div class="mb-3 flex items-center gap-2 text-[11.5px] text-[var(--app-fg-muted)]">
         {#if notebook.kernel}<span class="rounded bg-white/5 px-1.5 py-0.5">{notebook.kernel}</span>{/if}
         {#if notebook.language}<span>{notebook.language}</span>{/if}
         {#if notebook.truncated}<span>· truncado</span>{/if}
@@ -45,35 +45,35 @@
       {#each notebook.cells as cell, index (index)}
         <section class="mb-3">
           {#if cell.kind === "markdown"}
-            <div class="rounded-lg border border-[#3a3734] bg-[#242220]">
+            <div class="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)]">
               <MarkdownView source={cell.source} />
             </div>
           {:else if cell.kind === "code"}
-            <div class="overflow-hidden rounded-lg border border-[#3a3734]">
-              <div class="flex items-center justify-between bg-[#242220] px-3 py-1 text-[11px] text-[#9c9895]">
+            <div class="overflow-hidden rounded-lg border border-[var(--app-border)]">
+              <div class="flex items-center justify-between bg-[var(--app-surface)] px-3 py-1 text-[11px] text-[var(--app-fg-muted)]">
                 <span>{notebook.language || "code"}</span>
                 <span>In [{index + 1}]</span>
               </div>
               <NotebookCode source={cell.source} language={notebook.language} />
               {#each cell.outputs as output}
                 {#if output.kind === "image"}
-                  <div class="border-t border-[#3a3734] bg-[#242220] px-3 py-2">
+                  <div class="border-t border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2">
                     <img class="max-w-full" src={output.text} alt="Salida" />
                   </div>
                 {:else if output.kind === "html"}
-                  <div class="notebook-output border-t border-[#3a3734] bg-[#242220] px-3 py-2 text-[#e8e5e2]">
+                  <div class="notebook-output border-t border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-[var(--app-fg)]">
                     {@html sanitized(output.text)}
                   </div>
                 {:else}
-                  <pre class="overflow-auto border-t border-[#3a3734] px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap {output.kind ===
+                  <pre class="overflow-auto border-t border-[var(--app-border)] px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap {output.kind ===
                   'error'
                     ? 'bg-[#3a2020] text-[#f7768e]'
-                    : 'bg-[#242220] text-[#c0bbb5]'}">{output.text}</pre>
+                    : 'bg-[var(--app-surface)] text-[var(--app-fg-muted)]'}">{output.text}</pre>
                 {/if}
               {/each}
             </div>
           {:else}
-            <pre class="overflow-auto rounded-lg border border-[#3a3734] bg-[#191817] px-3 py-2 font-mono text-[12.5px] text-[#e8e5e2]">{cell.source}</pre>
+            <pre class="overflow-auto rounded-lg border border-[var(--app-border)] bg-[var(--app-input)] px-3 py-2 font-mono text-[12.5px] text-[var(--app-fg)]">{cell.source}</pre>
           {/if}
         </section>
       {/each}
@@ -93,7 +93,7 @@
   }
   .notebook-output :global(td),
   .notebook-output :global(th) {
-    border: 1px solid #3a3734;
+    border: 1px solid var(--app-surface-raised);
     padding: 2px 6px;
   }
 </style>
