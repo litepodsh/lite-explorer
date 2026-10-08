@@ -53,6 +53,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2",
+    "@types/node": "^26.6.4",
     "@types/three": "^0.186.0",
     "bits-ui": "^2.18.0",
     "clsx": "^2.1.1",
