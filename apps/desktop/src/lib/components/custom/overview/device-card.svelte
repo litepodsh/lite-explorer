@@ -19,9 +19,9 @@
     homeBytes: number | null;
   } = $props();
 
-  const HOME_COLOR = "#0a9bff";
-  const SYSTEM_COLOR = "#7b7773";
-  const FREE_COLOR = "#3a3734";
+  const HOME_COLOR = "var(--app-accent)";
+  const SYSTEM_COLOR = "var(--app-fg-muted)";
+  const FREE_COLOR = "var(--app-surface-raised)";
 
   // Segment the pointer is over (or a legend row is emphasizing). Drives the
   // active bar segment and dims the other legend entries while set.

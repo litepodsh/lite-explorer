@@ -134,13 +134,13 @@
     min-width: 0;
   }
   .label {
-    color: #eceae8;
+    color: var(--app-fg);
     font-size: 12.5px;
     font-weight: 500;
   }
   p {
     margin: 3px 0 0;
-    color: #8f8b88;
+    color: var(--app-fg-muted);
     font-size: 11.5px;
     line-height: 1.4;
   }
@@ -153,15 +153,15 @@
     align-items: center;
     gap: 8px;
     padding: 5px 10px;
-    border: 1px solid rgb(255 255 255 / 8%);
+    border: 1px solid var(--app-border);
     border-radius: 8px;
-    background: #1f1d1b;
-    color: #f2f1f0;
+    background: var(--app-input);
+    color: var(--app-fg);
     font-size: 12px;
     text-align: left;
   }
   .trigger:focus-visible {
-    outline: 2px solid rgb(10 155 255 / 0.6);
+    outline: 2px solid var(--app-accent);
     outline-offset: 1px;
   }
   .icon {
@@ -177,7 +177,7 @@
     flex-shrink: 0;
   }
   .picker :global(.fallback) {
-    color: #a8a4a1;
+    color: var(--app-fg-muted);
   }
   .name {
     min-width: 0;
@@ -190,7 +190,7 @@
     width: 14px;
     height: 14px;
     flex-shrink: 0;
-    color: #8f8b88;
+    color: var(--app-fg-muted);
   }
   .menu {
     position: fixed;
@@ -200,10 +200,10 @@
     margin: 0;
     padding: 4px;
     border-radius: 10px;
-    background: #2b2927;
+    background: var(--app-surface);
     box-shadow:
-      0 0 0 1px rgb(255 255 255 / 8%),
-      0 16px 32px -12px rgb(0 0 0 / 55%);
+      0 0 0 1px var(--app-border),
+      var(--app-shadow);
     list-style: none;
   }
   .menu button {
@@ -215,22 +215,22 @@
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: #eceae8;
+    color: var(--app-fg);
     font-size: 12px;
     text-align: left;
   }
   .menu button:hover,
   .menu button:focus-visible {
-    background: rgb(255 255 255 / 6%);
+    background: var(--app-hover);
     outline: none;
   }
   .menu button[aria-selected="true"] {
-    background: rgb(10 155 255 / 16%);
+    background: color-mix(in srgb, var(--app-accent) 16%, transparent);
   }
   .menu button :global(.check) {
     width: 14px;
     height: 14px;
     flex-shrink: 0;
-    color: #0a9bff;
+    color: var(--app-accent);
   }
 </style>

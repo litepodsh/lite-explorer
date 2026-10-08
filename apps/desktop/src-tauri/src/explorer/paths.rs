@@ -328,6 +328,7 @@ mod tests {
         assert_eq!(expand_tilde_with("~", None), PathBuf::from("~"));
     }
 
+    #[cfg(target_os = "macos")]
     fn nanos() -> u128 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)

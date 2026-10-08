@@ -324,7 +324,7 @@
     box-shadow: inset 0 -1px 0 var(--app-border);
   }
   .grid-row:hover :global(div:not(.sticky)) {
-    background-color: rgb(255 255 255 / 0.035);
+    background-color: var(--app-hover);
   }
   .grid-gutter {
     display: flex;

@@ -39,21 +39,21 @@
     border: 0;
     border-radius: 999px;
     background: transparent;
-    color: #d9d6d3;
+    color: var(--app-fg-muted);
     transition:
       background-color 200ms cubic-bezier(0.32, 0.72, 0, 1),
       color 200ms cubic-bezier(0.32, 0.72, 0, 1),
       transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   .media-tool:hover:not(:disabled) {
-    background: rgb(255 255 255 / 0.09);
-    color: #f2f1f0;
+    background: var(--app-hover-strong);
+    color: var(--app-fg);
   }
   .media-tool:active:not(:disabled) {
     transform: scale(0.93);
   }
   .media-tool:disabled {
-    color: #615d5a;
+    color: var(--app-fg-faint);
   }
   @media (prefers-reduced-motion: reduce) {
     .media-tool {

@@ -36,7 +36,7 @@
 </script>
 
 <span
-  class="shrink-0 rounded bg-[#1b1a18] px-1.5 font-mono tabular-nums text-[10px] text-[#5c5854]"
+  class="shrink-0 rounded bg-[var(--app-input)] px-1.5 font-mono tabular-nums text-[10px] text-[var(--app-fg-faint)]"
   title="Frames per second (requestAnimationFrame) · worst frame time in last {SAMPLE_MS}ms">
   <span class={color}>{fps}</span> fps<span class="px-1">·</span>{worstMs.toFixed(1)}ms
 </span>

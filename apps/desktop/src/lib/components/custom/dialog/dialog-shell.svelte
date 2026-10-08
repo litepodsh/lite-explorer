@@ -76,7 +76,7 @@
     /* Opaque: the listing must not show through the footer. */
     background: var(--app-input);
     box-shadow:
-      0 0 0 1px rgb(255 255 255 / 0.08),
+      0 0 0 1px var(--app-border-strong),
       var(--app-shadow);
   }
   .core {
@@ -85,7 +85,7 @@
     padding: 18px 18px 16px;
     border-radius: calc(var(--app-radius) - 4px);
     background: var(--app-surface);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+    box-shadow: inset 0 1px 0 var(--app-inset-highlight);
   }
   :global(.app-dialog-title) {
     margin: 0;

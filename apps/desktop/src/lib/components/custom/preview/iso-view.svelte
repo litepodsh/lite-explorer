@@ -45,19 +45,19 @@
   });
 </script>
 
-<div class="flex h-full min-h-0 flex-col bg-[#1f1d1b]" aria-label={`Disc image preview of ${name}`}>
+<div class="flex h-full min-h-0 flex-col bg-[var(--app-input)]" aria-label={`Disc image preview of ${name}`}>
   {#if error}
     <div class="grid flex-1 place-content-center justify-items-center gap-1 px-4 text-center">
-      <Disc class="mb-2 size-12 stroke-[1.2] text-[#67635f]" />
-      <p class="text-[14px] font-semibold text-[#e8e5e2]">Can’t preview this disc image</p>
-      <p class="text-[12px] break-all text-[#9c9895]">{error}</p>
+      <Disc class="mb-2 size-12 stroke-[1.2] text-[var(--app-fg-faint)]" />
+      <p class="text-[14px] font-semibold text-[var(--app-fg)]">Can’t preview this disc image</p>
+      <p class="text-[12px] break-all text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if iso}
     <header class="shrink-0 px-3 pt-3 pb-2">
-      <p class="truncate text-[13px] font-semibold text-[#e8e5e2]" title={name}>
+      <p class="truncate text-[13px] font-semibold text-[var(--app-fg)]" title={name}>
         {iso.volumeName || name}
       </p>
-      <p class="text-[12px] text-[#9c9895] tabular-nums">
+      <p class="text-[12px] text-[var(--app-fg-muted)] tabular-nums">
         {iso.entries.length.toLocaleString("en-US")} entradas{iso.truncated ? " (mostrando las primeras 5000)" : ""}
       </p>
     </header>

@@ -316,15 +316,15 @@
     gap: 8px;
     padding: 10px 12px;
     border-radius: 9px;
-    background: rgb(10 155 255 / 0.08);
-    box-shadow: inset 0 0 0 1px rgb(10 155 255 / 0.28);
+    background: color-mix(in srgb, var(--app-accent) 8%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 28%, transparent);
     font-size: 12px;
     line-height: 1.45;
     animation: loc-rise 220ms var(--loc-ease);
   }
   .trust.changed {
-    background: rgb(255 107 94 / 0.09);
-    box-shadow: inset 0 0 0 1px rgb(255 107 94 / 0.32);
+    background: color-mix(in srgb, var(--app-danger) 9%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-danger) 32%, transparent);
   }
   .trust p {
     margin: 0;
@@ -356,8 +356,8 @@
     gap: 6px;
   }
   .loc-btn.danger {
-    background: #c2453a;
-    color: #fff;
+    background: var(--app-danger);
+    color: var(--app-accent-fg);
   }
   .nearby {
     display: grid;
@@ -403,7 +403,7 @@
     gap: 10px;
     padding: 10px 12px;
     border-radius: 9px;
-    background: rgb(255 255 255 / 0.03);
+    background: var(--app-hover);
     box-shadow: inset 0 0 0 1px var(--loc-line);
   }
   .scan-intro :global(svg) {
@@ -446,13 +446,13 @@
   .server:hover,
   .server:focus-visible {
     outline: none;
-    background: rgb(255 255 255 / 0.06);
+    background: var(--app-hover);
   }
   .skeleton {
     height: 38px;
     margin: 0 8px;
     border-radius: 8px;
-    background: linear-gradient(90deg, rgb(255 255 255 / 0.03), rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.03));
+    background: linear-gradient(90deg, color-mix(in srgb, var(--app-fg) 3%, transparent), color-mix(in srgb, var(--app-fg) 7%, transparent), color-mix(in srgb, var(--app-fg) 3%, transparent));
     background-size: 200% 100%;
     animation: scan-skeleton 1.2s var(--loc-ease) infinite;
   }
@@ -502,7 +502,7 @@
   .type:hover,
   .type:focus-visible {
     outline: none;
-    background: rgb(255 255 255 / 0.06);
+    background: var(--app-hover);
   }
   .type:active {
     transform: scale(0.98);
@@ -564,7 +564,7 @@
     color: var(--loc-muted);
   }
   .back:hover {
-    background: rgb(255 255 255 / 0.06);
+    background: var(--app-hover);
     color: var(--loc-text);
   }
   .back :global(svg) {

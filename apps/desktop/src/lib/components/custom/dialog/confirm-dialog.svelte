@@ -83,7 +83,7 @@
     align-items: flex-start;
     gap: 6px;
     margin: 4px 0 0;
-    color: #ff6b5e;
+    color: var(--app-danger);
     font-size: 11.5px;
     line-height: 1.4;
   }

@@ -64,7 +64,7 @@
 
   <div class="grid p-1.5">
     {#if error}
-      <p class="px-2.5 py-2 text-xs text-[#ff8a80]">{error}</p>
+      <p class="px-2.5 py-2 text-xs text-[var(--app-danger)]">{error}</p>
     {/if}
     {#if hasData}
       {#each summary.top as entry, index (entry.path)}
@@ -73,7 +73,7 @@
           class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-1.5 rounded-[calc(var(--app-radius)-5px)] border-0 bg-transparent px-2.5 py-2 text-left hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)]"
           title={entry.path}
           onclick={() => onOpen(entry)}>
-          <FolderIcon class="size-4 stroke-[1.8] {entry.is_hidden ? 'text-[#67635f]' : 'text-blue-400'}" />
+          <FolderIcon class="size-4 stroke-[1.8] {entry.is_hidden ? 'text-[var(--app-fg-faint)]' : 'text-blue-400'}" />
           <span class="truncate text-[13px] {entry.is_hidden ? 'text-[var(--app-fg-muted)]' : 'text-[var(--app-fg)]'}">{entry.name}</span>
           <span class="text-right font-mono text-xs tabular-nums text-[var(--app-fg)]">{formatSize(entry.bytes)}</span>
           <UsageBar
@@ -82,12 +82,12 @@
             gap={0}
             delay={index * 45}
             total={largest}
-            segments={[{ id: entry.path, value: entry.bytes, color: entry.is_hidden ? "#7b7773" : undefined }]} />
+            segments={[{ id: entry.path, value: entry.bytes, color: entry.is_hidden ? "var(--app-fg-muted)" : undefined }]} />
         </button>
       {/each}
       {#if summary.restBytes > 0}
         <div class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-1.5 px-2.5 py-2">
-          <EllipsisIcon class="size-4 text-[#67635f]" />
+          <EllipsisIcon class="size-4 text-[var(--app-fg-faint)]" />
           <span class="truncate text-[13px] text-[var(--app-fg-muted)]"
             >Other files and folders{summary.restHasHidden ? ", including hidden" : ""}</span>
           <span class="text-right font-mono text-xs tabular-nums text-[var(--app-fg-muted)]">{formatSize(summary.restBytes)}</span>
@@ -97,7 +97,7 @@
             gap={0}
             delay={summary.top.length * 45}
             total={Math.max(largest, summary.restBytes)}
-            segments={[{ id: "rest", value: summary.restBytes, color: "#4a4643" }]} />
+            segments={[{ id: "rest", value: summary.restBytes, color: "var(--app-fg-faint)" }]} />
         </div>
       {/if}
     {:else if scanning}

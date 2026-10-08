@@ -189,14 +189,14 @@
   });
 
   const buttonClass =
-    "grid size-8 place-items-center rounded-md border border-[#3a3734] bg-[#2a2825]/90 text-[#c0bbb5] backdrop-blur hover:bg-[#3b3836] hover:text-white disabled:opacity-40";
+    "grid size-8 place-items-center rounded-md border border-[var(--app-border)] bg-[var(--app-surface-raised)]/90 text-[var(--app-fg-muted)] backdrop-blur hover:bg-[var(--app-surface-raised)] hover:text-white disabled:opacity-40";
 </script>
 
-<div class="relative h-full min-h-0 bg-[#1f1d1b]" aria-label={`3D preview of ${name}`}>
+<div class="relative h-full min-h-0 bg-[var(--app-input)]" aria-label={`3D preview of ${name}`}>
   <div class="h-full w-full" bind:this={host}></div>
   {#if error}
     <div class="absolute inset-0 grid place-content-center justify-items-center px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if !loaded}
     <div class="pointer-events-none absolute inset-0 grid place-items-center">
@@ -249,7 +249,7 @@
     </div>
   {/if}
 
-  <p class="pointer-events-none absolute bottom-2 left-2 rounded bg-black/40 px-2 py-0.5 text-[11px] text-[#c0bbb5]">
+  <p class="pointer-events-none absolute bottom-2 left-2 rounded bg-black/40 px-2 py-0.5 text-[11px] text-[var(--app-fg-muted)]">
     Arrastra para girar · botones abajo a la derecha
   </p>
 </div>

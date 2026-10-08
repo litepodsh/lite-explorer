@@ -23,17 +23,17 @@
   });
 </script>
 
-<div class="h-full min-h-0 overflow-auto bg-[#141311]" aria-label={`Comic preview of ${name}`}>
+<div class="h-full min-h-0 overflow-auto bg-[var(--app-input)]" aria-label={`Comic preview of ${name}`}>
   {#if error}
     <div class="grid h-full place-content-center justify-items-center px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if comic}
     <div class="mx-auto flex max-w-3xl flex-col items-center gap-1 py-2">
       {#each comic.pages as page, index (page)}
         <figure class="relative w-full">
           <img
-            class="block w-full bg-[#1f1d1b]"
+            class="block w-full bg-[var(--app-input)]"
             src="{comic.base}/{page}"
             alt={`Página ${index + 1}`}
             loading="lazy" />

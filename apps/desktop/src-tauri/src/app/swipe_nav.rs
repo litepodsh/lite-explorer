@@ -16,6 +16,10 @@
 //! Gestures are ignored unless the context allows them, so horizontal scrolling
 //! gets priority until it reaches the corresponding edge.
 
+// The monitor that reads all of this is macOS-only, so on other targets the
+// context fields, helpers and event structs look unused to the dead-code lint.
+#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
+
 use std::sync::Mutex;
 
 use serde::Serialize;

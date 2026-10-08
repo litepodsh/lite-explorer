@@ -1,6 +1,6 @@
 [package]
 name = "liteexplorer"
-version = "0.1.28"
+version = "0.1.29"
 description = "A cross-platform file explorer for local files, network shares, and cloud storage"
 authors = ["Litepod Studio"]
 license = "MIT"
@@ -36,7 +36,6 @@ sqlx = { version = "0.8.6", default-features = false, features = [
 tauri-plugin-dialog = "2"
 aws-sdk-s3 = { version = "1.146", default-features = false, features = [
   "rt-tokio",
-  "rustls",
   "default-https-client",
   "http-1x",
 ] }
@@ -71,7 +70,7 @@ x509-parser = "0.16"
 cfb = "0.10"
 psd = "0.3"
 apache-avro = "0.17"
-parquet = { version = "56", default-features = false, features = [
+parquet = { version = "59", default-features = false, features = [
   "snap",
   "brotli",
   "flate2",
@@ -81,7 +80,7 @@ parquet = { version = "56", default-features = false, features = [
   "base64",
 ] }
 bytes = "1"
-arrow = { version = "56", default-features = false, features = [
+arrow = { version = "59", default-features = false, features = [
   "ipc",
   "ipc_compression",
   "prettyprint",

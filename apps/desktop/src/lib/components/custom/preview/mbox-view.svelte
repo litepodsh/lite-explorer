@@ -54,29 +54,29 @@
 <div class="flex h-full min-h-0" aria-label={`Mailbox preview of ${name}`}>
   {#if error}
     <div class="grid h-full flex-1 place-content-center justify-items-center gap-1 px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else}
-    <aside class="flex w-64 shrink-0 flex-col border-r border-[#3a3734] bg-[#1f1d1b]">
-      <p class="shrink-0 border-b border-[#3a3734] px-3 py-2 text-[11px] text-[#9c9895]">
+    <aside class="flex w-64 shrink-0 flex-col border-r border-[var(--app-border)] bg-[var(--app-input)]">
+      <p class="shrink-0 border-b border-[var(--app-border)] px-3 py-2 text-[11px] text-[var(--app-fg-muted)]">
         {messages.length} messages
       </p>
       <div class="min-h-0 flex-1 overflow-auto">
         {#each messages as item (item.index)}
           <button
             type="button"
-            class="block w-full border-b border-[#2f2c29] px-3 py-2 text-left {item.index === selected
-              ? 'bg-[#3b3836]'
-              : 'hover:bg-[#2a2825]'}"
+            class="block w-full border-b border-[var(--app-border)] px-3 py-2 text-left {item.index === selected
+              ? 'bg-[var(--app-surface-raised)]'
+              : 'hover:bg-[var(--app-surface-raised)]'}"
             onclick={() => void select(item.index)}>
             <span class="flex items-baseline justify-between gap-2">
-              <span class="min-w-0 truncate text-[12.5px] font-medium text-[#e8e5e2]">{item.subject}</span>
+              <span class="min-w-0 truncate text-[12.5px] font-medium text-[var(--app-fg)]">{item.subject}</span>
               {#if item.date}
-                <span class="shrink-0 text-[10.5px] text-[#67635f]">{item.date.slice(5, 10)}</span>
+                <span class="shrink-0 text-[10.5px] text-[var(--app-fg-faint)]">{item.date.slice(5, 10)}</span>
               {/if}
             </span>
-            <span class="mt-0.5 block truncate text-[11px] text-[#9c9895]">{item.from}</span>
-            <span class="mt-0.5 block truncate text-[11px] text-[#67635f]">{item.snippet}</span>
+            <span class="mt-0.5 block truncate text-[11px] text-[var(--app-fg-muted)]">{item.from}</span>
+            <span class="mt-0.5 block truncate text-[11px] text-[var(--app-fg-faint)]">{item.snippet}</span>
           </button>
         {/each}
       </div>

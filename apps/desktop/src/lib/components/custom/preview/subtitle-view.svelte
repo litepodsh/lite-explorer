@@ -28,18 +28,18 @@
   });
 </script>
 
-<div class="h-full min-h-0 overflow-auto bg-[#1f1d1b] text-[#e8e5e2]" aria-label={`Subtitles preview of ${name}`}>
+<div class="h-full min-h-0 overflow-auto bg-[var(--app-input)] text-[var(--app-fg)]" aria-label={`Subtitles preview of ${name}`}>
   {#if error}
     <div class="grid h-full place-content-center justify-items-center px-4 text-center">
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if subtitle}
     <div class="mx-auto max-w-2xl p-4">
-      <p class="mb-2 text-[11.5px] text-[#9c9895]">{subtitle.format.toUpperCase()} · {subtitle.cues.length} cues</p>
+      <p class="mb-2 text-[11.5px] text-[var(--app-fg-muted)]">{subtitle.format.toUpperCase()} · {subtitle.cues.length} cues</p>
       <ol class="flex flex-col">
         {#each subtitle.cues as cue (cue.index)}
-          <li class="flex gap-3 border-b border-[#3a3734] py-2 last:border-0">
-            <span class="w-24 shrink-0 pt-0.5 font-mono text-[11px] text-[#67635f]">{short(cue.start)}</span>
+          <li class="flex gap-3 border-b border-[var(--app-border)] py-2 last:border-0">
+            <span class="w-24 shrink-0 pt-0.5 font-mono text-[11px] text-[var(--app-fg-faint)]">{short(cue.start)}</span>
             <span class="min-w-0 flex-1 whitespace-pre-wrap text-[13.5px]">{cue.text}</span>
           </li>
         {/each}

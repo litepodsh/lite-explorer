@@ -177,23 +177,23 @@
   </div>
 
   <div
-    class="absolute right-2 bottom-2 z-10 flex items-center gap-1 rounded-md border border-[#3a3734] bg-[#2d2a28] p-0.5 text-[11px]"
+    class="absolute right-2 bottom-2 z-10 flex items-center gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-surface-raised)] p-0.5 text-[11px]"
     role="group"
     aria-label="Zoom controls"
   >
     <button
-      class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#e8e5e2] hover:bg-[#3b3836]"
+      class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)]"
       aria-label="Zoom out"
       onclick={() => zoomBy(1 - BUTTON_STEP)}>−</button>
-    <span class="min-w-12 select-none text-center text-[#9c9895]" aria-live="polite">Zoom {zoomLabel}</span>
+    <span class="min-w-12 select-none text-center text-[var(--app-fg-muted)]" aria-live="polite">Zoom {zoomLabel}</span>
     <button
-      class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#e8e5e2] hover:bg-[#3b3836]"
+      class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)]"
       aria-label="Zoom in"
       onclick={() => zoomBy(1 + BUTTON_STEP)}>+</button>
     {#if onMaximize}
-      <span class="mx-0.5 h-4 w-px bg-[#3a3734]"></span>
+      <span class="mx-0.5 h-4 w-px bg-[var(--app-surface-raised)]"></span>
       <button
-        class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#e8e5e2] hover:bg-[#3b3836]"
+        class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)]"
         aria-label="Open in a separate window"
         title="Open in a separate window"
         onclick={onMaximize}><MaximizeIcon class="size-3.5" /></button>

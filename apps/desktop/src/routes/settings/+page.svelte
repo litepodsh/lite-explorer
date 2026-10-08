@@ -212,6 +212,11 @@
             description="Adds a subtle static grain. Disabled when reduced transparency is requested."
             checked={current.texture === "paper"}
             onchange={(checked) => settings.set("texture", checked ? "paper" : "none")} />
+          <DialogSwitch
+            label="Reduce visual effects"
+            description="Turns off backdrop blur and animations to use less GPU and CPU."
+            checked={current.reduceEffects}
+            onchange={(checked) => settings.set("reduceEffects", checked)} />
         </div></div>
       {:else if active === "general"}
         <h1>General</h1>
@@ -439,7 +444,7 @@
     border-radius: calc(var(--app-radius) - 4px);
     background: var(--app-surface);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 6%),
+      inset 0 1px 0 var(--app-inset-highlight),
       var(--app-shadow);
   }
   .reset-row {
@@ -462,17 +467,17 @@
     padding: 5px 12px;
     border: 0;
     border-radius: 8px;
-    background: rgb(229 72 77 / 16%);
-    color: #ff8a8e;
+    background: color-mix(in srgb, var(--app-danger) 16%, transparent);
+    color: var(--app-danger-fg);
     font-size: 12px;
     font-weight: 500;
     transition: background-color 180ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   .reset-button:hover {
-    background: rgb(229 72 77 / 24%);
+    background: color-mix(in srgb, var(--app-danger) 24%, transparent);
   }
   .reset-button:focus-visible {
-    outline: 2px solid rgb(229 72 77 / 0.6);
+    outline: 2px solid var(--app-danger);
     outline-offset: 2px;
   }
   .size-paths { display: flex; flex-direction: column; gap: 10px; }
@@ -521,12 +526,12 @@
   .field-copy code {
     padding: 1px 4px;
     border-radius: 4px;
-    background: rgb(255 255 255 / 8%);
+    background: var(--app-hover-strong);
     font-size: 11px;
   }
   .field select {
     padding: 5px 8px;
-    border: 1px solid rgb(255 255 255 / 8%);
+    border: 1px solid var(--app-border);
     border-radius: calc(var(--app-radius) - 4px);
     background: var(--app-input);
     color: var(--app-fg);
@@ -538,7 +543,7 @@
     width: 220px;
     max-width: 220px;
     padding: 5px 8px;
-    border: 1px solid rgb(255 255 255 / 8%);
+    border: 1px solid var(--app-border);
     border-radius: calc(var(--app-radius) - 4px);
     background: var(--app-input);
     color: var(--app-fg);

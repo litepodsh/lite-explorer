@@ -47,11 +47,11 @@
     width: min(34rem, calc(100% - 2rem));
     padding: 10px 12px;
     border-radius: 14px;
-    background: rgb(43 41 39 / 94%);
+    background: color-mix(in srgb, var(--app-surface) 94%, transparent);
     box-shadow:
-      0 0 0 1px rgb(255 255 255 / 6%),
+      0 0 0 1px var(--app-border-strong),
       0 18px 40px -18px rgb(0 0 0 / 55%);
-    color: #e8e5e2;
+    color: var(--app-fg);
     transform: translateX(-50%);
     backdrop-filter: blur(20px) saturate(125%);
     animation: which-key-in 160ms cubic-bezier(0.32, 0.72, 0, 1);
@@ -61,7 +61,7 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 8px;
-    color: #9c9895;
+    color: var(--app-fg-muted);
     font-size: 11px;
   }
   ul {
@@ -88,8 +88,8 @@
     min-width: 20px;
     padding: 1px 6px;
     border-radius: 6px;
-    background: #1f1d1b;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%);
+    background: var(--app-input);
+    box-shadow: inset 0 0 0 1px var(--app-border);
     color: #ffc76b;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: 11px;

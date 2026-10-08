@@ -74,11 +74,11 @@
 >
   <span
     class="block overflow-hidden rounded-md bg-white transition-shadow duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] {active
-      ? 'shadow-[0_0_0_2px_#0a9bff,0_10px_24px_-12px_rgb(0_0_0/0.7)]'
+      ? 'shadow-[0_0_0_2px_var(--app-accent),0_10px_24px_-12px_rgb(0_0_0/0.7)]'
       : 'shadow-[0_0_0_1px_rgb(255_255_255/0.1),0_8px_18px_-12px_rgb(0_0_0/0.7)] group-hover:shadow-[0_0_0_1px_rgb(255_255_255/0.22),0_10px_22px_-12px_rgb(0_0_0/0.7)]'}"
     style="width: {width}px; height: {height}px;"
   >
     <canvas bind:this={canvas} class="block"></canvas>
   </span>
-  <span class="text-[10px] tabular-nums {active ? 'text-[#f2f1f0]' : 'text-[#8d8986]'}">{index + 1}</span>
+  <span class="text-[10px] tabular-nums {active ? 'text-[var(--app-fg)]' : 'text-[var(--app-fg-muted)]'}">{index + 1}</span>
 </button>

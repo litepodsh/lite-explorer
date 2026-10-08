@@ -52,8 +52,8 @@
 <div class="flex h-full min-h-0 flex-col" aria-label={`Spreadsheet preview of ${name}`}>
   {#if error}
     <div class="grid flex-1 place-content-center justify-items-center gap-1 px-4 text-center">
-      <FileIcon class="mb-2 size-12 stroke-[1.2] text-[#67635f]" />
-      <p class="text-[13px] text-[#9c9895]">{error}</p>
+      <FileIcon class="mb-2 size-12 stroke-[1.2] text-[var(--app-fg-faint)]" />
+      <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if loading && !data}
     <div class="grid flex-1 place-items-center">
@@ -64,7 +64,7 @@
   {:else if sheet}
     {#if data && data.sheets.length > 1}
       <div
-        class="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[#3a3734] px-2 py-1.5"
+        class="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--app-border)] px-2 py-1.5"
         role="tablist"
         aria-label="Sheets">
         {#each data.sheets as item, index (item.name)}
@@ -73,8 +73,8 @@
             role="tab"
             aria-selected={index === active}
             class="shrink-0 rounded px-2.5 py-1 text-[12px] {index === active
-              ? 'bg-[#3b3836] text-[#e8e5e2]'
-              : 'bg-transparent text-[#9c9895] hover:bg-[#2f2c29] hover:text-[#e8e5e2]'}"
+              ? 'bg-[var(--app-surface-raised)] text-[var(--app-fg)]'
+              : 'bg-transparent text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)]'}"
             onclick={() => (active = index)}>
             {item.name}
           </button>

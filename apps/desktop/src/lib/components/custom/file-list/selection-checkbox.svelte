@@ -58,8 +58,8 @@
     height: 14px;
     flex: none;
     border-radius: 4px;
-    background: rgb(255 255 255 / 0.04);
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+    background: var(--app-hover);
+    box-shadow: inset 0 0 0 1px var(--app-border-strong);
     color: #fff;
     cursor: default;
     transition:
@@ -76,8 +76,8 @@
   }
 
   .selection-checkbox:hover {
-    background: rgb(255 255 255 / 0.07);
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.32);
+    background: var(--app-hover-strong);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-fg) 32%, transparent);
   }
 
   .selection-checkbox:active {
@@ -86,16 +86,16 @@
 
   .selection-checkbox[data-state="checked"],
   .selection-checkbox[data-state="mixed"] {
-    background: #0a84ff;
+    background: var(--app-accent);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.22),
-      inset 0 0 0 1px rgb(10 132 255 / 0.9),
-      0 1px 3px rgb(10 132 255 / 0.28);
+      inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 90%, transparent),
+      0 1px 3px color-mix(in srgb, var(--app-accent) 28%, transparent);
   }
 
   .selection-checkbox[data-state="checked"]:hover,
   .selection-checkbox[data-state="mixed"]:hover {
-    background: #2b95ff;
+    background: color-mix(in srgb, var(--app-accent) 82%, white);
   }
 
   svg {

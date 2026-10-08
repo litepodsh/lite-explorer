@@ -13,7 +13,7 @@
     35: "#bb9af7",
     36: "#7dcfff",
     37: "#c0caf5",
-    90: "#67635f",
+    90: "var(--app-fg-faint)",
     91: "#ff9e9e",
     92: "#b9f6c1",
     93: "#f6d089",
@@ -61,7 +61,7 @@
   const lines = $derived(content.split("\n").map(parseLine));
 </script>
 
-<div class="h-full min-h-0 overflow-auto bg-[#1f1d1b]" aria-label="Log preview">
+<div class="h-full min-h-0 overflow-auto bg-[var(--app-input)]" aria-label="Log preview">
   <pre class="min-w-full py-2 font-mono text-[12.5px] leading-[1.55]">{#each lines as segments, index (index)}<span
       class="block px-3">{#each segments as segment}<span style={styleFor(segment)}>{segment.text}</span>{/each}{#if segments.length === 0}{" "}{/if}</span
     >{/each}</pre>

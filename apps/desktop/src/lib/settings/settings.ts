@@ -15,6 +15,8 @@ export type Settings = {
   radius: Radius;
   elevation: Elevation;
   texture: Texture;
+  /** Disables backdrop blur and animations to save GPU/CPU on lower-powered machines. */
+  reduceEffects: boolean;
   windowControls: WindowControlsMode;
   keyboardMode: KeyboardMode;
   showWhichKey: boolean;
@@ -54,6 +56,7 @@ export function defaultSettings({ dev }: { dev: boolean }): Settings {
     radius: "soft",
     elevation: "soft",
     texture: "none",
+    reduceEffects: false,
     windowControls: "automatic",
     keyboardMode: "standard",
     showWhichKey: true,
@@ -86,6 +89,7 @@ const VALIDATORS: { [K in SettingKey]: (value: unknown) => value is Settings[K] 
   elevation: (value): value is Elevation =>
     value === "flat" || value === "soft" || value === "lifted",
   texture: (value): value is Texture => value === "none" || value === "paper",
+  reduceEffects: isBoolean,
   windowControls: (value): value is WindowControlsMode =>
     value === "automatic" || value === "visible" || value === "hover" || value === "hidden",
   keyboardMode: (value): value is KeyboardMode => value === "standard" || value === "yazi",

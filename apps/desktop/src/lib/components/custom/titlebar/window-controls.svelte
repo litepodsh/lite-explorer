@@ -77,7 +77,7 @@
     }
   }
   button:focus-visible {
-    outline: 2px solid #0a9bff;
+    outline: 2px solid var(--app-accent);
     outline-offset: -2px;
   }
 </style>
