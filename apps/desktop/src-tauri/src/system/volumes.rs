@@ -66,7 +66,11 @@ pub struct DiskOverview {
 pub struct VolumeStats {
     total_bytes: u64,
     free_bytes: u64,
+    // Read by the macOS `volumes()` when classifying mounts; Linux and Windows
+    // report them as `None` and never consume them.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     file_system: Option<String>,
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     mounted_on: Option<String>,
 }
 

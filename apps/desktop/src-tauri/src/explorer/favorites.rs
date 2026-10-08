@@ -11,6 +11,9 @@ use crate::app::db::Database;
 use crate::explorer::paths::{add_location, file_url_path, home_dir, location, Location};
 use crate::{network, remote};
 
+// On Linux `system_favorites` reads the GTK bookmarks instead, so the shared
+// fallback list is only reachable from the macOS and Windows variants.
+#[cfg_attr(target_os = "linux", allow(dead_code))]
 pub fn standard_favorites() -> Vec<Location> {
     let Some(home) = home_dir() else {
         return Vec::new();
