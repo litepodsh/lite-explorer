@@ -45,6 +45,7 @@ pub(crate) enum PreviewKind {
     Comic,
     Notebook,
     Database,
+    Duckdb,
     Subtitle,
     Certificate,
     Model,
@@ -216,6 +217,8 @@ pub(crate) fn preview_kind_for_extension(extension: &str) -> Option<PreviewKind>
         Some(PreviewKind::Notebook)
     } else if crate::preview::database::is_database_extension(extension) {
         Some(PreviewKind::Database)
+    } else if crate::preview::duckdb::is_duckdb_extension(extension) {
+        Some(PreviewKind::Duckdb)
     } else if crate::preview::subtitle::is_subtitle_extension(extension) {
         Some(PreviewKind::Subtitle)
     } else if crate::preview::certificate::is_certificate_extension(extension) {

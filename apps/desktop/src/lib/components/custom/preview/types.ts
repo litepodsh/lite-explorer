@@ -24,6 +24,7 @@ export type PreviewKind =
   | "comic"
   | "notebook"
   | "database"
+  | "duckdb"
   | "subtitle"
   | "certificate"
   | "model"

@@ -6,6 +6,7 @@ pub(crate) mod comic;
 pub(crate) mod data;
 pub(crate) mod database;
 pub(crate) mod dicom;
+pub(crate) mod duckdb;
 pub(crate) mod epub;
 pub(crate) mod fb2;
 pub(crate) mod geo;

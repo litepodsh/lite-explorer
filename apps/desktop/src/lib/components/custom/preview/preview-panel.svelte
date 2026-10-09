@@ -36,6 +36,7 @@
   import ComicView from "./comic-view.svelte";
   import NotebookView from "./notebook-view.svelte";
   import DatabaseView from "./database-view.svelte";
+  import DuckdbView from "./duckdb-view.svelte";
   import SubtitleView from "./subtitle-view.svelte";
   import CertificateView from "./certificate-view.svelte";
   import GeoView from "./geo-view.svelte";
@@ -299,6 +300,8 @@
       <NotebookView path={previewPath} name={preview.name} />
     {:else if preview.kind === "database"}
       <DatabaseView path={previewPath} name={preview.name} />
+    {:else if preview.kind === "duckdb"}
+      <DuckdbView path={previewPath} name={preview.name} />
     {:else if preview.kind === "subtitle"}
       <SubtitleView path={previewPath} name={preview.name} />
     {:else if preview.kind === "certificate"}

@@ -174,6 +174,8 @@ pub fn run() {
             preview::notebook::open_notebook,
             preview::database::open_database,
             preview::database::read_sqlite_table,
+            preview::duckdb::open_duckdb,
+            preview::duckdb::read_duckdb_table,
             preview::subtitle::open_subtitle,
             preview::certificate::open_certificate,
             preview::geo::open_geo,
