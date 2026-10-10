@@ -29,10 +29,7 @@ function compare(a: DirectoryEntry, b: DirectoryEntry, column: SortColumn): numb
 
 function comparator(column: SortColumn, dir: SortDir) {
   const factor = dir === "asc" ? 1 : -1;
-  return (a: DirectoryEntry, b: DirectoryEntry) => {
-    if (a.is_directory !== b.is_directory) return a.is_directory ? -1 : 1;
-    return compare(a, b, column) * factor;
-  };
+  return (a: DirectoryEntry, b: DirectoryEntry) => compare(a, b, column) * factor;
 }
 
 export function sortEntries(

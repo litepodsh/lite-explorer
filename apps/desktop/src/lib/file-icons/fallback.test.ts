@@ -46,4 +46,8 @@ describe("customIconFor", () => {
     expect(customIconFor("unknown.filetype")).toBe("file");
     expect(customIconFor("anything", true)).toBe("folder");
   });
+
+  it("leaves app bundles to their native icon", () => {
+    expect(customIconFor("Safari.app")).toBeUndefined();
+  });
 });

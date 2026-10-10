@@ -26,6 +26,7 @@
   let error = $state("");
   let busy = $state(false);
   let attempt = $state(0);
+  let keyAuth = $state(false);
 
   $effect(() => {
     const path = location?.path;
@@ -35,9 +36,11 @@
     error = "";
     username = "";
     address = "";
+    keyAuth = false;
     void getNetworkLocation(path)
       .then((input) => {
         username = input.username;
+        keyAuth = input.auth === "key";
         address = formatLocationUrl(input);
       })
       .catch(() => {});
@@ -76,7 +79,7 @@
           disabled={busy} />
       </div>
       <div>
-        <label class="loc-label" for="network-password">Password</label>
+        <label class="loc-label" for="network-password">{keyAuth ? "Key passphrase" : "Password"}</label>
         <input
           id="network-password"
           class="loc-input"
@@ -88,7 +91,7 @@
           disabled={busy} />
       </div>
       <DialogSwitch
-        label="Remember password"
+        label={keyAuth ? "Remember passphrase" : "Remember password"}
         description="Saved in this computer’s password store."
         checked={remember}
         disabled={busy}

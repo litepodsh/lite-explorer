@@ -20,6 +20,9 @@ pub fn standard_favorites() -> Vec<Location> {
     };
     let mut locations = Vec::new();
     let mut seen = HashSet::new();
+    // Finder lists Applications first in its sidebar.
+    #[cfg(target_os = "macos")]
+    add_location(&mut locations, &mut seen, PathBuf::from("/Applications"));
     // Folders that don't exist are skipped, so macOS "Movies" and Windows "Videos" can share a list.
     for name in [
         "Desktop",

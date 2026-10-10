@@ -182,6 +182,7 @@ const KIND_LABEL_BY_EXTENSION: Record<string, string> = {
   sqlite: "SQLite Database",
   sqlite3: "SQLite Database",
   db: "SQLite Database",
+  duckdb: "DuckDB Database",
   srt: "SubRip Subtitles",
   vtt: "WebVTT Subtitles",
   webvtt: "WebVTT Subtitles",

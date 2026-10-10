@@ -15,6 +15,7 @@ import {
   toConnectError,
   toPayload,
   withProtocol,
+  withSshHost,
 } from "./network-locations.js";
 
 describe("network locations", () => {
@@ -91,6 +92,18 @@ describe("network locations", () => {
     expect(toPayload(emptyNetworkInput("smb")).security).toBeNull();
     expect(toPayload(emptyNetworkInput("smb")).port).toBeNull();
     expect(toPayload({ ...emptyNetworkInput("sftp"), auth: "guest" }).auth).toBe("password");
+  });
+
+  test("SSH keys are kept for SFTP only", () => {
+    const sftp = { ...emptyNetworkInput("sftp"), auth: "key" as const };
+    expect(toPayload(sftp).auth).toBe("key");
+    expect(withProtocol(sftp, "sftp").auth).toBe("key");
+    expect(withProtocol(sftp, "smb").auth).toBe("password");
+  });
+
+  test("an ~/.ssh/config host fills the form and signs in with keys", () => {
+    const input = withSshHost(emptyNetworkInput("sftp"), { alias: "pi", hostName: "192.168.1.20", user: "pi", port: 2222 });
+    expect([input.host, input.port, input.username, input.auth, input.name]).toEqual(["pi", "2222", "pi", "key", "pi"]);
   });
 
   test("saved settings load into the form without the password", () => {

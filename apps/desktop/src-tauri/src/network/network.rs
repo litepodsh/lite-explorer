@@ -35,6 +35,8 @@ pub enum Protocol {
 pub enum Auth {
     Guest,
     Password,
+    /// SSH keys from ssh-agent and `~/.ssh`. The password field holds the key's passphrase.
+    Key,
 }
 
 /// `http`/`https` for WebDAV, `explicit`/`implicit`/`plain` for FTP.
@@ -284,12 +286,14 @@ fn resolve(input: &NetworkLocationInput) -> Result<Settings, ConnectError> {
 
     let auth = match protocol {
         Protocol::Nfs => Auth::Guest,
+        Protocol::Sftp if input.auth == Auth::Key => Auth::Key,
         Protocol::Sftp => Auth::Password,
+        _ if input.auth == Auth::Key => Auth::Password,
         _ => input.auth,
     };
     let username = match auth {
         Auth::Guest => None,
-        Auth::Password => Some(
+        Auth::Password | Auth::Key => Some(
             non_empty(&input.username)
                 .ok_or_else(|| ConnectError::invalid("Enter your username."))?,
         ),
@@ -333,7 +337,7 @@ fn resolve(input: &NetworkLocationInput) -> Result<Settings, ConnectError> {
         auth,
         username,
         security,
-        remember_password: auth == Auth::Password && input.remember_password,
+        remember_password: auth != Auth::Guest && input.remember_password,
     })
 }
 
@@ -1222,6 +1226,20 @@ mod tests {
         assert_eq!(settings.auth, Auth::Password);
         assert_eq!(settings.username.as_deref(), Some("pi"));
         assert!(settings.remember_password);
+    }
+
+    #[test]
+    fn key_auth_is_only_kept_for_sftp() {
+        let mut sftp = input(Protocol::Sftp);
+        sftp.auth = Auth::Key;
+        sftp.username = "pi".into();
+        let settings = resolve(&sftp).unwrap();
+        assert_eq!(settings.auth, Auth::Key);
+        assert!(settings.remember_password);
+        let mut smb = input(Protocol::Smb);
+        smb.auth = Auth::Key;
+        smb.username = "sebas".into();
+        assert_eq!(resolve(&smb).unwrap().auth, Auth::Password);
     }
 
     #[test]
