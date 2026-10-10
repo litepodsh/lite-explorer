@@ -245,6 +245,9 @@ export function customIconFor(name: string, directory = false): CustomIcon | und
       return "file_spreadsheet";
     case "xmp":
       return "file_metadata";
+    // App bundles show their own icon, like in Finder.
+    case "app":
+      return undefined;
     default:
       return categoryFor(name) === "default" ? "file" : undefined;
   }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invoke } from "@tauri-apps/api/core";
   import EyeIcon from "@lucide/svelte/icons/eye";
   import EyeOffIcon from "@lucide/svelte/icons/eye-off";
   import InfoIcon from "@lucide/svelte/icons/info";
@@ -11,8 +12,10 @@
     needsUsername,
     pathLabel,
     pathPlaceholder,
+    withSshHost,
     type NetworkField,
     type NetworkLocationInput,
+    type SshHost,
   } from "#lib/remote/network-locations.js";
 
   let {
@@ -24,9 +27,39 @@
   let revealPassword = $state(false);
   let protocol = $derived(input.protocol);
   const shows = (field: NetworkField) => errors.includes(field);
+  let keyAuth = $derived(input.auth === "key");
+
+  let sshHosts = $state<SshHost[]>([]);
+  $effect(() => {
+    if (protocol !== "sftp" || editing) return;
+    invoke<SshHost[]>("ssh_config_hosts")
+      .then((hosts) => (sshHosts = hosts))
+      .catch(() => (sshHosts = []));
+  });
+
+  function pickSshHost(alias: string) {
+    const host = sshHosts.find((candidate) => candidate.alias === alias);
+    if (host) input = withSshHost(input, host);
+  }
 </script>
 
 <div class="fields">
+  {#if protocol === "sftp" && !editing && sshHosts.length > 0}
+    <div class="wide">
+      <label class="loc-label" for="net-ssh-host">From ~/.ssh/config <small>optional</small></label>
+      <select
+        id="net-ssh-host"
+        class="loc-input"
+        value={sshHosts.some((host) => host.alias === input.host) ? input.host : ""}
+        onchange={(event) => pickSshHost(event.currentTarget.value)}>
+        <option value="" disabled>Choose a host</option>
+        {#each sshHosts as host (host.alias)}
+          <option value={host.alias}>{host.alias}{host.hostName ? ` (${host.hostName})` : ""}</option>
+        {/each}
+      </select>
+    </div>
+  {/if}
+
   <div class="address wide">
     <div>
       <label class="loc-label" for="net-host">Server</label>
@@ -117,6 +150,20 @@
           onclick={() => (input.auth = "password")}>Registered user</button>
       </div>
     </div>
+  {:else if protocol === "sftp"}
+    <div class="wide">
+      <span class="loc-label" id="net-auth-label">Sign in with</span>
+      <div class="loc-segment" role="radiogroup" aria-labelledby="net-auth-label">
+        <button type="button" role="radio" aria-checked={!keyAuth} onclick={() => (input.auth = "password")}
+          >Password</button>
+        <button type="button" role="radio" aria-checked={keyAuth} onclick={() => (input.auth = "key")}>SSH key</button>
+      </div>
+    </div>
+    {#if keyAuth}
+      <p class="loc-note info wide">
+        <InfoIcon /> Uses ssh-agent and your keys in ~/.ssh, including IdentityFile from ~/.ssh/config.
+      </p>
+    {/if}
   {/if}
 
   {#if hasAuth(protocol) && needsUsername(input)}
@@ -133,31 +180,33 @@
       {#if shows("username")}<p class="loc-field-error">Enter your username.</p>{/if}
     </div>
     <div>
-      <label class="loc-label" for="net-password">Password <small>optional</small></label>
+      <label class="loc-label" for="net-password">{keyAuth ? "Key passphrase" : "Password"} <small>optional</small></label>
       <div class="loc-secret">
         <input
           id="net-password"
           class="loc-input"
           type={revealPassword ? "text" : "password"}
-          placeholder={editing ? "Unchanged" : ""}
+          placeholder={editing ? "Unchanged" : keyAuth ? "Only if your key has one" : ""}
           autocomplete="off"
           bind:value={input.password} />
         <button
           type="button"
-          aria-label={revealPassword ? "Hide password" : "Show password"}
+          aria-label={`${revealPassword ? "Hide" : "Show"} ${keyAuth ? "passphrase" : "password"}`}
           onclick={() => (revealPassword = !revealPassword)}>
           {#if revealPassword}<EyeOffIcon />{:else}<EyeIcon />{/if}
         </button>
       </div>
     </div>
     <label class="loc-toggle wide">
-      <span>Remember password</span>
+      <span>Remember {keyAuth ? "passphrase" : "password"}</span>
       <input type="checkbox" bind:checked={input.rememberPassword} />
     </label>
     <p class="loc-help wide tight">
       {input.rememberPassword
         ? "Saved in this computer’s password store."
-        : "You’ll be asked for the password each time you connect."}
+        : keyAuth
+          ? "You’ll be asked for the passphrase when your key needs it."
+          : "You’ll be asked for the password each time you connect."}
     </p>
   {/if}
 

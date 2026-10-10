@@ -34,6 +34,7 @@ use crate::{
 
 mod ftp;
 mod sftp;
+pub mod ssh_config;
 
 pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 /// Upper bound for a single short operation (list, stat, mkdir, …).
@@ -388,7 +389,13 @@ pub(super) async fn open_session(
         Protocol::Sftp => sftp::connect(
             &target,
             settings.username.as_deref().unwrap_or_default(),
-            password.as_deref().unwrap_or_default(),
+            if settings.auth == Auth::Key {
+                sftp::SshAuth::Key {
+                    passphrase: password.as_deref().filter(|passphrase| !passphrase.is_empty()),
+                }
+            } else {
+                sftp::SshAuth::Password(password.as_deref().unwrap_or_default())
+            },
             known,
         )
         .await
@@ -447,6 +454,16 @@ impl Sessions {
                             )
                         })?,
                 ),
+            },
+            // A passphrase is optional: unencrypted keys and ssh-agent need none.
+            Auth::Key => match typed
+                .clone()
+                .or_else(|| self.passwords.lock().unwrap().get(id).cloned())
+            {
+                Some(passphrase) => Some(passphrase),
+                None => read_optional_secret(KEYCHAIN_SERVICE, id.to_string())
+                    .await
+                    .map_err(ConnectError::other)?,
             },
         };
         let session = Arc::new(open_session(pool, &settings, password).await?);

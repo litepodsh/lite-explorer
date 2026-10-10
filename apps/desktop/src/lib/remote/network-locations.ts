@@ -3,7 +3,7 @@ import { activity } from "#lib/transfers/jobs.js";
 import type { Location } from "#lib/tabs/tabs.js";
 
 export type NetworkProtocol = "smb" | "nfs" | "webdav" | "sftp" | "ftp";
-export type NetworkAuth = "guest" | "password";
+export type NetworkAuth = "guest" | "password" | "key";
 export type WebdavSecurity = "http" | "https";
 export type FtpSecurity = "explicit" | "implicit" | "plain";
 
@@ -187,7 +187,7 @@ export function withProtocol(
     protocol,
     port: same ? input.port : "",
     path: same ? input.path : "",
-    auth: protocol === "sftp" ? "password" : protocol === "nfs" ? "guest" : input.auth,
+    auth: authFor(protocol, input.auth),
   };
 }
 
@@ -211,6 +211,28 @@ export function hasAuth(protocol: NetworkProtocol): boolean {
 
 export function allowsGuest(protocol: NetworkProtocol): boolean {
   return protocol === "smb" || protocol === "webdav" || protocol === "ftp";
+}
+
+/** SFTP signs in with a password or SSH keys; NFS has no account; the others never use keys. */
+export function authFor(protocol: NetworkProtocol, auth: NetworkAuth): NetworkAuth {
+  if (protocol === "nfs") return "guest";
+  if (protocol === "sftp") return auth === "key" ? "key" : "password";
+  return auth === "key" ? "password" : auth;
+}
+
+/** A `Host` alias from `~/.ssh/config`. Mirrors `SshHost` in `ssh_config.rs`. */
+export type SshHost = { alias: string; hostName: string | null; user: string | null; port: number | null };
+
+/** Fills the form from an `~/.ssh/config` host. The alias stays as the server so `ssh` settings apply. */
+export function withSshHost(input: NetworkLocationInput, host: SshHost): NetworkLocationInput {
+  return {
+    ...input,
+    host: host.alias,
+    port: host.port === null ? "" : String(host.port),
+    username: host.user ?? input.username,
+    auth: "key",
+    name: input.name || host.alias,
+  };
 }
 
 export function needsUsername(input: NetworkLocationInput): boolean {
@@ -270,7 +292,7 @@ export function toPayload(input: NetworkLocationInput): NetworkLocationPayload {
     host: input.host,
     port: port ? Number(port) : null,
     path: input.path,
-    auth: input.protocol === "sftp" ? "password" : input.auth,
+    auth: authFor(input.protocol, input.auth),
     username: input.username,
     password: input.password,
     security:

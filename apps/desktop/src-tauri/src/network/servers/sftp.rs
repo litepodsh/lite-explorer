@@ -9,7 +9,10 @@ use std::{
 
 use russh::{
     cipher, client, kex,
-    keys::{Algorithm, EcdsaCurve, HashAlg, PublicKeyOrCertificate},
+    keys::{
+        agent::client::AgentClient, load_secret_key, Algorithm, EcdsaCurve, HashAlg,
+        PrivateKeyWithHashAlg, PublicKeyOrCertificate,
+    },
     mac, Disconnect, Preferred,
 };
 use russh_sftp::{
@@ -19,6 +22,7 @@ use russh_sftp::{
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::super::{ConnectError, ErrorKind};
+use super::ssh_config;
 use super::{
     join, lost, untrusted, Progress, RemoteEntry, ServerTarget, CHUNK, CONNECT_TIMEOUT,
     INACTIVITY_TIMEOUT,
@@ -157,24 +161,34 @@ fn preferred() -> Preferred {
     }
 }
 
+/// How to sign in. `Key` tries ssh-agent and the keys in `~/.ssh`; the passphrase unlocks
+/// encrypted key files.
+pub enum SshAuth<'a> {
+    Password(&'a str),
+    Key { passphrase: Option<&'a str> },
+}
+
 pub async fn connect(
     target: &ServerTarget,
     username: &str,
-    password: &str,
+    auth: SshAuth<'_>,
     known: Option<String>,
 ) -> Result<SftpConnection, ConnectError> {
+    // `target.host` may be an alias from `~/.ssh/config`; host keys stay pinned to it.
+    let config = ssh_config::resolve(&target.host);
+    let address = config.host_name.as_deref().unwrap_or(&target.host);
     let seen = Arc::new(Mutex::new(None));
     let check = HostKeyCheck {
         known: known.clone(),
         seen: seen.clone(),
     };
-    let config = Arc::new(client::Config {
+    let client_config = Arc::new(client::Config {
         inactivity_timeout: Some(Duration::from_secs(15 * 60)),
         keepalive_interval: Some(Duration::from_secs(30)),
         preferred: preferred(),
         ..Default::default()
     });
-    let connecting = client::connect(config, (target.host.as_str(), target.port), check);
+    let connecting = client::connect(client_config, (address, target.port), check);
     let mut handle = match tokio::time::timeout(CONNECT_TIMEOUT, connecting).await {
         Err(_) => {
             return Err(ConnectError::new(
@@ -194,15 +208,22 @@ pub async fn connect(
         }
     };
 
-    let auth = handle
-        .authenticate_password(username, password)
-        .await
-        .map_err(russh_error)?;
-    if !auth.success() {
-        return Err(ConnectError::new(
-            ErrorKind::Auth,
-            "The server rejected the username or password.",
-        ));
+    match auth {
+        SshAuth::Password(password) => {
+            let auth = handle
+                .authenticate_password(username, password)
+                .await
+                .map_err(russh_error)?;
+            if !auth.success() {
+                return Err(ConnectError::new(
+                    ErrorKind::Auth,
+                    "The server rejected the username or password.",
+                ));
+            }
+        }
+        SshAuth::Key { passphrase } => {
+            authenticate_with_keys(&mut handle, username, config.identity_files, passphrase).await?
+        }
     }
     let channel = handle.channel_open_session().await.map_err(russh_error)?;
     channel
@@ -213,6 +234,110 @@ pub async fn connect(
         .await
         .map_err(sftp_error)?;
     Ok(SftpConnection { handle, sftp })
+}
+
+enum KeyAttempt {
+    Missing,
+    Locked,
+    Rejected,
+    Accepted,
+}
+
+async fn try_key_file(
+    handle: &mut client::Handle<HostKeyCheck>,
+    username: &str,
+    path: &Path,
+    passphrase: Option<&str>,
+    rsa_hash: Option<HashAlg>,
+) -> Result<KeyAttempt, ConnectError> {
+    if !path.is_file() {
+        return Ok(KeyAttempt::Missing);
+    }
+    let Ok(key) = load_secret_key(path, passphrase) else {
+        return Ok(KeyAttempt::Locked);
+    };
+    let key = PrivateKeyWithHashAlg::new(Arc::new(key), rsa_hash);
+    let auth = handle
+        .authenticate_publickey(username, key)
+        .await
+        .map_err(russh_error)?;
+    Ok(if auth.success() {
+        KeyAttempt::Accepted
+    } else {
+        KeyAttempt::Rejected
+    })
+}
+
+/// Tries the keys named in `~/.ssh/config`, then ssh-agent, then the default key files,
+/// like `ssh` does.
+async fn authenticate_with_keys(
+    handle: &mut client::Handle<HostKeyCheck>,
+    username: &str,
+    configured: Vec<std::path::PathBuf>,
+    passphrase: Option<&str>,
+) -> Result<(), ConnectError> {
+    let rsa_hash = handle
+        .best_supported_rsa_hash()
+        .await
+        .map_err(russh_error)?
+        .flatten();
+    let mut tried = false;
+    let mut locked = false;
+    let defaults = ssh_config::default_identity_files();
+    let defaults: Vec<_> = defaults
+        .iter()
+        .filter(|path| !configured.contains(path))
+        .collect();
+    for path in &configured {
+        match try_key_file(handle, username, path, passphrase, rsa_hash).await? {
+            KeyAttempt::Accepted => return Ok(()),
+            KeyAttempt::Rejected => tried = true,
+            KeyAttempt::Locked => locked = true,
+            KeyAttempt::Missing => {}
+        }
+    }
+    if let Ok(mut agent) = AgentClient::connect_env().await {
+        for identity in agent.request_identities().await.unwrap_or_default() {
+            tried = true;
+            let key = identity.public_key().into_owned();
+            let hash = if key.algorithm().is_rsa() {
+                rsa_hash
+            } else {
+                None
+            };
+            let accepted = handle
+                .authenticate_publickey_with(username, key, hash, &mut agent)
+                .await
+                .is_ok_and(|auth| auth.success());
+            if accepted {
+                return Ok(());
+            }
+        }
+    }
+    for path in defaults {
+        match try_key_file(handle, username, path, passphrase, rsa_hash).await? {
+            KeyAttempt::Accepted => return Ok(()),
+            KeyAttempt::Rejected => tried = true,
+            KeyAttempt::Locked => locked = true,
+            KeyAttempt::Missing => {}
+        }
+    }
+    // Only a passphrase can fix the first two, so only they ask for one.
+    Err(if locked && passphrase.is_none() {
+        ConnectError::new(
+            ErrorKind::Auth,
+            "Your SSH key is protected. Enter its passphrase.",
+        )
+    } else if locked && !tried {
+        ConnectError::new(
+            ErrorKind::Auth,
+            "The passphrase doesn’t unlock your SSH key.",
+        )
+    } else if tried {
+        ConnectError::other("The server rejected your SSH keys.")
+    } else {
+        ConnectError::other("No SSH key found in ssh-agent or ~/.ssh.")
+    })
 }
 
 impl SftpConnection {

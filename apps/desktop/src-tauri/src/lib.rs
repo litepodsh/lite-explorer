@@ -106,6 +106,7 @@ pub fn run() {
             network::discovery::scan_smb_servers,
             network::discovery::stop_network_scan,
             network::discovery::open_local_network_settings,
+            network::servers::ssh_config::ssh_config_hosts,
             remote::download_remote_file,
             remote::write::delete_remote_items,
             remote::write::upload_remote_files,
