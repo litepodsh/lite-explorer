@@ -1,9 +1,11 @@
 use std::{
+    collections::HashMap,
     fs,
     io::{BufReader, Read},
     path::{Path, PathBuf},
-    sync::mpsc,
+    sync::{mpsc, Arc, Mutex},
     thread,
+    time::SystemTime,
 };
 
 use crate::{epoch_millis, explorer::archive::Flow, DirectoryEntry};
@@ -25,6 +27,8 @@ const MAX_CONTAINER_BYTES: u64 = 256 * 1024 * 1024;
 /// Longest snippet returned for a match, in characters.
 const SNIPPET_CHARS: usize = 220;
 const WORKERS: usize = 4;
+/// In-memory budget for extracted text kept between searches, so unchanged files are not re-read.
+const MAX_CACHE_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -50,6 +54,48 @@ pub(crate) struct SearchResponse {
     pub results: Vec<SearchResult>,
     pub skipped: usize,
     pub limited: bool,
+}
+
+/// Extracted text kept in memory so repeated content searches skip unchanged files.
+#[derive(Clone, Default)]
+pub(crate) struct ContentCache {
+    inner: Arc<Mutex<Cache>>,
+}
+
+#[derive(Default)]
+struct Cache {
+    map: HashMap<PathBuf, CachedText>,
+    bytes: usize,
+}
+
+struct CachedText {
+    modified: SystemTime,
+    size: u64,
+    /// `None` marks a file already found unreadable/binary.
+    text: Option<String>,
+}
+
+impl ContentCache {
+    fn get(&self, path: &Path, modified: SystemTime, size: u64) -> Option<Option<String>> {
+        self.inner
+            .lock()
+            .unwrap()
+            .map
+            .get(path)
+            .filter(|cached| cached.modified == modified && cached.size == size)
+            .map(|cached| cached.text.clone())
+    }
+
+    fn insert(&self, path: PathBuf, modified: SystemTime, size: u64, text: Option<String>) {
+        let mut cache = self.inner.lock().unwrap();
+        let cost = text.as_ref().map_or(0, String::len);
+        if cache.bytes + cost > MAX_CACHE_BYTES {
+            cache.map.clear();
+            cache.bytes = 0;
+        }
+        cache.bytes += cost;
+        cache.map.insert(path, CachedText { modified, size, text });
+    }
 }
 
 fn matches(haystack: &str, query: &str) -> bool {
@@ -186,10 +232,28 @@ fn memory_limit(kind: &FileKind) -> u64 {
     }
 }
 
+/// Extracts all searchable text from a single file, independent of the query.
+/// `Err` marks a skipped file (too large, binary or unreadable).
+fn extract_text(kind: &FileKind, bytes: &[u8]) -> Result<String, ()> {
+    match kind {
+        FileKind::Text => text::decode(bytes).map(|cow| cow.into_owned()).ok_or(()),
+        FileKind::Rtf => Ok(text::rtf_text(bytes)),
+        FileKind::Document(kind) => documents::document_text(bytes, *kind),
+        FileKind::Mail(kind) => mail::mail_text(bytes, *kind).ok_or(()),
+        FileKind::Archive(_) | FileKind::Compressed(..) => Err(()),
+    }
+}
+
 /// Searches one file for `needle` (already lowercased). `Err` marks a skipped file: too large,
 /// binary or unreadable.
-fn content_match(path: PathBuf, needle: &str) -> Result<Option<ContentHit>, ()> {
-    let len = fs::metadata(&path).map_err(|_| ())?.len();
+fn content_match(
+    path: PathBuf,
+    needle: &str,
+    cache: &ContentCache,
+) -> Result<Option<ContentHit>, ()> {
+    let meta = fs::metadata(&path).map_err(|_| ())?;
+    let len = meta.len();
+    let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
     let name = path
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
@@ -229,7 +293,21 @@ fn content_match(path: PathBuf, needle: &str) -> Result<Option<ContentHit>, ()> 
             if len > limit {
                 return Err(());
             }
-            bytes_match(&kind, &read_limited(open()?, limit)?, needle)?
+            if let Some(cached) = cache.get(&path, modified, len) {
+                return match cached {
+                    Some(text) => Ok(matching_line(&text, needle).map(|line| (path, line, None))),
+                    None => Err(()),
+                };
+            }
+            let text = match extract_text(&kind, &read_limited(open()?, limit)?) {
+                Ok(text) => text,
+                Err(()) => {
+                    cache.insert(path, modified, len, None);
+                    return Err(());
+                }
+            };
+            cache.insert(path.clone(), modified, len, Some(text.clone()));
+            matching_line(&text, needle)
         }
     };
     Ok(line.map(|line| (path, line, None)))
@@ -332,6 +410,7 @@ pub(crate) fn search_directory(
     root: &Path,
     query: &str,
     mode: SearchMode,
+    cache: &ContentCache,
 ) -> Result<SearchResponse, String> {
     let paths = walk(root, matches!(mode, SearchMode::Fuzzy))?;
     let mut skipped = 0;
@@ -370,7 +449,7 @@ pub(crate) fn search_directory(
                 let needle = query.to_lowercase();
                 scope.spawn(move || {
                     while let Ok(path) = rx.lock().unwrap().recv() {
-                        let _ = tx.send(content_match(path, &needle));
+                        let _ = tx.send(content_match(path, &needle, cache));
                     }
                 });
             }
@@ -520,7 +599,7 @@ mod tests {
         );
         write_zip(&root.join("other.zip"), &[("readme.txt", b"nothing")]);
 
-        let mut results = search_directory(&root, "ZARPA", SearchMode::Content)
+        let mut results = search_directory(&root, "ZARPA", SearchMode::Content, &ContentCache::default())
             .unwrap()
             .results;
         results.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
@@ -564,7 +643,7 @@ mod tests {
         fs::write(root.join("docs/old-invoices.csv"), b"").unwrap();
         fs::write(root.join("readme.md"), b"").unwrap();
 
-        let results = search_directory(&root, "invoices", SearchMode::Fuzzy)
+        let results = search_directory(&root, "invoices", SearchMode::Fuzzy, &ContentCache::default())
             .unwrap()
             .results;
         let mut found: Vec<_> = results

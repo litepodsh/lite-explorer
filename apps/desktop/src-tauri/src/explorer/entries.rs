@@ -419,6 +419,7 @@ pub fn path_exists(path: String) -> bool {
 #[tauri::command]
 #[tracing::instrument(skip_all, name = "search_directory", fields(sentry_op = "file.search"))]
 pub async fn search_directory(
+    cache: State<'_, search::ContentCache>,
     path: String,
     query: String,
     mode: search::SearchMode,
@@ -429,9 +430,10 @@ pub async fn search_directory(
     {
         return Err("Search is available for local folders and mounted volumes only.".into());
     }
+    let cache = (&*cache).clone();
     tauri::async_runtime::spawn_blocking(move || {
         let path = validate_directory(&PathBuf::from(path))?;
-        search::search_directory(&path, &query, mode)
+        search::search_directory(&path, &query, mode, &cache)
     })
     .await
     .map_err(|error| error.to_string())?

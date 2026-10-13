@@ -10,7 +10,7 @@ use std::{
 use russh::{
     cipher, client, kex,
     keys::{
-        agent::client::AgentClient, load_secret_key, Algorithm, EcdsaCurve, HashAlg,
+        agent::client::{AgentClient, AgentStream}, load_secret_key, Algorithm, EcdsaCurve, HashAlg,
         PrivateKeyWithHashAlg, PublicKeyOrCertificate,
     },
     mac, Disconnect, Preferred,
@@ -268,6 +268,27 @@ async fn try_key_file(
     })
 }
 
+/// Connects to the running ssh-agent: `SSH_AUTH_SOCK` on Unix; on Windows the
+/// OpenSSH agent's named pipe (or `SSH_AUTH_SOCK` when set), then Pageant.
+async fn connect_agent() -> Option<AgentClient<Box<dyn AgentStream + Send + Unpin>>> {
+    #[cfg(unix)]
+    {
+        AgentClient::connect_env().await.ok().map(AgentClient::dynamic)
+    }
+    #[cfg(windows)]
+    {
+        let pipe = std::env::var("SSH_AUTH_SOCK")
+            .unwrap_or_else(|_| r"\\.\pipe\openssh-ssh-agent".to_owned());
+        if let Ok(agent) = AgentClient::connect_named_pipe(pipe).await {
+            return Some(agent.dynamic());
+        }
+        AgentClient::connect_pageant()
+            .await
+            .ok()
+            .map(AgentClient::dynamic)
+    }
+}
+
 /// Tries the keys named in `~/.ssh/config`, then ssh-agent, then the default key files,
 /// like `ssh` does.
 async fn authenticate_with_keys(
@@ -296,7 +317,7 @@ async fn authenticate_with_keys(
             KeyAttempt::Missing => {}
         }
     }
-    if let Ok(mut agent) = AgentClient::connect_env().await {
+    if let Some(mut agent) = connect_agent().await {
         for identity in agent.request_identities().await.unwrap_or_default() {
             tried = true;
             let key = identity.public_key().into_owned();
