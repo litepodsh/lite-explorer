@@ -52,6 +52,7 @@ pub fn run() {
             app.manage(analytics);
             app.manage(media::MediaRegistry::default());
             app.manage(media::viewer::ViewerTarget::default());
+            app.manage(search::ContentCache::default());
             let database = tauri::async_runtime::block_on(open_database(app.handle()))?;
             app.manage(Database(database));
             app.manage(remote::RemoteClients::default());

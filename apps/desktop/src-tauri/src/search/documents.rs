@@ -55,19 +55,22 @@ pub(super) fn document_match(
     kind: DocumentKind,
     needle: &str,
 ) -> Result<Option<String>, ()> {
+    Ok(matching_line(&document_text(bytes, kind)?, needle))
+}
+
+/// All searchable text of a document, one cell/paragraph per line, independent of the query.
+pub(super) fn document_text(bytes: &[u8], kind: DocumentKind) -> Result<String, ()> {
     match kind {
-        DocumentKind::Spreadsheet => spreadsheet_match(bytes, needle),
-        DocumentKind::FlatOpenDocument => Ok(matching_line(
-            &xml_text(&text::decode(bytes).ok_or(())?),
-            needle,
-        )),
-        _ => zipped_match(Cursor::new(bytes), kind, needle),
+        DocumentKind::Spreadsheet => spreadsheet_text(bytes),
+        DocumentKind::FlatOpenDocument => Ok(xml_text(&text::decode(bytes).ok_or(())?)),
+        _ => zipped_text(Cursor::new(bytes), kind),
     }
 }
 
-/// Matches spreadsheet rows, cells joined with ` | `; numbers and dates are searchable as shown.
-fn spreadsheet_match(bytes: &[u8], needle: &str) -> Result<Option<String>, ()> {
+/// Spreadsheet rows as lines, cells joined with ` | `; numbers and dates are searchable as shown.
+fn spreadsheet_text(bytes: &[u8]) -> Result<String, ()> {
     let mut workbook = calamine::open_workbook_auto_from_rs(Cursor::new(bytes)).map_err(|_| ())?;
+    let mut out = String::new();
     for (_, range) in workbook.worksheets() {
         for row in range.rows() {
             let cells: Vec<String> = row
@@ -75,12 +78,13 @@ fn spreadsheet_match(bytes: &[u8], needle: &str) -> Result<Option<String>, ()> {
                 .map(ToString::to_string)
                 .filter(|cell| !cell.is_empty())
                 .collect();
-            if let Some(line) = matching_line(&cells.join(" | "), needle) {
-                return Ok(Some(line));
+            if !cells.is_empty() {
+                out.push_str(&cells.join(" | "));
+                out.push('\n');
             }
         }
     }
-    Ok(None)
+    Ok(out)
 }
 
 fn is_text_part(kind: DocumentKind, name: &str) -> bool {
@@ -114,12 +118,9 @@ fn is_text_part(kind: DocumentKind, name: &str) -> bool {
     }
 }
 
-fn zipped_match<R: Read + Seek>(
-    reader: R,
-    kind: DocumentKind,
-    needle: &str,
-) -> Result<Option<String>, ()> {
+fn zipped_text<R: Read + Seek>(reader: R, kind: DocumentKind) -> Result<String, ()> {
     let mut zip = ZipArchive::new(reader).map_err(|_| ())?;
+    let mut out = String::new();
     for index in 0..zip.len() {
         let Ok(part) = zip.by_index(index) else {
             continue;
@@ -131,11 +132,10 @@ fn zipped_match<R: Read + Seek>(
         if part.take(MAX_PART_BYTES).read_to_end(&mut xml).is_err() {
             continue;
         }
-        if let Some(line) = matching_line(&xml_text(&String::from_utf8_lossy(&xml)), needle) {
-            return Ok(Some(line));
-        }
+        out.push_str(&xml_text(&String::from_utf8_lossy(&xml)));
+        out.push('\n');
     }
-    Ok(None)
+    Ok(out)
 }
 
 /// Strips XML/XHTML markup, ending a line at each paragraph, heading, list item or table row.

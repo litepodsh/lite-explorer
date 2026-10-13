@@ -32,6 +32,15 @@ pub(super) fn mail_match(bytes: &[u8], kind: MailKind, needle: &str) -> Option<S
     }
 }
 
+/// All searchable text of a mail file held in memory (headers and bodies), independent of the query.
+pub(super) fn mail_text(bytes: &[u8], kind: MailKind) -> Option<String> {
+    match kind {
+        MailKind::Eml => message_text(bytes),
+        MailKind::Emlx => message_text(emlx_message(bytes)),
+        MailKind::Mbox => None,
+    }
+}
+
 /// First matching line across the messages of an mbox stream.
 pub(super) fn mbox_match(reader: impl BufRead, needle: &str) -> Option<String> {
     MessageIterator::new(reader)
@@ -54,27 +63,45 @@ pub(crate) fn emlx_message(bytes: &[u8]) -> &[u8] {
     }
 }
 
-fn message_match(bytes: &[u8], needle: &str) -> Option<String> {
+fn message_text(bytes: &[u8]) -> Option<String> {
     let message = MessageParser::default().parse(bytes)?;
+    let mut out = String::new();
     let headers = [
         ("Subject", message.subject().map(str::to_string)),
         ("From", message.from().map(addresses)),
         ("To", message.to().map(addresses)),
     ];
     for (label, value) in headers {
-        if let Some(line) = value.and_then(|value| matching_line(&value, needle)) {
-            return Some(format!("{label}: {line}"));
+        if let Some(value) = value {
+            out.push_str(label);
+            out.push_str(": ");
+            out.push_str(&value);
+            out.push('\n');
         }
     }
-    (0..message.text_body_count()).find_map(|index| {
-        let part = message.text_part(index as u32)?;
+    for index in 0..message.text_body_count() {
+        let Some(part) = message.text_part(index as u32) else {
+            continue;
+        };
         match &part.body {
-            PartType::Text(text) => matching_line(text, needle),
+            PartType::Text(text) => {
+                out.push_str(text);
+                out.push('\n');
+            }
             // Our markup stripper keeps block elements on separate lines, which reads better in snippets.
-            PartType::Html(html) => matching_line(&xml_text(html), needle),
-            _ => None,
+            PartType::Html(html) => {
+                out.push_str(&xml_text(html));
+                out.push('\n');
+            }
+            _ => {}
         }
-    })
+    }
+    Some(out)
+}
+
+/// First matching line of a single message's contents.
+fn message_match(bytes: &[u8], needle: &str) -> Option<String> {
+    matching_line(&message_text(bytes)?, needle)
 }
 
 fn addresses(address: &Address) -> String {
