@@ -46,7 +46,7 @@ pub fn validate_readable(path: &Path) -> Result<PathBuf, String> {
     if !path.is_absolute() {
         return Err(INVALID_PATH.into());
     }
-    let real = fs::canonicalize(path).map_err(|_| INVALID_PATH)?;
+    let real = dunce::canonicalize(path).map_err(|_| INVALID_PATH)?;
     validate_existing(&real, ExpectedKind::Any)
 }
 
@@ -56,7 +56,7 @@ pub fn validate_directory(path: &Path) -> Result<PathBuf, String> {
     if !path.is_absolute() {
         return Err(INVALID_PATH.into());
     }
-    let real = fs::canonicalize(path).map_err(|_| INVALID_PATH)?;
+    let real = dunce::canonicalize(path).map_err(|_| INVALID_PATH)?;
     validate_existing(&real, ExpectedKind::Directory)
 }
 
