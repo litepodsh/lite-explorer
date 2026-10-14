@@ -391,9 +391,9 @@
             {count > 1 ? `Copy ${count} Paths` : "Copy Path"}
           </ContextMenu.Item>
           {#if count === 1 && target}
-            <ContextMenu.Item onSelect={() => controller.copyContextParentPath()}>
-              <CopyIcon class="size-4" />
-              {target.is_directory ? "Copy Folder Location" : "Copy File Location"}
+            <ContextMenu.Item onSelect={() => controller.openContextTargetLocationInApp()}>
+              <FolderInputIcon class="size-4" />
+              {target.is_directory ? "Open Folder Location" : "Open File Location"}
             </ContextMenu.Item>
           {/if}
           {#if !controller.serverRoot}

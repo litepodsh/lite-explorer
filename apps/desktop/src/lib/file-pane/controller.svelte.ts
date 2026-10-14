@@ -1193,18 +1193,6 @@ export class FilePaneController {
       .catch((error: unknown) => this.showError("Couldn’t copy", error));
   }
 
-  /** Copies the containing folder path of the context target, without the file name. */
-  copyContextParentPath() {
-    const target = this.contextTarget;
-    if (!target) return;
-    const parent = parentPath(target.path) || target.path;
-    const trimmed = parent.length > 1 ? parent.replace(/[\\/]$/, "") : parent;
-    const text = isServerPath(trimmed) ? this.displayPath(trimmed) : toS3Uri(trimmed);
-    void navigator.clipboard
-      .writeText(text)
-      .catch((error: unknown) => this.showError("Couldn’t copy", error));
-  }
-
   async duplicateContextTargets() {
     const targets = this.contextTargets;
     for (const target of targets) {
