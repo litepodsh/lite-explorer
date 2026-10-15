@@ -71,7 +71,8 @@ import { platformState } from "#lib/state/platform.svelte.js";
 import { isAppBundle } from "#lib/file-ops/bundles.js";
 import { TypeSelectBuffer, typeSelectTarget } from "#lib/keyboard/type-select.js";
 import type { SortColumn, SortDir } from "#lib/components/custom/file-list/sort.js";
-import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
+import { mergeListing, removePaths, renameEntry, upsertEntry, applyWatcherEvent } from "./listing-merge.js";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { CopyTextKind } from "#lib/keyboard/context.js";
 import { fileStem } from "#lib/keyboard/text.js";
 import type { SwipeDirection } from "#lib/swipe/gesture.js";
@@ -91,6 +92,10 @@ type EntryDetails = {
   created: number | null;
   modified: number | null;
 };
+type WatcherPayload =
+  | { kind: "added"; path: string; entry: DirectoryEntry }
+  | { kind: "modified"; path: string; entry: DirectoryEntry }
+  | { kind: "removed"; path: string };
 
 /** Rows asked for at once, and the pause that lets scrolling settle before asking. */
 const DETAILS_BATCH = 256;
@@ -145,6 +150,11 @@ export class FilePaneController {
   #detailsAsked = new Set<string>();
   #detailsWanted = new Set<string>();
   #detailsTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Watcher session bound to the current local folder, if any. The path is
+   *  also the session id, so navigating away and back re-uses the same
+   *  backend watcher if it hasn't been stopped by another pane. */
+  #watchSession = "";
+  #watchUnlisten: UnlistenFn | null = null;
 
   get canCalculateSizes() {
     return (
@@ -584,9 +594,79 @@ export class FilePaneController {
         void this.calculateSizes({ preserveSort: true });
       }
     }
+    this.#syncWatcher(location.path, token);
   }
 
   private loadToken = 0;
+
+  /** Switches the file-system watcher to `path` when it's a local folder.
+   *  Remote and network paths are skipped: they have no FSEvents and would
+   *  need polling instead, which the backend refuses for now. */
+  #syncWatcher(path: string, token: number) {
+    if (token !== this.loadToken) return;
+    const wantsWatch =
+      !!path &&
+      !isRemoteLike(path) &&
+      !isNetworkPath(path) &&
+      !networkStatus.mountFor(path);
+    if (!wantsWatch) {
+      void this.#endWatch();
+      return;
+    }
+    void this.#startWatch(path);
+  }
+
+  /** Starts watching `path` (or no-ops if already watching it). */
+  async #startWatch(path: string) {
+    if (this.#watchSession === path && this.#watchUnlisten) return;
+    await this.#endWatch();
+    try {
+      await invoke<unknown>("watch_directory", { sessionId: path, path });
+    } catch (error) {
+      // Watcher failure is non-fatal: the pane still works, it just won't
+      // see external edits until the user manually refreshes.
+      if (this.listingPath === path) {
+        this.#watchSession = "";
+        this.#watchUnlisten = null;
+      }
+      console.warn("watch_directory failed", error);
+      return;
+    }
+    if (this.listingPath !== path) {
+      void invoke("unwatch_directory", { sessionId: path }).catch(() => {});
+      return;
+    }
+    this.#watchSession = path;
+    try {
+      this.#watchUnlisten = await listen<WatcherPayload>(
+        `watcher://${path}`,
+        ({ payload }) => {
+          if (this.listingPath !== path) return;
+          this.entries = applyWatcherEvent(this.entries, payload.kind, payload);
+          this.pruneSelection();
+        },
+      );
+    } catch (error) {
+      console.warn("watch listen failed", error);
+      void invoke("unwatch_directory", { sessionId: path }).catch(() => {});
+      this.#watchSession = "";
+      this.#watchUnlisten = null;
+    }
+  }
+
+  /** Stops the active watcher, if any. Safe to call when nothing is running. */
+  async #endWatch() {
+    const session = this.#watchSession;
+    const unlisten = this.#watchUnlisten;
+    this.#watchSession = "";
+    this.#watchUnlisten = null;
+    if (unlisten) {
+      try { unlisten(); } catch {}
+    }
+    if (session) {
+      void invoke("unwatch_directory", { sessionId: session }).catch(() => {});
+    }
+  }
 
   private cancelDirectoryListing() {
     clearTimeout(this.#detailsTimer);
@@ -596,6 +676,7 @@ export class FilePaneController {
     const requestId = this.#listingRequest;
     this.#listingRequest = "";
     if (requestId) void invoke("cancel_directory_listing", { requestId }).catch(() => {});
+    void this.#endWatch();
   }
 
   private async loadSmbListing(path: string, token: number) {
@@ -713,6 +794,13 @@ export class FilePaneController {
     const remote =
       isRemoteLike(path) || isNetworkPath(path) || Boolean(networkStatus.mountFor(path));
     if (this.isBrowsableFolder() && !remote && !this.listingError && !this.disconnected) {
+      // For watched folders, ask the backend to push any events it buffered
+      // (e.g. after sleep) before falling back to the full re-read.
+      if (this.#watchSession) {
+        void invoke("reconcile_directory", { sessionId: this.#watchSession }).catch(
+          () => {},
+        );
+      }
       void this.refreshListing(path);
       return;
     }

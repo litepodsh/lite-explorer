@@ -11,3 +11,4 @@ pub mod opener;
 pub mod paths;
 pub mod recents;
 pub mod sizes;
+pub mod watcher;

@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import type { DirectoryEntry } from "#lib/components/custom/file-list/index.js";
-import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
+import {
+  applyWatcherEvent,
+  mergeListing,
+  removePaths,
+  renameEntry,
+  upsertEntry,
+} from "./listing-merge.js";
 
 function entry(path: string, extra: Partial<DirectoryEntry> = {}): DirectoryEntry {
   return {
@@ -94,5 +100,39 @@ describe("renameEntry", () => {
     const entries = [entry("/a/1")];
 
     expect(renameEntry(entries, "/a/missing", "/a/other", "other")).toBe(entries);
+  });
+});
+
+describe("applyWatcherEvent", () => {
+  test("added appends a fresh entry", () => {
+    const result = applyWatcherEvent(
+      [entry("/a/old", { size: 4 })],
+      "added",
+      { path: "/a/new", entry: entry("/a/new") },
+    );
+    expect(result.map((item) => item.path)).toEqual(["/a/old", "/a/new"]);
+  });
+
+  test("modified keeps the measured size of an existing entry", () => {
+    const result = applyWatcherEvent(
+      [entry("/a/x", { is_directory: true, size: 999, sizeComplete: true })],
+      "modified",
+      { path: "/a/x", entry: entry("/a/x", { is_directory: true }) },
+    );
+    expect(result[0]).toMatchObject({ size: 999, sizeComplete: true });
+  });
+
+  test("removed drops the entry by path", () => {
+    const result = applyWatcherEvent(
+      [entry("/a/x"), entry("/a/y")],
+      "removed",
+      { path: "/a/x" },
+    );
+    expect(result.map((item) => item.path)).toEqual(["/a/y"]);
+  });
+
+  test("modified without payload entry is a no-op", () => {
+    const previous = [entry("/a/x")];
+    expect(applyWatcherEvent(previous, "modified", { path: "/a/x" })).toBe(previous);
   });
 });

@@ -16,6 +16,31 @@ export function mergeListing(previous: DirectoryEntry[], next: DirectoryEntry[])
   });
 }
 
+/** Applies a watcher event to a listing, preserving measured sizes the backend doesn't track.
+ *  `kind` mirrors the `WatchEvent` enum from the Rust side. */
+export function applyWatcherEvent(
+  previous: DirectoryEntry[],
+  kind: "added" | "modified" | "removed",
+  payload: { path: string; entry?: DirectoryEntry },
+): DirectoryEntry[] {
+  if (kind === "removed") {
+    return removePaths(previous, [payload.path]);
+  }
+  if (!payload.entry) return previous;
+  const index = previous.findIndex((listed) => listed.path === payload.entry!.path);
+  const measured =
+    index >= 0 && (previous[index].size != null || previous[index].sizeComplete != null)
+      ? { size: previous[index].size, sizeComplete: previous[index].sizeComplete }
+      : null;
+  const next = measured
+    ? { ...payload.entry, ...measured }
+    : payload.entry;
+  if (index === -1) return [...previous, next];
+  const out = previous.slice();
+  out[index] = next;
+  return out;
+}
+
 /** Drops entries by path, for removals the UI already knows about. */
 export function removePaths(entries: DirectoryEntry[], paths: Iterable<string>): DirectoryEntry[] {
   const gone = paths instanceof Set ? paths : new Set(paths);

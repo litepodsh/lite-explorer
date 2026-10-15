@@ -118,6 +118,8 @@ image = { version = "0.25", default-features = false, features = [
   "ico",
   "tiff",
 ] }
+notify = "6"
+notify-debouncer-full = "0.3"
 
 
 [lints.clippy]

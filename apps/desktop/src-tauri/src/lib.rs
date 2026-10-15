@@ -22,6 +22,7 @@ use app::window::{paint_black, restore_window_state, save_window_state};
 use app::window::{set_webview_background, unlock_webview_frame_rate};
 use system::folder_usage::FolderScans;
 use tauri::{Manager, WindowEvent};
+use explorer::watcher::WatcherRegistry;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -63,6 +64,7 @@ pub fn run() {
             app.manage(FolderScans(std::sync::Mutex::new(
                 std::collections::HashSet::new(),
             )));
+            app.manage(WatcherRegistry::default());
             app.manage(swipe_nav::SwipeState::default());
             let menu = app::menu::build(app.handle())?;
             app.manage(app::menu::AppMenu(menu.clone()));
@@ -132,6 +134,9 @@ pub fn run() {
             explorer::entries::read_directory_progressively,
             explorer::entries::cancel_directory_listing,
             explorer::entries::entry_details,
+            explorer::watcher::watch_directory,
+            explorer::watcher::unwatch_directory,
+            explorer::watcher::reconcile_directory,
             explorer::entries::resolve_path,
             explorer::entries::path_exists,
             explorer::entries::search_directory,
