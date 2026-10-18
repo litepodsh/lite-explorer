@@ -125,6 +125,27 @@ impl Analytics {
         }
     }
 
+    /// Debug menu check: sends a `debug_test_event` to Aptabase and describes what happened,
+    /// so a build can be checked for a working app key without waiting for real usage.
+    pub fn send_test_event(&self, app: &AppHandle) -> String {
+        let install = self.install_id();
+        if !self.usage {
+            return format!(
+                "Not sent: no Aptabase app key was baked into this build.\n\nInstall: {install}"
+            );
+        }
+        if !self.enabled() {
+            return format!("Not sent: reporting is turned off.\n\nInstall: {install}");
+        }
+        let props = serde_json::json!({ "source": "debug-menu" });
+        match app.track_event("debug_test_event", Some(props)) {
+            Ok(()) => format!(
+                "Queued \"debug_test_event\" for Aptabase. It is flushed within a few seconds; look for it in the dashboard.\n\nInstall: {install}"
+            ),
+            Err(error) => format!("Couldn't send: {error}\n\nInstall: {install}"),
+        }
+    }
+
     fn lock(&self) -> std::sync::MutexGuard<'_, AnalyticsPrefs> {
         self.prefs.lock().unwrap_or_else(|error| error.into_inner())
     }

@@ -10,10 +10,14 @@ set windows-shell := ["cmd.exe", "/C"]
 default:
     @just --list
 
-# Set the app version in tauri.conf.json, package.json and Cargo.toml, like `just bump 0.2.0`.
+# Set the app version in tauri.conf.json, package.json and Cargo.toml, like `just bump 0.2.0`,
+# then commit only those files and tag the commit `v<version>`. Push the tag to release.
 bump version:
     bun scripts/bump-version.ts {{version}}
     cargo update --workspace --manifest-path src-tauri/Cargo.toml --offline
+    git commit -m "chore(release): v{{trim_start_match(version, "v")}}" -- package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+    git tag v{{trim_start_match(version, "v")}}
+    @echo "Tagged v{{trim_start_match(version, "v")}}. Release: git push origin HEAD v{{trim_start_match(version, "v")}}"
 
 # Install JavaScript dependencies.
 i:

@@ -351,11 +351,23 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             true,
             None::<&str>,
         )?;
+        let test_analytics = MenuItem::with_id(
+            app,
+            "send-test-analytics",
+            "Send Test Analytics Event",
+            true,
+            None::<&str>,
+        )?;
         let debug_menu = Submenu::with_items(
             app,
             "Debug",
             true,
-            &[&developer_tools, &throw_exception, &switcher_submenu],
+            &[
+                &developer_tools,
+                &throw_exception,
+                &test_analytics,
+                &switcher_submenu,
+            ],
         )?;
         menu.append(&debug_menu)?;
         app.manage(PrototypeSwitcherMenu(prototype_switcher));
@@ -419,6 +431,17 @@ pub fn handle(app: &AppHandle, id: &str) {
         if id == "throw-test-exception" {
             // Thrown by the webview so the browser SDK reports it like a real UI error.
             let _ = app.emit("debug-throw-exception", ());
+            return;
+        }
+        if id == "send-test-analytics" {
+            use tauri_plugin_dialog::DialogExt;
+            let result = app
+                .state::<crate::app::analytics::Analytics>()
+                .send_test_event(app);
+            app.dialog()
+                .message(result)
+                .title("Test Analytics Event")
+                .show(|_| {});
             return;
         }
     }

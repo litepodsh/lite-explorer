@@ -1,5 +1,5 @@
 // Sets the app version everywhere it's declared: `bun scripts/bump-version.ts 0.2.0`.
-// The release workflow builds from a `v<version>` tag, so tag the commit after bumping.
+// The release workflow builds from a `v<version>` tag; `just bump` commits and tags it.
 
 const version = process.argv[2]?.replace(/^v/, "");
 if (!version || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
@@ -30,4 +30,3 @@ await updateJson("package.json");
 await updateCargo("src-tauri/Cargo.toml");
 
 console.log(`Version ${previous} → ${version}`);
-console.log("Next: commit, then `git tag v" + version + " && git push origin v" + version + "`.");
