@@ -74,6 +74,8 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
+          APTABASE_HOST: ${{ secrets.APTABASE_HOST }}
         run: bun run tauri build --no-bundle ${{ matrix.args }}
 
   test:
