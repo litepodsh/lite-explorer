@@ -355,6 +355,7 @@ pub async fn read_directory(
     mounts: State<'_, network::Mounts>,
     path: String,
 ) -> Result<Vec<DirectoryEntry>, String> {
+    crate::explorer::watch::dbg_log(&format!("read_directory {path}")); // DEBUG-WATCH
     if network::servers::is_server_path(&path) {
         return network::servers::list_directory(&database.0, &sessions, &path).await;
     }

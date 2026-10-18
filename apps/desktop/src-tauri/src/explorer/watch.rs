@@ -98,7 +98,7 @@ mod tests {
 }
 
 // DEBUG-WATCH: temporary
-fn dbg_log(line: &str) {
+pub(crate) fn dbg_log(line: &str) {
     use std::io::Write;
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/private/tmp/claude-501/-Users-sebastiangarzon-Work-lp-lite-explorer-apps-desktop/49aec325-e185-4e49-b28b-0bc0fb29003c/scratchpad/watch.log") {
         let _ = writeln!(f, "{line}");
