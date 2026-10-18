@@ -68,10 +68,18 @@ impl Analytics {
     /// Reads the saved preference, or the default (enabled) on a first run.
     pub fn load() -> Self {
         let path = prefs_path();
-        let mut prefs = fs::read(&path)
+        // The install id is the linchpin of unique-user counts in both Sentry and
+        // Aptabase, so it must survive anything that hides it on disk: a missing file,
+        // a parse failure, or a missing/empty field. `unwrap_or_default()` mints a
+        // fresh UUID *every* call, which is why a corrupted file or a permission
+        // error used to show up in Aptabase as a brand-new user on every launch.
+        let mut prefs = match fs::read(&path)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<AnalyticsPrefs>(&bytes).ok())
-            .unwrap_or_default();
+        {
+            Some(prefs) if !prefs.install_id.is_empty() => prefs,
+            _ => AnalyticsPrefs::default(),
+        };
         // Files written before the id existed deserialize with an empty one.
         let is_new = prefs.install_id.is_empty();
         if is_new {
@@ -89,11 +97,19 @@ impl Analytics {
             path,
             usage: aptabase_key().is_some(),
         };
-        // The id must survive the very first run, otherwise every launch counts as new.
-        if is_new {
+        // Persist on the very first run *and* any time the on-disk file was unreadable
+        // or unusable — without this, a read failure keeps minting a new id on every
+        // launch and Aptabase's unique-user count drifts.
+        if is_new || !analytics.path_was_readable() {
             analytics.store(prefs);
         }
         analytics
+    }
+
+    /// `true` when the prefs file existed and parsed. `false` means a fresh id was
+    /// minted on this run and *must* be written, otherwise the next launch mints again.
+    fn path_was_readable(&self) -> bool {
+        self.path.exists() && fs::read(&self.path).is_ok()
     }
 
     /// Shared "is reporting enabled" flag read by the Sentry hooks. Flipped live.
@@ -313,10 +329,29 @@ pub fn capture_first_run(welcome_seen: bool) {
 /// Starts the native-crash reporter process. Skipped when reporting is off or there is
 /// no DSN. Any failure to spawn is logged and ignored so startup always continues. On
 /// the crash-reporter process this call never returns.
+///
+/// In the app process, spawning the reporter (a second copy of this binary) and waiting
+/// for its socket happens on a background thread, so it doesn't delay the first window.
 pub fn init_minidump(client: &sentry::Client, enabled: bool) {
     if !enabled || !client.is_enabled() {
         return;
     }
+    // Set by minidumper-child on the reporter process it spawns; that process must run
+    // the server here and exit before any app code starts.
+    if std::env::var_os("_CRASH_REPORTER_SERVER").is_some() {
+        attach_minidump(client);
+        return;
+    }
+    let client = client.clone();
+    let spawned = std::thread::Builder::new()
+        .name("crash-reporter".into())
+        .spawn(move || attach_minidump(&client));
+    if let Err(error) = spawned {
+        eprintln!("[liteexplorer] crash reporter unavailable: {error}");
+    }
+}
+
+fn attach_minidump(client: &sentry::Client) {
     match tauri_plugin_sentry::minidump::init(client) {
         // The handle keeps the reporter attached; it must live for the whole process.
         Ok(handle) => std::mem::forget(handle),

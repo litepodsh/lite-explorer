@@ -15,7 +15,7 @@ pub(crate) use preview::{
     FilePreview, PreviewKind, PREVIEW_MAX_BYTES,
 };
 
-use app::db::open_database;
+use app::db::{open_database, SystemLocationsSynced};
 use app::swipe_nav;
 use app::window::{paint_black, restore_window_state, save_window_state};
 #[cfg(target_os = "macos")]
@@ -59,7 +59,15 @@ pub fn run() {
             app.manage(media::viewer::ViewerTarget::default());
             app.manage(search::ContentCache::default());
             let database = tauri::async_runtime::block_on(open_database(app.handle()))?;
-            app.manage(Database(database));
+            app.manage(Database(database.clone()));
+            app.manage(SystemLocationsSynced::default());
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                handle
+                    .state::<SystemLocationsSynced>()
+                    .ensure(&database)
+                    .await;
+            });
             app.manage(remote::RemoteClients::default());
             app.manage(network::Mounts::default());
             app.manage(network::discovery::Discovery::default());

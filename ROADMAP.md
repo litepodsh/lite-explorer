@@ -37,6 +37,17 @@ instant, this comes before new features.
 - Search: find unsaved files in Spotlight's index, and add an optional index for
   unindexed volumes.
 
+**Startup**
+
+- [ ] Shrink the binary (87 MB on macOS, 55 MB of it code). DuckDB's C++ is about
+      25 MB and now builds for size; next, measure what is left per crate and trim
+      the heaviest cold paths (Parquet/Arrow, the S3 SDK, OpenDAL).
+- [x] Read the startup volume name from Foundation instead of running `diskutil`
+      (about 130 ms per call, twice before the first window).
+- [x] Sync system locations off the startup path; the first sidebar request waits
+      for it.
+- [x] Start the crash reporter on a background thread.
+
 ## 2. macOS integration
 
 - **Quick Look** (first version done): <kbd>⌘</kbd> <kbd>Y</kbd> opens the system preview

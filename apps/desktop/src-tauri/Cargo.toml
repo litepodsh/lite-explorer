@@ -143,6 +143,12 @@ panic = "unwind"
 # resolves function names in-process and needs them in the binary.
 strip = false
 
+# DuckDB's bundled C++ is the largest block of code in the binary (~25 MB) and only runs
+# when a `.duckdb` file is previewed, so build it for size: a smaller binary is faster
+# to verify on first launch and to page in.
+[profile.release.package.libduckdb-sys]
+opt-level = "s"
+
 [target.'cfg(target_os = "macos")'.dependencies]
 # `catch-all` turns an Objective-C exception into a Rust panic that carries its reason,
 # instead of an opaque "panic in a function that cannot unwind" abort.

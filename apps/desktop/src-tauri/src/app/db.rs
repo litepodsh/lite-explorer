@@ -10,6 +10,35 @@ use crate::explorer::paths::{system_locations, Location};
 
 pub struct Database(pub(crate) SqlitePool);
 
+/// Set once the detected system locations have been written at launch. That sync runs
+/// off the startup path; the first `locations` call waits for it so the sidebar never
+/// shows a list from before it.
+#[derive(Default)]
+pub struct SystemLocationsSynced(tokio::sync::OnceCell<()>);
+
+impl SystemLocationsSynced {
+    /// Runs the launch sync, or waits for the one already running. A failure is logged
+    /// and not retried: the sidebar falls back to the saved rows.
+    pub async fn ensure(&self, pool: &SqlitePool) {
+        self.0
+            .get_or_init(|| async {
+                let system = tauri::async_runtime::spawn_blocking(system_locations).await;
+                let result = match system {
+                    Ok(system) => sync_system_locations(pool, &system)
+                        .await
+                        .map_err(|error| error.to_string()),
+                    Err(error) => Err(error.to_string()),
+                };
+                if let Err(error) = result {
+                    eprintln!("[lite_store] syncing system locations failed: {error}");
+                }
+            })
+            .await;
+    }
+}
+
+/// Opens the store and applies migrations. The system locations sync is left to
+/// [`SystemLocationsSynced::ensure`] so it doesn't hold up the first window.
 pub async fn open_database(
     app: &tauri::AppHandle,
 ) -> Result<SqlitePool, Box<dyn std::error::Error>> {
@@ -27,7 +56,6 @@ pub async fn open_database(
     sqlx::query("DELETE FROM locations WHERE kind = 'cloud'")
         .execute(&pool)
         .await?;
-    sync_system_locations(&pool, &system_locations()).await?;
     Ok(pool)
 }
 
@@ -37,10 +65,12 @@ pub async fn sync_system_locations(
     pool: &SqlitePool,
     system: &[Location],
 ) -> Result<(), sqlx::Error> {
+    // One transaction, so the upserts and the stale-volume delete commit in a single write.
+    let mut transaction = pool.begin().await?;
     for (position, location) in system.iter().enumerate() {
         sqlx::query("INSERT INTO locations (path, name, kind, position) VALUES (?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET name = excluded.name, kind = excluded.kind, position = excluded.position")
             .bind(&location.path).bind(&location.name).bind(&location.kind).bind(position as i64)
-            .execute(pool).await?;
+            .execute(&mut *transaction).await?;
     }
     let volume_paths: Vec<&str> = system
         .iter()
@@ -57,9 +87,9 @@ pub async fn sync_system_locations(
         for path in &volume_paths {
             query = query.bind(path);
         }
-        query.execute(pool).await?;
+        query.execute(&mut *transaction).await?;
     }
-    Ok(())
+    transaction.commit().await
 }
 
 pub fn is_volume(location: &Location) -> bool {

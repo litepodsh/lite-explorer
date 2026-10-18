@@ -2,14 +2,13 @@ use std::{
     collections::HashSet,
     fs,
     path::{Path, PathBuf},
-    process::Command,
 };
 
 use serde::Serialize;
 use sqlx::Row;
 use tauri::State;
 
-use crate::app::db::{self, Database};
+use crate::app::db::{self, Database, SystemLocationsSynced};
 use crate::{network, remote};
 
 #[derive(Serialize)]
@@ -68,22 +67,25 @@ pub fn home_location() -> Option<Location> {
 }
 
 pub fn startup_volume_name() -> String {
+    // Asks Foundation instead of spawning `diskutil info /`, which cost ~130 ms per call
+    // on the startup path and on every sidebar volume poll.
     #[cfg(target_os = "macos")]
     {
-        Command::new("diskutil")
-            .args(["info", "/"])
-            .output()
-            .ok()
-            .and_then(|output| String::from_utf8(output.stdout).ok())
-            .and_then(|output| {
-                output.lines().find_map(|line| {
-                    line.trim()
-                        .strip_prefix("Volume Name:")
-                        .map(|name| name.trim().to_owned())
-                })
-            })
-            .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| "Macintosh HD".into())
+        use objc2::{rc::autoreleasepool, runtime::AnyObject};
+        use objc2_foundation::{NSString, NSURLVolumeNameKey, NSURL};
+
+        autoreleasepool(|_| {
+            let url = NSURL::fileURLWithPath(&NSString::from_str("/"));
+            let mut value: Option<objc2::rc::Retained<AnyObject>> = None;
+            // SAFETY: `NSURLVolumeNameKey` yields an `NSString`, checked by the downcast.
+            unsafe { url.getResourceValue_forKey_error(&mut value, NSURLVolumeNameKey) }
+                .ok()
+                .and(value)
+                .and_then(|value| value.downcast::<NSString>().ok())
+                .map(|name| name.to_string())
+        })
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "Macintosh HD".into())
     }
 
     #[cfg(target_os = "windows")]
@@ -245,7 +247,11 @@ pub fn file_url_path(value: &str) -> Option<PathBuf> {
 }
 
 #[tauri::command]
-pub async fn locations(database: State<'_, Database>) -> Result<Vec<Location>, String> {
+pub async fn locations(
+    database: State<'_, Database>,
+    synced: State<'_, SystemLocationsSynced>,
+) -> Result<Vec<Location>, String> {
+    synced.ensure(&database.0).await;
     let mut locations: Vec<Location> =
         sqlx::query("SELECT name, path, kind FROM locations ORDER BY position, name")
             .fetch_all(&database.0)
@@ -275,7 +281,10 @@ pub async fn locations(database: State<'_, Database>) -> Result<Vec<Location>, S
 
 /// Picks up drives mounted or ejected since launch (a DMG, a USB stick), then lists locations.
 #[tauri::command]
-pub async fn refresh_locations(database: State<'_, Database>) -> Result<Vec<Location>, String> {
+pub async fn refresh_locations(
+    database: State<'_, Database>,
+    synced: State<'_, SystemLocationsSynced>,
+) -> Result<Vec<Location>, String> {
     let system = tauri::async_runtime::spawn_blocking(system_locations)
         .await
         .map_err(|error| error.to_string())?;
@@ -298,7 +307,7 @@ pub async fn refresh_locations(database: State<'_, Database>) -> Result<Vec<Loca
             .await
             .map_err(|error| error.to_string())?;
     }
-    locations(database).await
+    locations(database, synced).await
 }
 
 #[cfg(test)]
