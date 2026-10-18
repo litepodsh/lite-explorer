@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { DirectoryEntry } from "#lib/components/custom/file-list/index.js";
-import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
+import { applyListingChanges, mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
 
 function entry(path: string, extra: Partial<DirectoryEntry> = {}): DirectoryEntry {
   return {
@@ -94,5 +94,44 @@ describe("renameEntry", () => {
     const entries = [entry("/a/1")];
 
     expect(renameEntry(entries, "/a/missing", "/a/other", "other")).toBe(entries);
+  });
+});
+
+describe("applyListingChanges", () => {
+  const file = (name: string, size = 1): DirectoryEntry => ({
+    name,
+    path: `/f/${name}`,
+    is_directory: false,
+    is_hidden: false,
+    size,
+  });
+
+  test("drops gone rows, replaces changed ones and appends new ones", () => {
+    const next = applyListingChanges(
+      [file("a"), file("b"), file("c")],
+      [
+        { path: "/f/b", entry: null },
+        { path: "/f/c", entry: file("c", 9) },
+        { path: "/f/d", entry: file("d") },
+        { path: "/f/never", entry: null },
+      ],
+    );
+    expect(next.map((entry) => [entry.name, entry.size])).toEqual([
+      ["a", 1],
+      ["c", 9],
+      ["d", 1],
+    ]);
+  });
+
+  test("keeps a measured folder size", () => {
+    const folder = { ...file("dir"), is_directory: true, size: 500, sizeComplete: true };
+    const fresh = { ...file("dir"), is_directory: true, size: undefined, modified: 2 };
+    const [next] = applyListingChanges([folder], [{ path: "/f/dir", entry: fresh }]);
+    expect(next).toMatchObject({ size: 500, sizeComplete: true, modified: 2 });
+  });
+
+  test("returns the same listing when nothing changed", () => {
+    const entries = [file("a")];
+    expect(applyListingChanges(entries, [])).toBe(entries);
   });
 });

@@ -97,6 +97,9 @@
   import { settings } from "#lib/settings/settings.svelte.js";
   import { prefersReducedMotion } from "#lib/swipe/gesture.js";
   import { Slider } from "#lib/components/ui/slider/index.js";
+  import { preloadPreviewPanelWhenIdle } from "#lib/components/custom/preview/lazy-preview.svelte.js";
+  import { quickLook } from "#lib/quick-look/quick-look.svelte.js";
+  import { quickLookTargets } from "#lib/quick-look/targets.js";
 
   // Before any store reads a preference.
   settings.load();
@@ -132,6 +135,22 @@
   }
 
   let activeController = $derived(controllerFor(panes.activeId));
+
+  /** The selection, or the focused row when nothing is selected. */
+  function quickLookTargetsFor(controller: FilePaneController) {
+    const focus = controller.focusPath;
+    const selected = controller.selectedEntries.length
+      ? controller.selectedEntries
+      : controller.sourceEntries.filter((entry) => entry.path === focus).slice(0, 1);
+    return quickLookTargets(selected, focus);
+  }
+
+  // An open Quick Look panel follows the selection, like Finder's.
+  $effect(() => {
+    if (!quickLook.open) return;
+    const targets = quickLookTargetsFor(activeController);
+    untrack(() => quickLook.update(targets));
+  });
 
   let sidebarOpen = $state(true);
   let sidebarResizing = $state(false);
@@ -478,6 +497,7 @@
   };
 
   onMount(() => {
+    preloadPreviewPanelWhenIdle();
     void analytics.load();
     void invoke<string>("os_detection").then((detected) => {
       platform = detected as typeof platform;
@@ -894,6 +914,7 @@
       checkboxes: { active: () => itemCheckboxes, exit: () => setItemCheckboxes(false) },
       preview: {
         toggle: () => controller.previewOpen = !controller.previewOpen,
+        quickLook: () => void quickLook.toggle(quickLookTargetsFor(controller)),
         scroll: (direction) => {
           const element = regionElement({ region: "preview", paneId: controller.paneId });
           return element ? scrollPreview(element, direction) : false;

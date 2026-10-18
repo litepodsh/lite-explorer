@@ -1,4 +1,3 @@
-import "temporal-polyfill/global";
 import generated from "./changelog.generated.json";
 import type { ReleaseNotes } from "./parse-changelog.js";
 
@@ -15,15 +14,16 @@ export function releaseFor(version: string | null): ReleaseNotes | null {
 
 export function formatDate(date: string | null): string {
   if (!date) return "";
-  try {
-    return Temporal.PlainDate.from(date).toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return date;
-  }
+  // Plain `YYYY-MM-DD` only. Date parses it as UTC midnight, so it is formatted in UTC to keep the day.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 export function noteLines(notes: string | null): string[] {

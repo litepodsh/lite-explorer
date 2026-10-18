@@ -1,12 +1,17 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     io::{BufReader, Read},
     path::{Path, PathBuf},
-    sync::{mpsc, Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc, Mutex,
+    },
     thread,
-    time::SystemTime,
+    time::{Duration, Instant, SystemTime},
 };
+
+use ignore::WalkState;
 
 use crate::{epoch_millis, explorer::archive::Flow, DirectoryEntry};
 use serde::{Deserialize, Serialize};
@@ -14,6 +19,8 @@ use serde::{Deserialize, Serialize};
 use super::containers::{ArchiveKind, Codec};
 use super::documents::DocumentKind;
 use super::mail::MailKind;
+#[cfg(target_os = "macos")]
+use super::spotlight;
 use super::{containers, documents, mail, text};
 
 const MAX_RESULTS: usize = 1_000;
@@ -26,7 +33,8 @@ const MAX_MESSAGE_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_CONTAINER_BYTES: u64 = 256 * 1024 * 1024;
 /// Longest snippet returned for a match, in characters.
 const SNIPPET_CHARS: usize = 220;
-const WORKERS: usize = 4;
+/// Results found so far are sent at least this often, so the list fills while the search runs.
+const FLUSH_EVERY: Duration = Duration::from_millis(100);
 /// In-memory budget for extracted text kept between searches, so unchanged files are not re-read.
 const MAX_CACHE_BYTES: usize = 64 * 1024 * 1024;
 
@@ -49,10 +57,17 @@ pub(crate) struct SearchResult {
     pub inner_path: Option<String>,
 }
 
-#[derive(Serialize)]
+#[cfg(test)]
 pub(crate) struct SearchResponse {
     pub results: Vec<SearchResult>,
+}
+
+/// Totals reported once a streamed search ends.
+#[derive(Default)]
+pub(crate) struct SearchSummary {
+    /// Files content search could not read: too large, binary or unreadable.
     pub skipped: usize,
+    /// Whether the search stopped at [`MAX_RESULTS`].
     pub limited: bool,
 }
 
@@ -150,36 +165,49 @@ fn entry(path: &Path) -> Option<DirectoryEntry> {
     })
 }
 
-/// Every path under `root`, skipping symlinks. Directories are included only when asked:
-/// content search reads files, name search also matches folders.
-fn walk(root: &Path, include_directories: bool) -> Result<Vec<PathBuf>, String> {
-    if !root.is_dir() {
-        return Err(format!("{} is not a directory", root.display()));
-    }
-    let mut queue = vec![root.to_path_buf()];
-    let mut found = Vec::new();
-    while let Some(dir) = queue.pop() {
-        // Protected or unreadable folders (for example TCC-guarded paths without
-        // Full Disk Access) should be skipped, not abort the whole search.
-        let Ok(read) = fs::read_dir(&dir) else {
-            continue;
-        };
-        for child in read.flatten() {
-            let path = child.path();
-            if child.file_type().map(|t| t.is_symlink()).unwrap_or(true) {
-                continue;
-            }
-            if path.is_dir() {
-                if include_directories {
-                    found.push(path.clone());
+/// Walks `root` on several threads and hands every path `accept` takes to `found`, skipping
+/// symlinks. Directories are passed only when asked: content search reads files, name search
+/// also matches folders. Stops early once `halt` is set or `found` refuses a path.
+fn walk(
+    root: &Path,
+    include_directories: bool,
+    halt: &AtomicBool,
+    found: impl Fn(PathBuf) -> bool + Sync,
+) {
+    let found = &found;
+    ignore::WalkBuilder::new(root)
+        // No .gitignore or hidden-file rules: search sees what the listing shows.
+        .standard_filters(false)
+        .follow_links(false)
+        .threads(worker_count())
+        .build_parallel()
+        .run(|| {
+            Box::new(move |entry| {
+                if halt.load(Ordering::Relaxed) {
+                    return WalkState::Quit;
                 }
-                queue.push(path);
-            } else {
-                found.push(path);
-            }
-        }
-    }
-    Ok(found)
+                // Protected or unreadable folders (for example TCC-guarded paths without
+                // Full Disk Access) should be skipped, not abort the whole search.
+                let Ok(entry) = entry else {
+                    return WalkState::Continue;
+                };
+                let Some(kind) = entry.file_type() else {
+                    return WalkState::Continue;
+                };
+                if entry.depth() == 0 || kind.is_symlink() || kind.is_dir() && !include_directories {
+                    return WalkState::Continue;
+                }
+                if found(entry.into_path()) {
+                    WalkState::Continue
+                } else {
+                    WalkState::Quit
+                }
+            })
+        });
+}
+
+fn worker_count() -> usize {
+    thread::available_parallelism().map_or(4, |count| count.get()).clamp(2, 8)
 }
 
 /// A content match: matching line, plus the entry path when the match is inside an archive.
@@ -406,90 +434,177 @@ fn snippet(line: &str, at: usize) -> String {
     out
 }
 
+/// What a search producer found: a name match, a content match, or a file it had to skip.
+enum Hit {
+    Name(PathBuf),
+    Content(ContentHit),
+    Skipped,
+}
+
+/// Searches `root` and hands results to `emit` in batches while it runs, so the first matches
+/// show before the whole tree is read. Returns early once `cancelled` is set.
+pub(crate) fn search_streaming(
+    root: &Path,
+    query: &str,
+    mode: SearchMode,
+    cache: &ContentCache,
+    cancelled: &AtomicBool,
+    emit: &mut dyn FnMut(Vec<SearchResult>),
+) -> Result<SearchSummary, String> {
+    if !root.is_dir() {
+        return Err(format!("{} is not a directory", root.display()));
+    }
+    // Producers stop on this: set when the caller cancels or the result limit is reached.
+    let halt = AtomicBool::new(false);
+    let halt = &halt;
+    let (hits_tx, hits_rx) = mpsc::channel::<Hit>();
+    let mut summary = SearchSummary::default();
+    thread::scope(|scope| {
+        match mode {
+            SearchMode::Fuzzy => {
+                #[cfg(target_os = "macos")]
+                if spotlight::can_search(query) {
+                    let tx = hits_tx.clone();
+                    scope.spawn(move || {
+                        // Spotlight answers from its index, so matches show before the walk
+                        // gets far. The walk still runs for hidden and unindexed files.
+                        spotlight::find_names(root, query, halt, |path| {
+                            let name = path.file_name().unwrap_or_default().to_string_lossy();
+                            !matches(&name, query) || tx.send(Hit::Name(path.clone())).is_ok()
+                        });
+                    });
+                }
+                let tx = hits_tx.clone();
+                scope.spawn(move || {
+                    walk(root, true, halt, |path| {
+                        // Match the name only, so a folder match does not pull in everything inside it.
+                        let name = path.file_name().unwrap_or_default().to_string_lossy();
+                        !matches(&name, query) || tx.send(Hit::Name(path.clone())).is_ok()
+                    });
+                });
+            }
+            SearchMode::Content => {
+                let (jobs_tx, jobs_rx) = mpsc::channel::<PathBuf>();
+                let jobs_rx = Arc::new(Mutex::new(jobs_rx));
+                let needle = query.to_lowercase();
+                for _ in 0..worker_count() {
+                    let (rx, tx, needle) = (jobs_rx.clone(), hits_tx.clone(), needle.clone());
+                    scope.spawn(move || loop {
+                        let Ok(path) = rx.lock().unwrap().recv() else {
+                            break;
+                        };
+                        if halt.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        let hit = match content_match(path, &needle, cache) {
+                            Ok(Some(hit)) => Hit::Content(hit),
+                            Ok(None) => continue,
+                            Err(()) => Hit::Skipped,
+                        };
+                        if tx.send(hit).is_err() {
+                            break;
+                        }
+                    });
+                }
+                scope.spawn(move || walk(root, false, halt, |path| jobs_tx.send(path).is_ok()));
+            }
+        }
+        drop(hits_tx);
+        collect_hits(root, &hits_rx, cancelled, &mut summary, emit);
+        halt.store(true, Ordering::Relaxed);
+        // Producers blocked on a full search notice the closed channel and stop.
+        drop(hits_rx);
+    });
+    Ok(summary)
+}
+
+/// Turns hits into results and emits them in batches, until producers finish, the caller
+/// cancels, or [`MAX_RESULTS`] is reached.
+fn collect_hits(
+    root: &Path,
+    hits: &mpsc::Receiver<Hit>,
+    cancelled: &AtomicBool,
+    summary: &mut SearchSummary,
+    emit: &mut dyn FnMut(Vec<SearchResult>),
+) {
+    // Spotlight and the walk report the same files; each is listed once.
+    let mut seen = HashSet::new();
+    let mut batch = Vec::new();
+    let mut count = 0;
+    let mut flushed_at = Instant::now();
+    loop {
+        match hits.recv_timeout(FLUSH_EVERY) {
+            Ok(Hit::Skipped) => summary.skipped += 1,
+            Ok(Hit::Name(path)) => {
+                if let Some(result) = search_result(root, &mut seen, path, None, None) {
+                    batch.push(result);
+                    count += 1;
+                }
+            }
+            Ok(Hit::Content((path, snippet, inner_path))) => {
+                if let Some(result) = search_result(root, &mut seen, path, Some(snippet), inner_path) {
+                    batch.push(result);
+                    count += 1;
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+        if count >= MAX_RESULTS {
+            summary.limited = true;
+            break;
+        }
+        if cancelled.load(Ordering::Relaxed) {
+            return;
+        }
+        if !batch.is_empty() && flushed_at.elapsed() >= FLUSH_EVERY {
+            flushed_at = Instant::now();
+            emit(std::mem::take(&mut batch));
+        }
+    }
+    if !batch.is_empty() {
+        emit(batch);
+    }
+}
+
+fn search_result(
+    root: &Path,
+    seen: &mut HashSet<PathBuf>,
+    path: PathBuf,
+    snippet: Option<String>,
+    inner_path: Option<String>,
+) -> Option<SearchResult> {
+    // Spotlight may answer for paths outside the folder, e.g. through a symlinked root.
+    if !path.starts_with(root) || !seen.insert(path.clone()) {
+        return None;
+    }
+    let entry = entry(&path)?;
+    let relative_path = path
+        .strip_prefix(root)
+        .unwrap_or(&path)
+        .to_string_lossy()
+        .into_owned();
+    Some(SearchResult {
+        entry,
+        relative_path,
+        snippet,
+        inner_path,
+    })
+}
+
+/// The whole search at once, for callers that don't stream.
+#[cfg(test)]
 pub(crate) fn search_directory(
     root: &Path,
     query: &str,
     mode: SearchMode,
     cache: &ContentCache,
 ) -> Result<SearchResponse, String> {
-    let paths = walk(root, matches!(mode, SearchMode::Fuzzy))?;
-    let mut skipped = 0;
     let mut results = Vec::new();
-    if matches!(mode, SearchMode::Fuzzy) {
-        for path in paths {
-            let relative = path
-                .strip_prefix(root)
-                .unwrap_or(&path)
-                .to_string_lossy()
-                .into_owned();
-            // Match the name only, so a folder match does not pull in everything inside it.
-            let name = path.file_name().unwrap_or_default().to_string_lossy();
-            if matches(&name, query) {
-                if let Some(entry) = entry(&path) {
-                    results.push(SearchResult {
-                        entry,
-                        relative_path: relative,
-                        snippet: None,
-                        inner_path: None,
-                    });
-                }
-            }
-            if results.len() == MAX_RESULTS {
-                break;
-            }
-        }
-    } else {
-        let (jobs_tx, jobs_rx) = mpsc::channel::<PathBuf>();
-        let jobs_rx = std::sync::Arc::new(std::sync::Mutex::new(jobs_rx));
-        let (out_tx, out_rx) = mpsc::channel();
-        thread::scope(|scope| {
-            for _ in 0..WORKERS {
-                let rx = jobs_rx.clone();
-                let tx = out_tx.clone();
-                let needle = query.to_lowercase();
-                scope.spawn(move || {
-                    while let Ok(path) = rx.lock().unwrap().recv() {
-                        let _ = tx.send(content_match(path, &needle, cache));
-                    }
-                });
-            }
-            drop(out_tx);
-            for path in paths {
-                let _ = jobs_tx.send(path);
-            }
-            drop(jobs_tx);
-            for item in out_rx {
-                match item {
-                    Ok(Some((path, snippet, inner_path))) => {
-                        if results.len() < MAX_RESULTS {
-                            if let Some(entry) = entry(&path) {
-                                let relative = path
-                                    .strip_prefix(root)
-                                    .unwrap_or(&path)
-                                    .to_string_lossy()
-                                    .into_owned();
-                                results.push(SearchResult {
-                                    entry,
-                                    relative_path: relative,
-                                    snippet: Some(snippet),
-                                    inner_path,
-                                });
-                            }
-                        }
-                    }
-                    Ok(None) => {}
-                    Err(()) => skipped += 1,
-                }
-            }
-        });
-    }
-    let limited = results.len() >= MAX_RESULTS;
-    results.truncate(MAX_RESULTS);
-    Ok(SearchResponse {
-        results,
-        skipped,
-        limited,
-    })
+    search_streaming(root, query, mode, cache, &AtomicBool::new(false), &mut |batch| {
+        results.extend(batch)
+    })?;
+    Ok(SearchResponse { results })
 }
 
 #[cfg(test)]

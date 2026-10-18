@@ -1,6 +1,7 @@
 <script lang="ts">
   // Press-and-hold button, ported from litepod's hold-to-delete: a fill sweeps across
-  // while held and the action fires only when it completes. Space/Enter hold works too.
+  // while held and the action fires only when it completes. Space/Enter hold works too:
+  // on the button, and anywhere in its dialog that isn't another control or a text field.
   import { onDestroy, type Component } from "svelte";
   import CheckIcon from "@lucide/svelte/icons/check";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
@@ -14,6 +15,8 @@
     variant = "destructive",
     icon,
     globalHoldKeys = [],
+    focusOnMount = false,
+    ref = $bindable(null),
     onconfirm,
   }: {
     label?: string;
@@ -24,6 +27,9 @@
     icon?: Component;
     /** Physical keys that drive the hold from anywhere while this button is mounted. */
     globalHoldKeys?: string[];
+    /** Takes focus when shown, so Space/Enter hold it instead of pressing a focused Cancel. */
+    focusOnMount?: boolean;
+    ref?: HTMLButtonElement | null;
     onconfirm: () => void;
   } = $props();
 
@@ -57,6 +63,8 @@
     if (event.key === " " || event.key === "Enter") gesture.cancel();
   }
 
+  const HOLD_KEYS = [" ", "Enter"];
+
   function isEditable(target: EventTarget | null): boolean {
     return (
       target instanceof Element &&
@@ -64,15 +72,46 @@
     );
   }
 
+  /** Controls that Space/Enter already press: they keep the key, and only the button's own
+   *  handler holds when it is the one focused. */
+  function isControl(target: EventTarget | null): boolean {
+    return (
+      target instanceof Element &&
+      target.closest(
+        "button, a[href], input, textarea, select, [contenteditable='true'], [role='button'], [role='switch'], [role='checkbox'], [role='radio'], [role='menuitem'], [role='option'], [role='tab']",
+      ) !== null
+    );
+  }
+
+  /** Space/Enter outside a control count when they land in this button's dialog, or on the
+   *  page body that focus falls back to when a clicked button disappears. */
+  function inScope(target: EventTarget | null): boolean {
+    if (target === document.body) return true;
+    const dialog = ref?.closest("[role='alertdialog'], [role='dialog']");
+    return Boolean(dialog && target instanceof Node && dialog.contains(target));
+  }
+
   function onWindowKeydown(event: KeyboardEvent) {
-    if (disabled || !globalHoldKeys.includes(event.key) || isEditable(event.target)) return;
+    if (disabled) return;
+    const pinned = globalHoldKeys.includes(event.key) && !isEditable(event.target);
+    const held =
+      HOLD_KEYS.includes(event.key) &&
+      !event.repeat &&
+      !isControl(event.target) &&
+      inScope(event.target);
+    if (!pinned && !held) return;
     event.preventDefault();
     start();
   }
 
   function onWindowKeyup(event: KeyboardEvent) {
-    if (globalHoldKeys.includes(event.key)) gesture.cancel();
+    if (globalHoldKeys.includes(event.key) || HOLD_KEYS.includes(event.key)) gesture.cancel();
   }
+
+  $effect(() => {
+    // Skipped while typing, so a confirm step inside a form never steals the caret.
+    if (focusOnMount && ref && !isEditable(document.activeElement)) ref.focus();
+  });
 
   // Starts right away when the key that opened the sheet is still held down.
   $effect(() => {
@@ -86,6 +125,7 @@
 <svelte:window onkeydown={onWindowKeydown} onkeyup={onWindowKeyup} />
 
 <button
+  bind:this={ref}
   type="button"
   class="hold {variant}"
   data-holding={holding || undefined}

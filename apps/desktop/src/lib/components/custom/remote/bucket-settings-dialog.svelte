@@ -135,6 +135,7 @@
                 variant="primary"
                 icon={GlobeIcon}
                 disabled={saving !== null}
+                focusOnMount
                 onconfirm={() => void confirmPublic()} />
             </div>
           </div>

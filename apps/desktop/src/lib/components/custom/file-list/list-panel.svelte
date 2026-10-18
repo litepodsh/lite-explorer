@@ -6,7 +6,7 @@
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
   import ArrowUpDownIcon from "@lucide/svelte/icons/arrow-up-down";
-  import { PreviewPanel } from "#lib/components/custom/preview/index.js";
+  import { lazyPreview, loadPreviewPanel } from "#lib/components/custom/preview/lazy-preview.svelte.js";
   import * as Resizable from "#lib/components/ui/resizable/index.js";
   import { createRowVirtualizer } from "#lib/virtual/row-virtualizer.svelte.js";
   import ListItem, { type DirectoryEntry } from "./list-item.svelte";
@@ -363,6 +363,7 @@
   }
 
   async function showPreview(entry: DirectoryEntry | typeof SUMMARY) {
+    if (entry !== SUMMARY && !lazyPreview.component) void loadPreviewPanel();
     const wasHidden = previewEntry === null;
     previewEntry = entry;
     if (closeAnimations.length > 0) {
@@ -733,7 +734,8 @@
       <div class="h-full min-h-0" data-key-scope="preview" data-pane-id={paneId} tabindex="0">
         {#if previewEntry === SUMMARY}
           <SelectionSummary entries={selectedVisible} />
-        {:else}
+        {:else if lazyPreview.component}
+          {@const PreviewPanel = lazyPreview.component}
           <PreviewPanel entry={previewEntry} />
         {/if}
       </div>

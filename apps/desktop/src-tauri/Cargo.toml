@@ -121,6 +121,8 @@ image = { version = "0.25", default-features = false, features = [
   "tiff",
 ] }
 notify-debouncer-mini = "0.7.0"
+# Parallel directory walk for search, with its .gitignore filtering turned off.
+ignore = "0.4"
 
 
 [lints.clippy]
@@ -145,7 +147,20 @@ strip = false
 # `catch-all` turns an Objective-C exception into a Rust panic that carries its reason,
 # instead of an opaque "panic in a function that cannot unwind" abort.
 objc2 = { version = "0.6", features = ["exception", "catch-all"] }
-objc2-app-kit = { version = "0.3", features = ["NSEvent", "block2", "objc2-core-foundation"] }
+objc2-app-kit = { version = "0.3", features = [
+  "NSEvent",
+  "NSPanel",
+  "NSResponder",
+  "NSWindow",
+  "block2",
+  "objc2-core-foundation",
+] }
+objc2-quick-look-ui = { version = "0.3", default-features = false, features = [
+  "std",
+  "QLPreviewItem",
+  "QLPreviewPanel",
+  "objc2-app-kit",
+] }
 objc2-core-foundation = "0.3"
 core-foundation-sys = "0.8"
 block2 = "0.6"

@@ -405,6 +405,59 @@ pub fn cancel_directory_listing(request_id: String) {
     listing_scans().cancel(&request_id);
 }
 
+/// One changed row of a watched folder: its fresh entry, or `None` when it is gone.
+#[derive(Serialize)]
+pub struct ListingChange {
+    path: String,
+    entry: Option<DirectoryEntry>,
+}
+
+/// The entry for one path, read the way `directory_entries` reads a row.
+fn entry_at(path: &Path) -> Option<DirectoryEntry> {
+    let metadata = fs::symlink_metadata(path).ok()?;
+    let kind = metadata.file_type();
+    let is_directory = kind.is_dir()
+        || kind.is_symlink() && fs::metadata(path).is_ok_and(|target| target.is_dir());
+    let name = path.file_name()?.to_string_lossy().into_owned();
+    Some(DirectoryEntry {
+        is_hidden: name.starts_with('.'),
+        name,
+        path: path.to_string_lossy().into_owned(),
+        is_directory,
+        size: (!is_directory).then_some(metadata.len()),
+        created: epoch_millis(metadata.created()),
+        modified: epoch_millis(metadata.modified()),
+        kind: None,
+    })
+}
+
+/// Rereads the rows a folder watcher reported, so a download finishing in a folder of
+/// 100 000 files costs a few stats instead of a full listing. `None` when a path is not a
+/// direct child of `folder` (the folder itself changed, or the watcher reported another
+/// spelling of it): the caller lists the folder again.
+pub(crate) fn listing_changes_in(folder: &Path, paths: &[String]) -> Option<Vec<ListingChange>> {
+    paths
+        .iter()
+        .map(|path| {
+            let changed = Path::new(path);
+            (changed.parent() == Some(folder)).then(|| ListingChange {
+                path: path.clone(),
+                entry: entry_at(changed),
+            })
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub async fn listing_changes(
+    folder: String,
+    paths: Vec<String>,
+) -> Result<Option<Vec<ListingChange>>, String> {
+    tauri::async_runtime::spawn_blocking(move || listing_changes_in(Path::new(&folder), &paths))
+        .await
+        .map_err(|error| error.to_string())
+}
+
 /// Expands a leading `~` and returns the absolute local path.
 #[tauri::command]
 pub fn resolve_path(path: String) -> String {
@@ -417,27 +470,66 @@ pub fn path_exists(path: String) -> bool {
     Path::new(&path).exists()
 }
 
+#[derive(Serialize)]
+pub struct SearchProgress {
+    results: Vec<search::SearchResult>,
+    skipped: usize,
+    limited: bool,
+    done: bool,
+    error: Option<String>,
+}
+
+fn search_scans() -> &'static DirectoryListingScans {
+    static SCANS: OnceLock<DirectoryListingScans> = OnceLock::new();
+    SCANS.get_or_init(DirectoryListingScans::default)
+}
+
+/// Searches a local folder and streams results to `on_progress` as they are found. The last
+/// message has `done` set. A newer search should cancel this one with `cancel_search`.
 #[tauri::command]
 #[tracing::instrument(skip_all, name = "search_directory", fields(sentry_op = "file.search"))]
-pub async fn search_directory(
+pub fn search_directory(
     cache: State<'_, search::ContentCache>,
     path: String,
     query: String,
     mode: search::SearchMode,
-) -> Result<search::SearchResponse, String> {
+    request_id: String,
+    on_progress: Channel<SearchProgress>,
+) -> Result<(), String> {
     if remote::is_remote_path(&path)
         || network::is_network_path(&path)
         || network::servers::is_server_path(&path)
     {
         return Err("Search is available for local folders and mounted volumes only.".into());
     }
-    let cache = (&*cache).clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let path = validate_directory(&PathBuf::from(path))?;
-        search::search_directory(&path, &query, mode, &cache)
-    })
-    .await
-    .map_err(|error| error.to_string())?
+    let path = validate_directory(&PathBuf::from(path))?;
+    let cancelled = search_scans()
+        .register(&request_id)
+        .ok_or("Duplicate search request")?;
+    let cache = (*cache).clone();
+    std::thread::spawn(move || {
+        let progress = |results, summary: Option<&search::SearchSummary>, error: Option<String>| SearchProgress {
+            results,
+            skipped: summary.map_or(0, |summary| summary.skipped),
+            limited: summary.is_some_and(|summary| summary.limited),
+            done: summary.is_some() || error.is_some(),
+            error,
+        };
+        let result = search::search_streaming(&path, &query, mode, &cache, &cancelled, &mut |batch| {
+            let _ = on_progress.send(progress(batch, None, None));
+        });
+        let _ = on_progress.send(match result {
+            Ok(summary) => progress(Vec::new(), Some(&summary), None),
+            Err(error) => progress(Vec::new(), None, Some(error)),
+        });
+        search_scans().unregister(&request_id);
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub fn cancel_search(request_id: String) {
+    search_scans().cancel(&request_id);
 }
 
 pub fn single_entry(path: &Path) -> Result<DirectoryEntry, String> {
@@ -501,6 +593,24 @@ pub fn utf8_boundary(bytes: &[u8], limit: usize) -> usize {
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn listing_changes_restat_only_direct_children() {
+        let directory = tempfile::tempdir().unwrap();
+        let folder = directory.path();
+        fs::write(folder.join("new.txt"), "hello").unwrap();
+        let path = |name: &str| folder.join(name).to_string_lossy().into_owned();
+
+        let changes = listing_changes_in(folder, &[path("new.txt"), path("gone.txt")]).unwrap();
+        let new = changes[0].entry.as_ref().unwrap();
+        assert_eq!((new.name.as_str(), new.size), ("new.txt", Some(5)));
+        assert!(changes[1].entry.is_none());
+
+        let nested = folder.join("sub/inner.txt").to_string_lossy().into_owned();
+        assert!(listing_changes_in(folder, &[nested]).is_none());
+        let itself = folder.to_string_lossy().into_owned();
+        assert!(listing_changes_in(folder, &[itself]).is_none());
+    }
 
     #[test]
     fn directory_entries_uses_file_type_without_metadata() {

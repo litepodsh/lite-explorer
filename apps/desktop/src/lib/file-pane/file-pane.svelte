@@ -139,8 +139,8 @@
     const path = watchedPath;
     const paneId = controller.paneId;
     if (!path) return;
-    const channel = new Channel<null>();
-    channel.onmessage = () => void controller.refreshListing(path);
+    const channel = new Channel<string[]>();
+    channel.onmessage = (paths) => void controller.applyFolderChanges(path, paths);
     // Folders that can't be watched (inside an archive, gone) still browse normally.
     void invoke("watch_directory", { paneId, path, onChange: channel }).catch(() => {});
     return () => {

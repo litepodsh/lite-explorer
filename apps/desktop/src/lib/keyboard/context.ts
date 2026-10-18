@@ -60,7 +60,12 @@ export type AppContext = {
     history(direction: "back" | "forward"): boolean;
   };
   checkboxes: { active(): boolean; exit(): void };
-  preview: { toggle(): void; scroll(direction: 1 | -1): boolean };
+  preview: {
+    toggle(): void;
+    scroll(direction: 1 | -1): boolean;
+    /** macOS Quick Look on the selection; opens or closes the system panel. */
+    quickLook(): void;
+  };
   regions: {
     cycle(direction: 1 | -1): boolean;
     focus(region: "sidebar" | "list"): boolean;

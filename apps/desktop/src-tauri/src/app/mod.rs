@@ -5,5 +5,6 @@ pub(crate) mod error;
 pub(crate) mod general;
 pub(crate) mod icons;
 pub(crate) mod menu;
+pub(crate) mod quicklook;
 pub(crate) mod swipe_nav;
 pub(crate) mod window;

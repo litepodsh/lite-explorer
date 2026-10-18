@@ -24,7 +24,7 @@ pub async fn watch_directory(
     watchers: State<'_, FolderWatchers>,
     pane_id: String,
     path: String,
-    on_change: Channel<()>,
+    on_change: Channel<Vec<String>>,
 ) -> Result<(), String> {
     dbg_log(&format!("watch {pane_id} {path}"));
     let folder = Path::new(&path);
@@ -40,8 +40,18 @@ pub async fn watch_directory(
         DEBOUNCE,
         move |result: notify_debouncer_mini::DebounceEventResult| {
             dbg_log(&format!("event {result:?}"));
-            if result.is_ok_and(|events| !events.is_empty()) {
-                let sent = on_change.send(());
+            // The changed paths let the pane restat just those rows instead of the whole folder.
+            if let Ok(events) = result {
+                if events.is_empty() {
+                    return;
+                }
+                let mut paths: Vec<String> = events
+                    .into_iter()
+                    .map(|event| event.path.to_string_lossy().into_owned())
+                    .collect();
+                paths.sort_unstable();
+                paths.dedup();
+                let sent = on_change.send(paths);
                 dbg_log(&format!("sent {sent:?}"));
             }
         },

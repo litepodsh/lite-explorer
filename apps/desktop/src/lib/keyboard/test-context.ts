@@ -60,6 +60,7 @@ export function fakeContext(calls: string[], overrides: ContextOverrides = {}): 
     preview: {
       toggle: () => void calls.push("toggle preview"),
       scroll: (direction) => record(calls, `scroll ${direction}`),
+      quickLook: () => void calls.push("quick look"),
     },
     regions: {
       cycle: (direction) => record(calls, `region ${direction}`),

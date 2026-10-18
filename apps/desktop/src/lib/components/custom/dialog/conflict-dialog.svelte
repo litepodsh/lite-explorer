@@ -65,6 +65,7 @@
         label="Hold to replace"
         doneLabel="Replacing…"
         variant="destructive"
+        focusOnMount
         onconfirm={() => settle("replace")} />
     {/if}
   {/snippet}

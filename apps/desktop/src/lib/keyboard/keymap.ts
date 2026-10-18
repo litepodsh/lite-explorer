@@ -94,6 +94,11 @@ export const STANDARD_BINDINGS: Binding[] = [
   standard("<Esc>", "app.escape", "Clear selection or leave checkbox mode", "Selection", {
     scope: "global",
   }),
+  // Finder's own Quick Look shortcut. Space stays on selection, as before.
+  standard("Mod+Y", "preview.quickLook", "Quick Look", "Preview", {
+    repeat: false,
+    platforms: ["macos"],
+  }),
   standard("<Delete>", "file.trash", "Move to Trash", "Files", { repeat: false }),
   standard("<Backspace>", "file.trash", "Move to Trash", "Files", { repeat: false }),
   ...["Meta+<Delete>", "Meta+<Backspace>"].map((keys) =>

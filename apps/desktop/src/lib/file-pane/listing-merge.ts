@@ -45,3 +45,30 @@ export function renameEntry(
   next[index] = { ...next[index], name, path: toPath };
   return next;
 }
+
+/** A watched row read again: its fresh entry, or `null` when it is gone. */
+export type ListingChange = { path: string; entry: DirectoryEntry | null };
+
+/** Folds watcher changes into a listing in one pass: gone rows drop, changed rows are replaced
+ *  in place (keeping a measured folder size) and new rows are appended. */
+export function applyListingChanges(
+  entries: DirectoryEntry[],
+  changes: ListingChange[],
+): DirectoryEntry[] {
+  if (changes.length === 0) return entries;
+  const pending = new Map(changes.map((change) => [change.path, change.entry]));
+  const next: DirectoryEntry[] = [];
+  for (const entry of entries) {
+    if (!pending.has(entry.path)) {
+      next.push(entry);
+      continue;
+    }
+    const fresh = pending.get(entry.path);
+    pending.delete(entry.path);
+    if (!fresh) continue;
+    const measured = fresh.is_directory && (entry.size != null || entry.sizeComplete != null);
+    next.push(measured ? { ...fresh, size: entry.size, sizeComplete: entry.sizeComplete } : fresh);
+  }
+  for (const fresh of pending.values()) if (fresh) next.push(fresh);
+  return next;
+}

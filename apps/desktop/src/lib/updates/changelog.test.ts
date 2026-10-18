@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+// Only the test loads Temporal, to check the app's lighter formatting gives the same day.
+import "temporal-polyfill/global";
 import { formatDate, latestVersion, noteLines, releaseFor, releases } from "./changelog.js";
 
 describe("changelog", () => {
@@ -15,7 +17,7 @@ describe("changelog", () => {
     expect(releaseFor(null)).toBeNull();
   });
 
-  it("formats dates with Temporal", () => {
+  it("formats dates like Temporal.PlainDate", () => {
     expect(formatDate("2026-09-17")).toBe(
       Temporal.PlainDate.from("2026-09-17").toLocaleString(undefined, {
         year: "numeric",

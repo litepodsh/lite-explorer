@@ -35,6 +35,8 @@
   let error = $state("");
   // Remounts the hold button so it can be held again after a failure.
   let attempt = $state(0);
+  // Opening focuses the hold button, not Cancel, so Space/Enter start the hold.
+  let holdButton = $state<HTMLButtonElement | null>(null);
 
   $effect(() => {
     if (open) return;
@@ -58,7 +60,7 @@
   }
 </script>
 
-<DialogShell bind:open {title} {description}>
+<DialogShell bind:open {title} {description} initialFocus={holdButton}>
   {#if error}
     <p class="error" role="alert"><CircleAlertIcon /> {error}</p>
   {/if}
@@ -71,6 +73,8 @@
         {variant}
         {icon}
         {globalHoldKeys}
+        bind:ref={holdButton}
+        focusOnMount
         disabled={pending}
         onconfirm={() => void confirm()} />
     {/key}

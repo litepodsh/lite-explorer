@@ -1,10 +1,16 @@
 <script lang="ts">
   import * as THREE from "three";
   import { ColladaLoader } from "three/examples/jsm/loaders/ColladaLoader.js";
+  import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
   import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
   import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
   import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
   import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath("/draco/");
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setDRACOLoader(dracoLoader);
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
   import ArrowRight from "@lucide/svelte/icons/arrow-right";
   import ArrowUp from "@lucide/svelte/icons/arrow-up";
@@ -138,7 +144,7 @@
 
     const extension = name.split(".").pop()?.toLowerCase() ?? "";
     if (extension === "glb" || extension === "gltf") {
-      new GLTFLoader().load(url, (gltf) => done(gltf.scene), undefined, fail);
+      gltfLoader.load(url, (gltf) => done(gltf.scene), undefined, fail);
     } else if (extension === "stl") {
       new STLLoader().load(
         url,

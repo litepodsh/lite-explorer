@@ -71,7 +71,14 @@ import { platformState } from "#lib/state/platform.svelte.js";
 import { isAppBundle } from "#lib/file-ops/bundles.js";
 import { TypeSelectBuffer, typeSelectTarget } from "#lib/keyboard/type-select.js";
 import type { SortColumn, SortDir } from "#lib/components/custom/file-list/sort.js";
-import { mergeListing, removePaths, renameEntry, upsertEntry } from "./listing-merge.js";
+import {
+  applyListingChanges,
+  mergeListing,
+  removePaths,
+  renameEntry,
+  upsertEntry,
+  type ListingChange,
+} from "./listing-merge.js";
 import type { CopyTextKind } from "#lib/keyboard/context.js";
 import { fileStem } from "#lib/keyboard/text.js";
 import type { SwipeDirection } from "#lib/swipe/gesture.js";
@@ -83,7 +90,13 @@ export type SearchEntry = DirectoryEntry & {
   snippet?: string;
   inner_path?: string;
 };
-type SearchResponse = { results: SearchEntry[]; skipped: number; limited: boolean };
+type SearchProgress = {
+  results: SearchEntry[];
+  skipped: number;
+  limited: boolean;
+  done: boolean;
+  error: string | null;
+};
 type DirectoryListingProgress = { entries: DirectoryEntry[]; done: boolean; error: string | null };
 type EntryDetails = {
   path: string;
@@ -95,6 +108,8 @@ type EntryDetails = {
 /** Rows asked for at once, and the pause that lets scrolling settle before asking. */
 const DETAILS_BATCH = 256;
 const DETAILS_DELAY = 60;
+/** Most changed rows a watcher update patches in; a bigger burst re-reads the folder. */
+const WATCH_PATCH_LIMIT = 256;
 /** How often streamed rows reach the list. Each update copies and merges the whole listing,
  *  so batches arriving faster than this are shown together. */
 const STREAM_FLUSH_MS = 250;
@@ -128,11 +143,14 @@ export class FilePaneController {
   entries = $state.raw<DirectoryEntry[]>([]);
   searchQuery = $state("");
   searchMode = $state<SearchMode>("fuzzy");
-  searchResults = $state<SearchEntry[] | null>(null);
+  /** Raw like `entries`: batches replace the array instead of being proxied row by row. */
+  searchResults = $state.raw<SearchEntry[] | null>(null);
   searchPending = $state(false);
   searchSkipped = $state(0);
   searchLimited = $state(false);
   #searchRequest = 0;
+  /** Backend id of the running search, cancelled when a newer query replaces it. */
+  #searchId = "";
   #searchTimer: ReturnType<typeof setTimeout> | undefined;
   recents = $state<Recent[]>([]);
   listing = $state(false);
@@ -325,6 +343,7 @@ export class FilePaneController {
   }
   clearSearch() {
     clearTimeout(this.#searchTimer);
+    this.#cancelSearch();
     this.#searchRequest++;
     this.searchQuery = "";
     this.searchResults = null;
@@ -332,8 +351,15 @@ export class FilePaneController {
     this.searchSkipped = 0;
     this.searchLimited = false;
   }
+  #cancelSearch() {
+    const requestId = this.#searchId;
+    this.#searchId = "";
+    if (requestId) void invoke("cancel_search", { requestId }).catch(() => {});
+  }
   private runSearch() {
     clearTimeout(this.#searchTimer);
+    // Each keystroke starts over; the previous walk stops instead of running to the end.
+    this.#cancelSearch();
     const query = this.searchQuery.trim();
     const path = this.listingPath;
     const request = ++this.#searchRequest;
@@ -343,32 +369,51 @@ export class FilePaneController {
       return;
     }
     this.searchPending = true;
-    this.#searchTimer = setTimeout(async () => {
-      try {
-        const response = await invoke<SearchResponse>("search_directory", {
-          path,
-          query,
-          mode: this.searchMode,
-        });
-        if (
-          request === this.#searchRequest &&
-          path === this.listingPath &&
-          query === this.searchQuery.trim()
-        ) {
-          this.searchResults = response.results;
-          this.searchSkipped = response.skipped;
-          this.searchLimited = response.limited;
-        }
-      } catch (error) {
-        if (request === this.#searchRequest) {
+    this.#searchTimer = setTimeout(() => {
+      const requestId = crypto.randomUUID();
+      this.#searchId = requestId;
+      const current = () =>
+        request === this.#searchRequest &&
+        path === this.listingPath &&
+        query === this.searchQuery.trim();
+      // The previous query's results stay until this one has something to show.
+      let first = true;
+      const channel = new Channel<SearchProgress>();
+      channel.onmessage = (update) => {
+        if (!current()) return;
+        if (update.error) {
+          console.error("search_directory failed", update.error);
           this.searchResults = null;
           this.searchSkipped = 0;
           this.searchLimited = false;
+        } else if (first || update.results.length > 0) {
+          this.searchResults =
+            first || !this.searchResults ? update.results : this.searchResults.concat(update.results);
+          first = false;
         }
-        console.error("search_directory failed", error);
-      } finally {
-        if (request === this.#searchRequest) this.searchPending = false;
-      }
+        if (update.done) {
+          if (!update.error) {
+            this.searchSkipped = update.skipped;
+            this.searchLimited = update.limited;
+          }
+          this.searchPending = false;
+          if (this.#searchId === requestId) this.#searchId = "";
+        }
+      };
+      invoke("search_directory", { path, query, mode: this.searchMode, requestId, onProgress: channel })
+        .then(() => {
+          // A newer query can arrive while this one is still being dispatched.
+          if (!current()) void invoke("cancel_search", { requestId }).catch(() => {});
+        })
+        .catch((error) => {
+          if (current()) {
+            this.searchResults = null;
+            this.searchSkipped = 0;
+            this.searchLimited = false;
+            this.searchPending = false;
+          }
+          console.error("search_directory failed", error);
+        });
     }, 120);
   }
 
@@ -920,6 +965,51 @@ export class FilePaneController {
   }
 
   /** Folds a fresh read of the folder into the listing: measured sizes and the scan survive. */
+  /** Changed paths waiting while a watcher update is applied; `null` asks for a full re-read. */
+  #folderChanges: string[] | null = [];
+  #folderChangesPath = "";
+  #applyingFolderChanges = false;
+
+  /** Folds in what the folder watcher reported. A few changed rows are read again one by one,
+   *  so a download finishing in a huge folder does not re-list it; bursts arriving meanwhile
+   *  are merged into the next pass. */
+  async applyFolderChanges(path: string, changed: string[]) {
+    if (this.#folderChangesPath !== path) {
+      this.#folderChangesPath = path;
+      this.#folderChanges = [];
+    }
+    if (this.#folderChanges) {
+      this.#folderChanges.push(...changed);
+      if (this.#folderChanges.length > WATCH_PATCH_LIMIT) this.#folderChanges = null;
+    }
+    if (this.#applyingFolderChanges) return;
+    this.#applyingFolderChanges = true;
+    try {
+      while (this.#folderChangesPath === path && this.#folderChanges?.length !== 0) {
+        const paths = this.#folderChanges;
+        this.#folderChanges = [];
+        if (!paths || !(await this.#patchListing(path, paths))) await this.refreshListing(path);
+      }
+    } finally {
+      this.#applyingFolderChanges = false;
+    }
+  }
+
+  /** Re-reads `paths` and patches them into the listing. False when the folder needs a full read. */
+  async #patchListing(path: string, paths: string[]): Promise<boolean> {
+    if (this.listingPath !== path || this.listing) return false;
+    const token = this.loadToken;
+    const changes = await invoke<ListingChange[] | null>("listing_changes", {
+      folder: path,
+      paths,
+    }).catch(() => null);
+    if (!changes) return false;
+    if (this.listingPath !== path || token !== this.loadToken) return true;
+    this.setEntries(applyListingChanges(this.entries, changes));
+    this.pruneSelection();
+    return true;
+  }
+
   async refreshListing(path: string) {
     if (this.listingPath !== path || !path || this.tabs.active.location.kind === "recents") return;
     const token = this.loadToken;

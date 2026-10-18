@@ -58,6 +58,7 @@ export function standardCommands(): AppCommand[] {
       context.list.selectFocused("toggle"),
     ),
     listCommand("selection.all", "Select All", (context) => context.list.selectAll()),
+    listCommand("preview.quickLook", "Quick Look", (context) => context.preview.quickLook()),
     listCommand("file.trash", "Move to Trash", (context) =>
       context.list.trashSelection({ permanent: false }),
     ),
