@@ -120,6 +120,7 @@ image = { version = "0.25", default-features = false, features = [
   "ico",
   "tiff",
 ] }
+notify-debouncer-mini = "0.7.0"
 
 
 [lints.clippy]

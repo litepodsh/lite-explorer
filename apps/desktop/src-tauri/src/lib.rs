@@ -69,6 +69,7 @@ pub fn run() {
                 std::collections::HashSet::new(),
             )));
             app.manage(swipe_nav::SwipeState::default());
+            app.manage(explorer::watch::FolderWatchers::default());
             let menu = app::menu::build(app.handle())?;
             app.manage(app::menu::AppMenu(menu.clone()));
             #[cfg(target_os = "macos")]
@@ -90,6 +91,8 @@ pub fn run() {
             app::analytics::track_event,
             app::icons::file_icons,
             app::download_progress::read_download_progress,
+            explorer::watch::watch_directory,
+            explorer::watch::unwatch_directory,
             app::menu::set_show_hidden_files,
             app::menu::set_show_fps,
             app::menu::set_prototype_switcher,

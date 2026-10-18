@@ -5,6 +5,7 @@
   function showInfo(entry: DirectoryEntry) { infoEntry = { ...entry }; infoOpen = true; }
   import CalculatorIcon from "@lucide/svelte/icons/calculator";
   import { onDestroy } from "svelte";
+  import { Channel, invoke } from "@tauri-apps/api/core";
   import Clock3Icon from "@lucide/svelte/icons/clock-3";
   import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
   import FolderIcon from "@lucide/svelte/icons/folder";
@@ -122,6 +123,29 @@
     return () => {
       if (drag.paneFolders.get(id) === handle) drag.paneFolders.delete(id);
       if (drag.paneEntryFolders.get(id) === isFolder) drag.paneEntryFolders.delete(id);
+    };
+  });
+  // Folds in what other apps add, remove or rename (a finished download, a saved file) while
+  // a local folder is shown. Shares and remote folders keep the manual refresh.
+  let watchedPath = $derived(
+    controller.isBrowsableFolder() &&
+      !controller.remoteListing &&
+      !isNetworkPath(controller.listingPath) &&
+      !networkStatus.mountFor(controller.listingPath)
+      ? controller.listingPath
+      : "",
+  );
+  $effect(() => {
+    const path = watchedPath;
+    const paneId = controller.paneId;
+    if (!path) return;
+    const channel = new Channel<null>();
+    channel.onmessage = () => void controller.refreshListing(path);
+    // Folders that can't be watched (inside an archive, gone) still browse normally.
+    void invoke("watch_directory", { paneId, path, onChange: channel }).catch(() => {});
+    return () => {
+      channel.onmessage = () => {};
+      void invoke("unwatch_directory", { paneId, path }).catch(() => {});
     };
   });
   let reconnecting = $derived(
