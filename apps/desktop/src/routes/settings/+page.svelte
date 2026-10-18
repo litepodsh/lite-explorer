@@ -264,10 +264,10 @@
             {#if sizePathError}<p class="size-path-error" role="alert">{sizePathError}</p>{/if}
             </div>
             <DialogSwitch
-              label="Send anonymous crash reports"
+              label="Send anonymous crash reports and usage statistics"
               description={analytics.locked
-                ? "Enabled while Lite Explorer is before 1.0. Anonymized and only used to fix crashes on different operating systems."
-                : "Anonymized and only used to fix crashes on different operating systems."}
+                ? "Enabled while Lite Explorer is before 1.0. Anonymized and only used to fix crashes and see which features get used on each operating system."
+                : "Anonymized and only used to fix crashes and see which features get used on each operating system."}
               checked={analytics.enabled || analytics.locked}
               disabled={analytics.locked}
             onchange={(checked) => void analytics.setEnabled(checked)} />

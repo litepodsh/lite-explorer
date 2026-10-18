@@ -1,5 +1,5 @@
 <script lang="ts">
-  // First-run notice about anonymous crash reporting. The choice persists in the Rust
+  // First-run notice about anonymous crash reporting and usage statistics. The choice persists in the Rust
   // preference file; before 1.0 the switch is locked on and explains why.
   import DialogButton from "../dialog/dialog-button.svelte";
   import DialogShell from "../dialog/dialog-shell.svelte";
@@ -12,8 +12,8 @@
   const locked = $derived(analytics.locked);
   const description = $derived(
     locked
-      ? "Reports stay on while Lite Explorer is before version 1.0. They’re anonymized and only used to fix crashes on different operating systems. You can turn them off after 1.0."
-      : "Anonymized, and only used to fix crashes on different operating systems.",
+      ? "Reports stay on while Lite Explorer is before version 1.0. They’re anonymized and only used to fix crashes and see which features get used on each operating system. You can turn them off after 1.0."
+      : "Anonymized, and only used to fix crashes and see which features get used on each operating system.",
   );
 
   // Escape or the overlay closing the dialog keeps the default (on).
@@ -29,9 +29,9 @@
 <DialogShell
   bind:open
   title="Help improve Lite Explorer"
-  description="Lite Explorer can send anonymous crash reports for the operating system you’re using. They help us fix crashes on Windows, macOS and Linux.">
+  description="Lite Explorer can send anonymous crash reports and usage statistics for the operating system you’re using. They help us fix crashes and improve Lite Explorer on Windows, macOS and Linux.">
   <DialogSwitch
-    label="Send anonymous crash reports"
+    label="Send anonymous crash reports and usage statistics"
     {description}
     checked={enabled || locked}
     disabled={locked}

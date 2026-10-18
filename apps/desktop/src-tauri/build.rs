@@ -8,6 +8,8 @@ fn main() {
     emit_env("SENTRY_DSN");
     emit_env("GOOGLE_OAUTH_CLIENT_ID");
     emit_env("GOOGLE_OAUTH_CLIENT_SECRET");
+    emit_env("APTABASE_APP_KEY");
+    emit_env("APTABASE_HOST");
     tauri_build::build()
 }
 

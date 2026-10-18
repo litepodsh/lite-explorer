@@ -7,8 +7,17 @@ export type AnalyticsPrefs = {
   install_id: string;
 };
 
-/** Reports are anonymous, only cover crashes/errors on the user's OS, and are locked
- *  on while the app is below 1.0. The Rust side enforces the same rule. */
+/** Usage event (Aptabase) for actions that never reach a Rust command. Only string and
+ *  number property values are kept; never pass paths or file names. The Rust side drops
+ *  it when reporting is off. */
+export function track(name: string, props?: Record<string, string | number>) {
+  invoke("track_event", { name, props }).catch((error) =>
+    console.warn(`Couldn't track ${name}`, error),
+  );
+}
+
+/** Reports are anonymous, cover crashes/errors and usage statistics on the user's OS, and
+ *  are locked on while the app is below 1.0. The Rust side enforces the same rule. */
 class AnalyticsStore {
   enabled = $state(true);
   welcomeSeen = $state(true);
@@ -43,6 +52,7 @@ class AnalyticsStore {
 
   async completeWelcome(enabled: boolean) {
     await this.#save(this.locked ? true : enabled, true);
+    track("welcome_completed");
   }
 
   async #save(enabled: boolean, welcomeSeen: boolean) {

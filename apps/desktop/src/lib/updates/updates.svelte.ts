@@ -3,6 +3,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
+import { track } from "#lib/analytics/analytics.svelte.js";
 
 export const RELEASES_URL = "https://github.com/litepodsh/lite-explorer/releases/latest";
 
@@ -106,6 +107,7 @@ class Updates {
     this.status = { state: "installing", version: status.version };
     try {
       await update.install();
+      track("update_installed", { version: status.version });
       await relaunch();
     } catch (error) {
       this.status = status;

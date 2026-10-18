@@ -37,6 +37,10 @@ pub fn run() {
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init());
+    let builder = match app::analytics::aptabase_plugin() {
+        Some(plugin) => builder.plugin(plugin),
+        None => builder,
+    };
     builder
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
@@ -50,6 +54,7 @@ pub fn run() {
                 });
             }
             app.manage(analytics);
+            app::analytics::track_launch(app.handle());
             app.manage(media::MediaRegistry::default());
             app.manage(media::viewer::ViewerTarget::default());
             app.manage(search::ContentCache::default());
@@ -77,11 +82,12 @@ pub fn run() {
             Ok(())
         })
         .on_menu_event(|app, event| app::menu::handle(app, event.id().as_ref()))
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(app::analytics::with_usage_events(tauri::generate_handler![
             app::general::os_detection,
             app::general::is_hyprland,
             app::analytics::analytics_prefs,
             app::analytics::save_analytics,
+            app::analytics::track_event,
             app::icons::file_icons,
             app::download_progress::read_download_progress,
             app::menu::set_show_hidden_files,
@@ -211,7 +217,7 @@ pub fn run() {
             system::trash::request_full_disk_access,
             system::trash::open_trash,
             system::trash::trash_usage
-        ])
+        ]))
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
     // 5e: unmount only the shares this app session created.
