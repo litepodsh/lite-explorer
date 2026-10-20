@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { isPartialDownload, type DownloadSnapshot } from "#lib/transfers/download-progress.js";
+  import { isPartialDownload, stripPartialSuffix, type DownloadSnapshot } from "#lib/transfers/download-progress.js";
+  import { fileDownloads } from "#lib/transfers/download-progress.svelte.js";
   import { tick, untrack } from "svelte";
   import { get } from "svelte/store";
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
@@ -218,8 +219,53 @@
 
   // Last order, not state: a streamed listing grows at the end, so only its new rows get sorted.
   let lastOrder: ListOrder | null = null;
+  // Paths of files with an active transfer; pinned to the top so in-flight downloads stay
+  // visible regardless of the active sort.
+  let activeDownloads = $derived.by(() => {
+    const paths = Object.values(fileDownloads.jobs).map((job) => job.path);
+    return paths.length > 0 ? new Set(paths) : null;
+  });
+  // Paths that look like in-progress browser downloads by extension (`.download`,
+  // `.crdownload`, `.part`). Listed alongside active transfers so a download that the app
+  // didn't start — or one that finished and is about to be renamed — also stays visible.
+  // Only files (not directories) are eligible.
+  let partialDownloads = $derived.by(() => {
+    const paths: string[] = [];
+    for (const entry of entries) {
+      if (!entry.is_directory && isPartialDownload(entry.name)) paths.push(entry.path);
+    }
+    return paths.length > 0 ? new Set(paths) : null;
+  });
+  // Partial files whose base name (without the `.crdownload`/`.part`/`.download` suffix) is
+  // not in any active transfer. These are orphans — another app's download that died, or a
+  // download the app forgot about. Still pinned so the user can resume or delete.
+  let staleDownloads = $derived.by(() => {
+    if (!partialDownloads || partialDownloads.size === 0) return null;
+    const activeNames = new Set<string>();
+    for (const job of Object.values(fileDownloads.jobs)) {
+      const slash = Math.max(job.path.lastIndexOf("/"), job.path.lastIndexOf("\\"));
+      const name = slash >= 0 ? job.path.slice(slash + 1) : job.path;
+      activeNames.add(stripPartialSuffix(name));
+    }
+    const stale: string[] = [];
+    for (const entry of entries) {
+      if (!entry.is_directory && isPartialDownload(entry.name)) {
+        if (!activeNames.has(stripPartialSuffix(entry.name))) stale.push(entry.path);
+      }
+    }
+    return stale.length > 0 ? new Set(stale) : null;
+  });
   let visibleEntries = $derived.by((): DirectoryEntry[] => {
-    lastOrder = orderEntries(entries, sortColumn, sortDir, showHidden, lastOrder);
+    lastOrder = orderEntries(
+      entries,
+      sortColumn,
+      sortDir,
+      showHidden,
+      lastOrder,
+      activeDownloads ?? undefined,
+      partialDownloads ?? undefined,
+      staleDownloads ?? undefined,
+    );
     return lastOrder.shown;
   });
   let selectedVisible = $derived(visibleEntries.filter((entry: DirectoryEntry) => selectedPaths.has(entry.path)));
@@ -660,6 +706,7 @@
                   <ListItem
                     {entry}
                     downloadSnapshot={downloadSnapshots[entry.path]}
+                    downloadStale={staleDownloads?.has(entry.path) ?? false}
                     view="list"
                     thumbnail={thumbnailFor(entry.path)}
                     {columns}
@@ -700,6 +747,7 @@
                   <ListItem
                     {entry}
                     downloadSnapshot={downloadSnapshots[entry.path]}
+                    downloadStale={staleDownloads?.has(entry.path) ?? false}
                     view="grid"
                     {gridZoom}
                     gridTileHeight={GRID_ITEM_H}

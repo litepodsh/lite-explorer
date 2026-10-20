@@ -20,6 +20,7 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 
 COPY --from=builder /app/apps/web/dist ./dist
+COPY --from=builder /app/apps/web/node_modules ./apps/web/node_modules
 
 EXPOSE 3000
 CMD ["bun", "./dist/server/entry.mjs"]

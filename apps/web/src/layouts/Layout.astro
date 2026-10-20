@@ -10,6 +10,9 @@ const {
 	title = 'Lite Explorer — Less chrome. More room for your files.',
 	description = 'A calm, native-feeling file explorer for macOS, Linux, and Windows. Tabs, split panes, and full keyboard control, built with Tauri and SvelteKit.',
 } = Astro.props;
+
+const site = Astro.site ?? new URL('https://explorer.litepod.sh');
+const canonical = new URL(Astro.url.pathname, site);
 ---
 
 <!doctype html>
@@ -57,15 +60,48 @@ const {
 
 		<title>{title}</title>
 		<meta name="description" content={description} />
+		<meta name="robots" content="index, follow" />
+		<meta
+			name="keywords"
+			content="Lite Explorer, file manager, Tauri, SvelteKit, macOS, Windows, Linux, file explorer, tabs, split panes, keyboard, open source"
+		/>
+		<meta name="author" content="Litepod Studio" />
+		<link rel="canonical" href={canonical} />
 
 		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Lite Explorer" />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical} />
 		<meta property="og:image" content="/lite-explorer-preview.png" />
 		<meta name="twitter:card" content="summary_large_image" />
 
 		<link rel="icon" type="image/png" href="/favicon.png" />
 		<link rel="apple-touch-icon" href="/app-icon.png" />
+
+		<script
+			type="application/ld+json"
+			set:html={JSON.stringify({
+				'@context': 'https://schema.org',
+				'@type': 'SoftwareApplication',
+				name: 'Lite Explorer',
+				url: site.href,
+				description:
+					'A calm, native-feeling file explorer for macOS, Linux, and Windows. Tabs, split panes, and full keyboard control, built with Tauri and SvelteKit.',
+				applicationCategory: 'UtilitiesApplication',
+				operatingSystem: 'macOS, Windows, Linux',
+				offers: {
+					'@type': 'Offer',
+					price: '0',
+					priceCurrency: 'USD',
+				},
+				license: 'https://github.com/litepodsh/lite-explorer/blob/main/LICENSE',
+				author: {
+					'@type': 'Organization',
+					name: 'Litepod Studio',
+				},
+			})}
+		/>
 
 		<script
 			is:inline

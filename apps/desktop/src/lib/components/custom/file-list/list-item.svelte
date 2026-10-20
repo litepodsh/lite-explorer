@@ -18,6 +18,7 @@
   let {
     entry,
     downloadSnapshot,
+    downloadStale = false,
     view = "list",
     columns = DEFAULT_COLUMNS,
     draggedColumn,
@@ -47,6 +48,7 @@
   } = $props<{
     entry: DirectoryEntry;
     downloadSnapshot?: DownloadSnapshot;
+    downloadStale?: boolean;
     view?: "list" | "grid";
     columns?: ListColumn[];
     draggedColumn?: ListColumn;
@@ -75,6 +77,7 @@
     onRename?: (oldPath: string, newName: string) => void;
     onRenameCancel?: () => void;
     onContextMenu?: (entry: DirectoryEntry) => void;
+    /** Stale partial: looks like an in-progress download but no active transfer matches it. */
     /** Content-search query to highlight inside the snippet. */
     searchQuery?: string;
     style?: string;
@@ -209,7 +212,7 @@
         {/if}
       {/if}
       </span>
-      {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
+      {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} stale={downloadStale} />{/if}
     </div>
     {:else if column === "type"}
     <div role="gridcell" class:column-source={draggedColumn === column} class="px-2 text-xs text-[var(--app-fg-muted)]">{entryType(entry)}</div>
@@ -249,7 +252,7 @@
     {/if}
     <span class="flex items-center justify-center gap-1.5">
     {#if thumbnail}<span class="inline-block shrink-0 overflow-hidden" style={`width: ${thumbnailSize}px; height: ${thumbnailSize}px; border-radius: 12px`}><img src={thumbnail} alt="" draggable="false" class="size-full object-contain" /></span>{:else if entry.kind === "share"}<HardDriveIcon class="size-[17px] text-blue-400 stroke-[1.7]" style={`width: ${gridIconSize}px; height: ${gridIconSize}px`} />{:else}<EntryIcon path={entry.path} name={entry.name} directory={entry.is_directory && !isAppBundle(entry, platformState.current)} native={usesNativeIcon(entry)} size={gridIconSize} />{/if}
-    {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} />{/if}
+    {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} stale={downloadStale} />{/if}
     </span>
     {#if renaming}
       <span class="relative flex max-w-full items-center gap-0.5 overflow-hidden rounded-sm border border-[var(--app-accent)]/60 bg-[var(--app-input)] pr-1 transition-colors duration-300 motion-reduce:transition-none">

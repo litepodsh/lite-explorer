@@ -1,10 +1,10 @@
 <script lang="ts">
   import * as Tooltip from "#lib/components/ui/tooltip/index.js";
   import { formatSize } from "#lib/components/custom/preview/format.js";
-  import { downloadFraction, isPartialDownload, type DownloadSnapshot } from "./download-progress.js";
+  import { downloadFraction, isPartialDownload, stripPartialSuffix, type DownloadSnapshot } from "./download-progress.js";
   import { fileDownloads } from "./download-progress.svelte.js";
 
-  let { path, name, snapshot }: { path: string; name: string; snapshot?: DownloadSnapshot } = $props();
+  let { path, name, snapshot, stale = false }: { path: string; name: string; snapshot?: DownloadSnapshot; stale?: boolean } = $props();
   const transfer = $derived(Object.values(fileDownloads.jobs).find((file) => file.path === path));
   const fraction = $derived(transfer
     ? downloadFraction(transfer.bytesDone, transfer.bytesTotal)
@@ -12,10 +12,27 @@
   const bytes = $derived(transfer?.bytesDone ?? snapshot?.bytesDone);
   const visible = $derived(!!transfer || (!snapshot?.missing &&
     (fraction !== null ? fraction < 1 : isPartialDownload(name))));
+  // Stale means "looks partial, but no active transfer is targeting this name". The caller
+  // is the source of truth (list-panel computes the union with the active set), so we trust
+  // the prop and only fall back to deriving it here when no `stale` flag is provided.
+  const isStale = $derived(stale || (!transfer && isPartialDownload(name) && !hasActiveForName(name)));
   const percent = $derived(fraction === null ? null : Math.floor(fraction * 1000) / 10);
-  const label = $derived(fraction !== null
-    ? `${percent}% downloaded${bytes != null ? ` · ${formatSize(bytes)}` : ""}${transfer && transfer.bytesTotal > 0 ? ` of ${formatSize(transfer.bytesTotal)}` : ""}`
-    : transfer ? `Downloading${bytes != null ? ` · ${formatSize(bytes)}` : ""}` : "Incomplete download");
+  const label = $derived(isStale
+    ? "Stale partial download — right-click to resume or delete"
+    : fraction !== null
+      ? `${percent}% downloaded${bytes != null ? ` · ${formatSize(bytes)}` : ""}${transfer && transfer.bytesTotal > 0 ? ` of ${formatSize(transfer.bytesTotal)}` : ""}`
+      : transfer ? `Downloading${bytes != null ? ` · ${formatSize(bytes)}` : ""}` : "Incomplete download");
+
+  function hasActiveForName(partialName: string): boolean {
+    const target = stripPartialSuffix(partialName);
+    if (!target) return false;
+    for (const job of Object.values(fileDownloads.jobs)) {
+      const slash = Math.max(job.path.lastIndexOf("/"), job.path.lastIndexOf("\\"));
+      const jobName = slash >= 0 ? job.path.slice(slash + 1) : job.path;
+      if (stripPartialSuffix(jobName) === target) return true;
+    }
+    return false;
+  }
 </script>
 
 {#if visible}
@@ -31,6 +48,7 @@
     class="download-indicator"
     class:indeterminate={!!transfer && fraction === null}
     class:incomplete={!transfer && fraction === null}
+    class:stale={isStale}
     role="progressbar"
     aria-label={`${name}: ${label}`}
     aria-valuemin="0"
@@ -46,6 +64,7 @@
         <path class="mark" d="M10 6v5m0 3h.01" />
       {/if}
     </svg>
+    {#if isStale}<span class="stale-dot" aria-hidden="true" />{/if}
   </span>
     {/snippet}
   </Tooltip.Trigger>
@@ -54,13 +73,17 @@
     arrowClasses="bg-[var(--app-surface)]">
     <div class="rounded-lg bg-[var(--app-surface-raised)] px-3 py-2.5 shadow-[inset_0_1px_0_var(--app-inset-highlight)]">
       <div class="flex items-baseline justify-between gap-5">
-        <span class="text-[11px] text-[var(--app-fg-muted)]">{fraction !== null ? "Downloaded" : transfer ? "Downloading" : "Incomplete download"}</span>
-        {#if percent !== null}<span class="text-lg leading-none font-medium tracking-tight text-[var(--app-accent)] tabular-nums">{percent}<span class="ml-0.5 text-xs text-[var(--app-fg-muted)]">%</span></span>{/if}
+        <span class="text-[11px] text-[var(--app-fg-muted)]">{isStale ? "Stale partial" : fraction !== null ? "Downloaded" : transfer ? "Downloading" : "Incomplete download"}</span>
+        {#if percent !== null && !isStale}<span class="text-lg leading-none font-medium tracking-tight text-[var(--app-accent)] tabular-nums">{percent}<span class="ml-0.5 text-xs text-[var(--app-fg-muted)]">%</span></span>{/if}
       </div>
-      {#if bytes != null}
-        <p class="mt-1.5 text-[11px] text-[var(--app-fg-muted)] tabular-nums">{formatSize(bytes)}{#if transfer && transfer.bytesTotal > 0} of {formatSize(transfer.bytesTotal)}{:else} downloaded{/if}</p>
+      {#if isStale}
+        <p class="mt-1.5 text-[11px] text-[var(--app-fg-muted)]">No active transfer for <span class="font-medium text-[var(--app-fg)]">{stripPartialSuffix(name)}</span>. Right-click to resume or delete.</p>
+      {:else}
+        {#if bytes != null}
+          <p class="mt-1.5 text-[11px] text-[var(--app-fg-muted)] tabular-nums">{formatSize(bytes)}{#if transfer && transfer.bytesTotal > 0} of {formatSize(transfer.bytesTotal)}{:else} downloaded{/if}</p>
+        {/if}
+        {#if fraction === null}<p class="mt-1 text-[11px] text-[var(--app-fg-muted)]">{transfer ? "Total size unavailable" : "No live progress available"}</p>{/if}
       {/if}
-      {#if fraction === null}<p class="mt-1 text-[11px] text-[var(--app-fg-muted)]">{transfer ? "Total size unavailable" : "No live progress available"}</p>{/if}
     </div>
   </Tooltip.Content>
   </Tooltip.Root>
@@ -68,7 +91,7 @@
 {/if}
 
 <style>
-  .download-indicator { display: inline-flex; width: 16px; height: 16px; flex: none; color: var(--app-accent); }
+  .download-indicator { position: relative; display: inline-flex; width: 16px; height: 16px; flex: none; color: var(--app-accent); }
   .download-indicator:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 3px; border-radius: 50%; }
   svg { width: 100%; height: 100%; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.6; }
   .track { opacity: 0.22; }
@@ -78,4 +101,11 @@
   .indeterminate svg { animation: download-turn 1.4s cubic-bezier(0.32, 0.72, 0, 1) infinite; }
   @keyframes download-turn { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .indeterminate svg { animation: none; } }
+
+  /* Stale partial: amber ring + small dot, so the user notices it's an orphan without it
+     being mistaken for an active transfer. */
+  .download-indicator.stale { color: #d4a017; }
+  .download-indicator.stale svg .track { opacity: 0.4; }
+  .download-indicator.stale svg .fill { stroke-dasharray: 5 100; }
+  .stale-dot { position: absolute; top: -1px; right: -1px; width: 6px; height: 6px; border-radius: 9999px; background: #d4a017; box-shadow: 0 0 0 1.5px var(--app-bg, #1c1f24); }
 </style>
