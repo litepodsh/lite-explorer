@@ -27,6 +27,8 @@
   import Settings2Icon from "@lucide/svelte/icons/settings-2";
   import AppWindowIcon from "@lucide/svelte/icons/app-window";
   import ArchiveIcon from "@lucide/svelte/icons/archive";
+  import ImageIcon from "@lucide/svelte/icons/image";
+  import ZapIcon from "@lucide/svelte/icons/zap";
   import FolderOutputIcon from "@lucide/svelte/icons/folder-output";
   import UnplugIcon from "@lucide/svelte/icons/unplug";
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
@@ -36,6 +38,7 @@
   import { networkStatus } from "#lib/remote/network-status.svelte.js";
   import { isArchive } from "#lib/file-ops/archive.js";
   import { isAppBundle } from "#lib/file-ops/bundles.js";
+  import { quickLabel } from "#lib/file-ops/convert.js";
   import { platformState } from "#lib/state/platform.svelte.js";
   import { drag } from "#lib/file-drag/drag.svelte.js";
   import type { DraggedEntry } from "#lib/file-drag/drag.svelte.js";
@@ -43,6 +46,8 @@
   import { canFavorite } from "#lib/favorites/favorites.js";
   import PathStatusBar from "#lib/components/custom/status-bar/path-status-bar.svelte";
   import CompressDialog from "#lib/components/custom/dialog/compress-dialog.svelte";
+  import ConvertDialog from "#lib/components/custom/dialog/convert-dialog.svelte";
+  import RenameDialog from "#lib/components/custom/dialog/rename-dialog.svelte";
   import { ListPanel, type DirectoryEntry } from "#lib/components/custom/file-list/index.js";
   import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
   import { folderScan, OverviewPanel } from "#lib/components/custom/overview/index.js";
@@ -437,6 +442,11 @@
                 <PencilIcon class="size-4" />
                 Rename
               </ContextMenu.Item>
+            {:else if controller.canBatchRenameContextTargets}
+              <ContextMenu.Item onSelect={() => controller.openBatchRename()}>
+                <PencilIcon class="size-4" />
+                Rename {count} Items…
+              </ContextMenu.Item>
             {/if}
             <ContextMenu.Item onSelect={() => void controller.duplicateContextTargets()}>
               <CopyPlusIcon class="size-4" />
@@ -459,6 +469,25 @@
               <ArchiveIcon class="size-4" />
               {target ? `Compress “${target.name}”…` : `Compress ${count} Items…`}
             </ContextMenu.Item>
+            {#if controller.canConvertContextTargets}
+              <ContextMenu.Item onSelect={() => controller.openConvertDialog()}>
+                <ImageIcon class="size-4" />
+                {count > 1 ? `Convert ${count} Images…` : "Convert Image…"}
+              </ContextMenu.Item>
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger>
+                  <ZapIcon class="size-4" />
+                  Quick Convert
+                </ContextMenu.SubTrigger>
+                <ContextMenu.SubContent>
+                  {#each controller.quickConvertKinds as kind (kind)}
+                    <ContextMenu.Item onSelect={() => void controller.quickConvert(kind)}>
+                      {quickLabel(kind)}
+                    </ContextMenu.Item>
+                  {/each}
+                </ContextMenu.SubContent>
+              </ContextMenu.Sub>
+            {/if}
             {#if target && isArchive(target.name)}
               <ContextMenu.Item onSelect={() => void controller.extractContextTargetHere()}>
                 <FolderOutputIcon class="size-4" />
@@ -560,6 +589,15 @@
         : controller.listingPartial
           ? `Loading ${controller.selected}… ${formatCount(controller.entries.length)} items so far`
           : null)} />
+  <RenameDialog
+    bind:open={controller.renameDialogOpen}
+    targets={controller.renameTargets}
+    onRename={(steps) => void controller.renameSelectedBatch(steps)} />
+  <ConvertDialog
+    bind:open={controller.convertDialogOpen}
+    targets={controller.convertTargets}
+    writable={controller.convertWritable}
+    onConvert={(options, replaceOriginal) => void controller.convertSelected(options, replaceOriginal)} />
   <CompressDialog
     bind:open={controller.compressDialogOpen}
     targets={controller.compressTargets}

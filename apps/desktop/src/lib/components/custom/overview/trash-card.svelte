@@ -117,7 +117,7 @@
 
 <article class="overflow-hidden rounded-[var(--app-radius)] border border-[var(--app-border)] bg-[var(--app-surface)]">
   <header class="flex items-center gap-3 border-b border-[var(--app-border)] px-4 py-3.5">
-    <Trash2Icon class="size-7 shrink-0 stroke-[1.4] text-amber-400" />
+    <Trash2Icon class="size-7 shrink-0 stroke-[1.4] text-[var(--app-warning)]" />
     <div class="min-w-0">
       <h2 class="text-[15px] font-semibold text-[var(--app-fg)]">Trash</h2>
       <p class="mt-0.5 truncate text-xs text-[var(--app-fg-muted)]">Files you’ve deleted</p>
@@ -176,7 +176,7 @@
       </div>
     {:else}
       <div class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 px-2.5 py-3">
-        <Trash2Icon class="size-4 stroke-[1.8] {size > 0 ? 'text-amber-400' : 'text-[var(--app-fg-faint)]'}" />
+        <Trash2Icon class="size-4 stroke-[1.8] {size > 0 ? 'text-[var(--app-warning)]' : 'text-[var(--app-fg-faint)]'}" />
         <span class="truncate text-[13px] text-[var(--app-fg)]">
           {size > 0 ? "Taking up space" : "Empty"}
         </span>

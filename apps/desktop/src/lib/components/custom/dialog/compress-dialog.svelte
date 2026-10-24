@@ -135,7 +135,7 @@
   label {
     margin-bottom: 6px;
     color: var(--app-fg-muted);
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 500;
   }
   label:not(:first-child) {
@@ -197,7 +197,7 @@
     gap: 6px;
     margin: 8px 0 0;
     color: var(--app-danger-fg);
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.4;
   }
   .error :global(svg) {

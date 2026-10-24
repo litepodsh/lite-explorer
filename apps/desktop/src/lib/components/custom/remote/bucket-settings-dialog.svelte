@@ -170,7 +170,7 @@
   .muted {
     margin: 4px 0 0;
     color: var(--app-fg-muted);
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.45;
   }
   .confirm {
@@ -178,7 +178,7 @@
     gap: 10px;
     margin-top: -4px;
     padding: 10px 12px;
-    border-radius: 9px;
+    border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--app-accent) 8%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 20%, transparent);
     animation: confirm-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
@@ -186,7 +186,7 @@
   .confirm p {
     margin: 0;
     color: var(--app-fg);
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.4;
   }
   .confirm-actions {
@@ -200,7 +200,7 @@
     gap: 6px;
     margin: 12px 0 0;
     color: #ff6b5e;
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.4;
   }
   .error :global(svg) {

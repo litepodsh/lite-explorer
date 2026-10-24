@@ -82,7 +82,7 @@
   </div>
 {/snippet}
 
-<div class="h-full min-h-0 overflow-auto bg-[var(--app-input)] font-mono text-[12.5px] leading-relaxed text-[var(--app-fg)]" aria-label={`Data preview of ${name}`}>
+<div class="h-full min-h-0 overflow-auto bg-[var(--app-input)] font-mono text-[13px] leading-relaxed text-[var(--app-fg)]" aria-label={`Data preview of ${name}`}>
   {#if error}
     <div class="grid h-full place-content-center justify-items-center px-4 text-center">
       <p class="font-sans text-[13px] text-[var(--app-fg-muted)]">{error}</p>
@@ -90,7 +90,7 @@
   {:else if data}
     <div class="p-3">
       <div class="mb-2 flex items-center gap-2 text-[11px] text-[var(--app-fg-muted)]">
-        <span class="rounded bg-white/5 px-1.5 py-0.5 uppercase">{data.format}</span>
+        <span class="rounded bg-[var(--app-hover)] px-1.5 py-0.5 uppercase">{data.format}</span>
         {#if data.truncated}<span>truncado</span>{/if}
       </div>
       {@render node("$", data.value, 0, "$")}

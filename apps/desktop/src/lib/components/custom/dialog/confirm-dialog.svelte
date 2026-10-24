@@ -88,7 +88,7 @@
     gap: 6px;
     margin: 4px 0 0;
     color: var(--app-danger);
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.4;
   }
   .error :global(svg) {

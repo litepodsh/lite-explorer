@@ -12,5 +12,5 @@
 <ContextMenuPrimitive.Separator
   bind:ref
   data-slot="context-menu-separator"
-  class={cn("bg-white/10 my-1 h-px", className)}
+  class={cn("bg-[var(--app-border-strong)] my-1 h-px", className)}
   {...restProps} />

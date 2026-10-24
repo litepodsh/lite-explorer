@@ -38,19 +38,19 @@
   {:else if torrent}
     <div class="mx-auto max-w-2xl p-4">
       <header class="flex items-start gap-3">
-        <span class="grid size-11 shrink-0 place-items-center rounded-lg bg-white/5">
+        <span class="grid size-11 shrink-0 place-items-center rounded-lg bg-[var(--app-hover)]">
           <FileIcon class="size-5 text-[var(--app-fg-muted)]" />
         </span>
         <div class="min-w-0 flex-1">
           <h1 class="truncate text-[15px] font-semibold">{torrent.name}</h1>
-          <p class="text-[12.5px] text-[var(--app-fg-muted)]">
+          <p class="text-[13px] text-[var(--app-fg-muted)]">
             {formatSize(torrent.totalSize)} · {torrent.files.length} archivo{torrent.files.length === 1 ? "" : "s"}
             {#if torrent.private}<span class="ml-1 inline-flex items-center gap-1 text-[var(--app-fg-muted)]"><Lock class="size-3" />privado</span>{/if}
           </p>
         </div>
       </header>
 
-      <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[12.5px]">
+      <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
         {#if torrent.announce}
           <dt class="font-medium text-[var(--app-fg-muted)]">Tracker</dt>
           <dd class="min-w-0 truncate">{torrent.announce}</dd>
@@ -72,7 +72,7 @@
       </dl>
 
       {#if torrent.files.length > 1}
-        <table class="mt-4 w-full text-left text-[12.5px]">
+        <table class="mt-4 w-full text-left text-[13px]">
           <thead class="text-[11px] text-[var(--app-fg-faint)]">
             <tr><th class="py-1 font-medium">Archivo</th><th class="py-1 text-right font-medium">Tamaño</th></tr>
           </thead>

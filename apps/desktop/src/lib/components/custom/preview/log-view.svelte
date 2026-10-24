@@ -62,7 +62,7 @@
 </script>
 
 <div class="h-full min-h-0 overflow-auto bg-[var(--app-input)]" aria-label="Log preview">
-  <pre class="min-w-full py-2 font-mono text-[12.5px] leading-[1.55]">{#each lines as segments, index (index)}<span
+  <pre class="min-w-full py-2 font-mono text-[13px] leading-[1.55]">{#each lines as segments, index (index)}<span
       class="block px-3">{#each segments as segment}<span style={styleFor(segment)}>{segment.text}</span>{/each}{#if segments.length === 0}{" "}{/if}</span
     >{/each}</pre>
 </div>

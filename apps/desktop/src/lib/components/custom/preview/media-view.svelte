@@ -357,7 +357,7 @@
   {#if error}
     <div class="grid max-w-[80%] place-content-center justify-items-center gap-2 text-center">
       <AlertTriangleIcon class="size-10 stroke-[1.4] text-[#d8a24a]" />
-      <p class="text-[13.5px] font-semibold text-[var(--app-fg)]">Can’t play this file</p>
+      <p class="text-[13px] font-semibold text-[var(--app-fg)]">Can’t play this file</p>
       <p class="text-[12px] text-[var(--app-fg-muted)]">{error}</p>
       {#if path}
         <button

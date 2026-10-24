@@ -13,7 +13,7 @@
   bind:ref
   data-slot="navigation-menu-link"
   class={cn(
-    "data-[active=true]:focus:bg-muted data-[active=true]:hover:bg-muted data-[active=true]:bg-muted/50 focus-visible:ring-ring/30 hover:bg-muted focus:bg-muted flex items-center gap-2 rounded-2xl px-2.5 py-1.5 text-sm transition-all outline-none focus-visible:ring-3 focus-visible:outline-1 [&_svg:not([class*='size-'])]:size-4 in-data-[slot=navigation-menu-content]:rounded-xl font-medium in-data-[slot=navigation-menu-content]:font-normal in-data-[slot=navigation-menu-content]:p-2 in-data-[slot=navigation-menu-content]:w-full",
+    "data-[active=true]:focus:bg-muted data-[active=true]:hover:bg-muted data-[active=true]:bg-muted/50 focus-visible:ring-ring/30 hover:bg-muted focus:bg-muted flex items-center gap-2 rounded-2xl px-2.5 py-1.5 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] outline-none focus-visible:ring-3 focus-visible:outline-1 [&_svg:not([class*='size-'])]:size-4 in-data-[slot=navigation-menu-content]:rounded-xl font-medium in-data-[slot=navigation-menu-content]:font-normal in-data-[slot=navigation-menu-content]:p-2 in-data-[slot=navigation-menu-content]:w-full",
     className,
   )}
   {...restProps} />

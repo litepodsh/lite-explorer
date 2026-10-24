@@ -139,7 +139,7 @@
   label {
     margin-bottom: 6px;
     color: var(--app-fg-muted);
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 500;
   }
   input {
@@ -186,7 +186,7 @@
     gap: 6px;
     margin: 12px 0 0;
     color: var(--app-danger);
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.4;
   }
   .error :global(svg) {

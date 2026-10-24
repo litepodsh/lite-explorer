@@ -87,7 +87,7 @@
   kbd {
     min-width: 20px;
     padding: 1px 6px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: var(--app-input);
     box-shadow: inset 0 0 0 1px var(--app-border);
     color: #ffc76b;

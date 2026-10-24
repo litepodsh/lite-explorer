@@ -67,6 +67,9 @@ rustls-native-certs = "0.8.4"
 tauri-plugin-drag = "2"
 calamine = { version = "0.36.1", features = ["dates"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+# Batch rename: regex steps and accent stripping.
+regex = "1"
+unicode-normalization = "0.1"
 mail-parser = "0.11.9"
 x509-parser = "0.16"
 cfb = "0.10"

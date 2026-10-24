@@ -169,17 +169,17 @@
 <div class="flex h-full w-full flex-col overflow-hidden" role="group" aria-label="EPUB preview">
   <div class="flex shrink-0 items-center gap-2 border-b border-[#3a3734] px-2 py-1.5 text-[11px] text-[#9c9895]">
     <button
-      class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#e8e5e2] hover:bg-[#3b3836]"
+      class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg)] hover:bg-[#3b3836]"
       aria-label="Toggle contents"
       aria-pressed={tocOpen}
       onclick={() => (tocOpen = !tocOpen)}><ListIcon class="size-3.5" /></button>
     <button
-      class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#e8e5e2] hover:bg-[#3b3836] disabled:opacity-40"
+      class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg)] hover:bg-[#3b3836] disabled:opacity-40"
       aria-label="Previous chapter"
       disabled={index <= 0}
       onclick={() => loadChapter(index - 1)}><ChevronLeft class="size-3.5" /></button>
     <button
-      class="grid size-6 place-items-center rounded border-0 bg-transparent text-[#e8e5e2] hover:bg-[#3b3836] disabled:opacity-40"
+      class="grid size-6 place-items-center rounded border-0 bg-transparent text-[var(--app-fg)] hover:bg-[#3b3836] disabled:opacity-40"
       aria-label="Next chapter"
       disabled={!book || index >= book.chapters.length - 1}
       onclick={() => loadChapter(index + 1)}><ChevronRight class="size-3.5" /></button>
@@ -202,14 +202,14 @@
           {#each book.chapters as chapter, position (chapter.href)}
             <button
               class="block w-full truncate border-0 bg-transparent px-3 py-1 text-left text-[12px] {position === index
-                ? 'text-[#e8e5e2]'
-                : 'text-[#9c9895] hover:text-[#e8e5e2]'}"
+                ? 'text-[var(--app-fg)]'
+                : 'text-[#9c9895] hover:text-[var(--app-fg)]'}"
               onclick={() => loadChapter(position)}>{chapter.title}</button>
           {/each}
         {:else}
           {#each book.toc as entry (entry.label + (entry.href ?? ""))}
             <button
-              class="block w-full truncate border-0 bg-transparent py-1 pr-3 text-left text-[12px] text-[#9c9895] hover:text-[#e8e5e2]"
+              class="block w-full truncate border-0 bg-transparent py-1 pr-3 text-left text-[12px] text-[#9c9895] hover:text-[var(--app-fg)]"
               style="padding-left: {0.75 + entry.depth * 0.75}rem"
               onclick={() => selectToc(entry.href)}>{entry.label}</button>
           {/each}
@@ -220,7 +220,7 @@
     <div class="relative min-w-0 flex-1">
       {#if error}
         <div class="grid h-full place-content-center gap-1 px-4 text-center">
-          <p class="text-[14px] font-semibold text-[#e8e5e2]">Can’t read this book</p>
+          <p class="text-[15px] font-semibold text-[var(--app-fg)]">Can’t read this book</p>
           <p class="text-[12px] break-all text-[#9c9895]">{error}</p>
         </div>
       {:else}

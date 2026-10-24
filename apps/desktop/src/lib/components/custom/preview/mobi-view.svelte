@@ -29,7 +29,7 @@
       <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if book}
-    <article class="mx-auto max-w-2xl px-6 py-8 font-serif text-[16px] leading-[1.75]">
+    <article class="mx-auto max-w-2xl px-6 py-8 font-serif text-[18px] leading-[1.75]">
       <header class="mb-6 border-b border-[var(--app-border)] pb-4">
         <h1 class="text-[22px] font-semibold">{book.title}</h1>
         {#if book.truncated}<p class="mt-1 text-[12px] text-[var(--app-fg-faint)]">Vista parcial del libro</p>{/if}

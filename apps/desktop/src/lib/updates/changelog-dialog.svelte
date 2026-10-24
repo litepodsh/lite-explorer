@@ -50,9 +50,9 @@
     {#each sections as section (section.version)}
       <article class="grid gap-2">
         <header class="flex items-baseline gap-2">
-          <span class="text-[12.5px] font-semibold text-[var(--app-fg)]">{section.version}</span>
+          <span class="text-[13px] font-semibold text-[var(--app-fg)]">{section.version}</span>
           {#if section.date}
-            <span class="text-[11.5px] text-[var(--app-fg-muted)]">{formatDate(section.date)}</span>
+            <span class="text-[12px] text-[var(--app-fg-muted)]">{formatDate(section.date)}</span>
           {/if}
         </header>
         {#each section.groups as group (group.kind)}
@@ -63,7 +63,7 @@
             <ul class="m-0 grid list-none gap-1 p-0">
               {#each group.items as item (item)}
                 <li
-                  class="relative pl-3 text-[12.5px] leading-relaxed text-[var(--app-fg-muted)] before:absolute before:top-[7px] before:left-[2px] before:size-1 before:rounded-full before:bg-[var(--app-fg-faint)] before:content-['']">
+                  class="relative pl-3 text-[13px] leading-relaxed text-[var(--app-fg-muted)] before:absolute before:top-[7px] before:left-[2px] before:size-1 before:rounded-full before:bg-[var(--app-fg-faint)] before:content-['']">
                   {item}
                 </li>
               {/each}
@@ -83,16 +83,16 @@
 
 <style>
   .kind-added {
-    color: #6fbf95;
+    color: var(--app-success);
   }
   .kind-fixed {
-    color: #d8a35a;
+    color: var(--app-warning);
   }
   .kind-changed {
-    color: #7aa9d8;
+    color: var(--app-info);
   }
   .kind-security,
   .kind-removed {
-    color: #d8736a;
+    color: var(--app-danger-fg);
   }
 </style>

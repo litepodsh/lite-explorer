@@ -23,7 +23,7 @@
 
 {#if visible && status.state !== "idle" && status.state !== "checking"}
   <div class="update-banner" role="status" aria-live="polite">
-    <DownloadIcon class="size-4 shrink-0 text-[#9c9895]" />
+    <DownloadIcon class="size-4 shrink-0 text-[var(--app-fg-muted)]" />
     <span class="update-text">
       {#if status.state === "downloading"}
         Downloading Lite Explorer {status.version}… <span class="tabular-nums">{progress}</span>
@@ -59,7 +59,7 @@
     align-items: center;
     gap: 10px;
     padding: 6px 6px 6px 12px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--app-surface);
     box-shadow:
       inset 0 0 0 1px var(--app-border-strong),
@@ -78,7 +78,7 @@
     flex-shrink: 0;
     padding: 4px 8px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: transparent;
     box-shadow: inset 0 0 0 1px var(--app-border-strong);
     color: var(--app-fg-muted);
@@ -96,7 +96,7 @@
     flex-shrink: 0;
     padding: 4px 10px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: var(--app-fg);
     color: var(--app-bg);
     font-size: 12px;

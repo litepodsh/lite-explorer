@@ -104,8 +104,8 @@
 
   /* Stale partial: amber ring + small dot, so the user notices it's an orphan without it
      being mistaken for an active transfer. */
-  .download-indicator.stale { color: #d4a017; }
+  .download-indicator.stale { color: var(--app-warning); }
   .download-indicator.stale svg .track { opacity: 0.4; }
   .download-indicator.stale svg .fill { stroke-dasharray: 5 100; }
-  .stale-dot { position: absolute; top: -1px; right: -1px; width: 6px; height: 6px; border-radius: 9999px; background: #d4a017; box-shadow: 0 0 0 1.5px var(--app-bg, #1c1f24); }
+  .stale-dot { position: absolute; top: -1px; right: -1px; width: 6px; height: 6px; border-radius: 9999px; background: var(--app-warning); box-shadow: 0 0 0 1.5px var(--app-bg, #1c1f24); }
 </style>

@@ -40,14 +40,14 @@
       </header>
       <ul class="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)]">
         {#each psd.layers as layer (layer.name)}
-          <li class="flex items-center gap-2 border-b border-[var(--app-border)] px-3 py-1.5 text-[12.5px] last:border-0">
+          <li class="flex items-center gap-2 border-b border-[var(--app-border)] px-3 py-1.5 text-[13px] last:border-0">
             {#if layer.visible}
               <Eye class="size-3.5 shrink-0 text-[var(--app-fg-muted)]" />
             {:else}
               <EyeOff class="size-3.5 shrink-0 text-[var(--app-fg-faint)]" />
             {/if}
             <span class="min-w-0 flex-1 truncate {layer.visible ? '' : 'text-[var(--app-fg-faint)]'}">{layer.name}</span>
-            <span class="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[10.5px] text-[var(--app-fg-muted)]">{layer.kind}</span>
+            <span class="shrink-0 rounded bg-[var(--app-hover)] px-1.5 py-0.5 text-[11px] text-[var(--app-fg-muted)]">{layer.kind}</span>
             <span class="shrink-0 text-[11px] text-[var(--app-fg-faint)]">{layer.width}×{layer.height}</span>
           </li>
         {/each}

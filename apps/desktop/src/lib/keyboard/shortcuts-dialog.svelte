@@ -107,7 +107,7 @@
 <Command.Dialog
   bind:open={shortcutsDialogState.open}
   shouldFilter={false}
-  class="command-surface top-[12vh]! w-[min(52rem,calc(100%-2rem))] max-w-none rounded-[14px]! p-0 shadow-2xl ring-0! bg-transparent!"
+  class="command-surface top-[12vh]! w-[min(52rem,calc(100%-2rem))] max-w-none rounded-xl! p-0 shadow-2xl ring-0! bg-transparent!"
   title="Keyboard Shortcuts"
   description="Search shortcuts by key or description">
   <div class="command-surface-header">

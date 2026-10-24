@@ -17,3 +17,4 @@
 /.superpowers
 **/.env
 !**/.env.example
+/docs

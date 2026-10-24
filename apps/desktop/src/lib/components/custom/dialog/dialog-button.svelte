@@ -24,7 +24,7 @@
     box-shadow: inset 0 0 0 1px var(--app-border-strong);
     color: var(--app-fg);
     font: inherit;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 500;
     white-space: nowrap;
     transition:

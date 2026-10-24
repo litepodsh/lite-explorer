@@ -24,6 +24,11 @@
   --app-overlay: rgb(0 0 0 / 35%);
   --app-shadow: 0 8px 24px -12px rgb(0 0 0 / 35%);
   --app-radius: 12px;
+  /* Semantic status colors. Light themes override with darker values for contrast. */
+  --app-menu-shadow: 0 10px 30px -10px rgb(0 0 0 / 55%);
+  --app-info: #60a5fa;
+  --app-success: #34d399;
+  --app-warning: #fbbf24;
   /* Adaptive effects: resolve against the active theme's --app-fg. */
   --app-hover: color-mix(in srgb, var(--app-fg) 6%, transparent);
   --app-hover-strong: color-mix(in srgb, var(--app-fg) 9%, transparent);
@@ -79,6 +84,10 @@
   --app-danger: #c6363c;
   --app-danger-fg: #a4272c;
   --app-overlay: rgb(35 31 28 / 14%);
+  --app-menu-shadow: 0 10px 30px -12px rgb(30 24 18 / 30%);
+  --app-info: #1f6fc7;
+  --app-success: #167a55;
+  --app-warning: #a96a0b;
   --app-shadow: 0 14px 34px -20px rgb(67 57 48 / 28%);
 }
 :root[data-theme="light"] {
@@ -96,6 +105,10 @@
   --app-danger: #c8343a;
   --app-danger-fg: #a92c31;
   --app-overlay: rgb(25 28 32 / 14%);
+  --app-menu-shadow: 0 10px 30px -12px rgb(30 24 18 / 30%);
+  --app-info: #1f6fc7;
+  --app-success: #167a55;
+  --app-warning: #a96a0b;
   --app-shadow: 0 12px 28px -20px rgb(23 28 35 / 24%);
 }
 /* Dark materials */
@@ -245,7 +258,7 @@
 .transfer-clipboard-actions button {
   flex: 1;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 8px 10px;
   font-weight: 700;
   font-size: 12px;
@@ -350,6 +363,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Fallback keyboard focus ring. Specificity 0 and in the base layer, so any component rule or utility wins. */
+  :where(button, a[href], summary, select, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"]):focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
+  }
   body {
     @apply bg-background text-foreground;
     margin: 0;
@@ -436,7 +454,7 @@ html[data-reduce-effects="true"] * {
   height: var(--sidebar-trigger-size);
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--app-fg-muted);
 }
@@ -565,7 +583,7 @@ html[data-reduce-effects="true"] * {
   max-width: 280px;
   height: 34px;
   padding: 0 6px 0 9px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--app-surface) 88%, transparent);
   box-shadow:
     0 0 0 1px var(--app-border-strong),
@@ -587,7 +605,7 @@ html[data-reduce-effects="true"] * {
 .drag-ghost-layer {
   position: absolute;
   inset: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--app-surface) 80%, transparent);
   box-shadow: 0 0 0 1px var(--app-border);
   animation: drag-ghost-stack-in 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
@@ -613,7 +631,7 @@ html[data-reduce-effects="true"] * {
   background: var(--app-accent);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25);
   color: #fff;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -689,7 +707,7 @@ html[data-reduce-effects="true"] * {
   }
 }
 .entry-drop-target {
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--app-accent) 70%, transparent);
 }
 .favorites-drop {
@@ -862,7 +880,7 @@ html[data-reduce-effects="true"] * {
   }
 }
 .remote-drop-active {
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: rgb(10 155 255 / 0.06);
   box-shadow: inset 0 0 0 2px rgb(10 155 255 / 0.7);
 }
@@ -1022,7 +1040,7 @@ html[data-reduce-effects="true"] * {
   position: absolute;
   inset: 1px;
   z-index: 1;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 1px;
   background: conic-gradient(
     from var(--pane-focus-angle),
@@ -1330,7 +1348,7 @@ html[data-reduce-effects="true"] * {
   border-radius: 5px;
   background: transparent;
   color: var(--app-fg-muted);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -1427,7 +1445,7 @@ html[data-reduce-effects="true"] * {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--app-fg-muted);
 }
@@ -1449,7 +1467,7 @@ html[data-reduce-effects="true"] * {
 .finder-empty h1 {
   margin: 0;
   color: var(--app-fg);
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 600;
 }
 .finder-empty p {
@@ -1460,7 +1478,7 @@ html[data-reduce-effects="true"] * {
   margin-top: 16px;
   padding: 5px 14px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--app-surface-raised);
   color: var(--app-fg);
   font-size: 13px;
@@ -1601,7 +1619,7 @@ html[data-reduce-effects="true"] * {
 .markdown-body pre {
   overflow-x: auto;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--app-bg);
 }
 .markdown-body pre code {
@@ -1734,7 +1752,7 @@ html[data-reduce-effects="true"] * {
   min-width: 220px;
   padding: 4px;
   border: 1px solid var(--app-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--app-surface-raised) 96%, transparent);
   box-shadow: var(--app-shadow);
 }
@@ -1882,11 +1900,11 @@ html[data-reduce-effects="true"] * {
   outline: none;
 }
 html[data-keyboard] [data-key-scope="preview"]:focus {
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--app-accent) 50%, transparent);
 }
 html[data-keyboard] [data-key-scope="list"]:focus :is(.file-row, .file-tile)[data-focused] {
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--app-accent) 75%, transparent);
 }
 html[data-keyboard] [data-sidebar-item]:focus-visible {

@@ -103,9 +103,9 @@
   aria-label="Current path">
   {#if sizeScanning}<span class="size-scan-track" aria-hidden="true"><span></span></span>{/if}
   {#if network}
-    <NetworkIcon class="size-3.5 shrink-0 text-blue-400 stroke-[1.7]" />
+    <NetworkIcon class="size-3.5 shrink-0 text-[var(--app-info)] stroke-[1.7]" />
   {:else}
-    <FolderIcon class="size-3.5 shrink-0 text-blue-400 stroke-[1.7]" />
+    <FolderIcon class="size-3.5 shrink-0 text-[var(--app-info)] stroke-[1.7]" />
   {/if}
   {#if segments.length}
     <nav class="flex min-w-0 items-center overflow-hidden" aria-label="Path" title={path}>
@@ -118,7 +118,7 @@
           <DropdownMenu.Content side="top" class="w-auto max-w-80">
             {#each crumbs.hidden as segment (segment.path)}
               <DropdownMenu.Item onSelect={() => onNavigate?.(segment.path)}>
-                <FolderIcon class="text-blue-400" /><span class="truncate">{segment.label}</span>
+                <FolderIcon class="text-[var(--app-info)]" /><span class="truncate">{segment.label}</span>
               </DropdownMenu.Item>
             {/each}
           </DropdownMenu.Content>
@@ -160,18 +160,18 @@
   {#if sizeScanning || sizeScanMessage}
     <span class="size-scan-status ml-auto inline-flex min-w-0 items-center gap-1.5" role="status">
       {#if sizeScanning}
-        <LoaderCircleIcon class="size-3 shrink-0 animate-spin text-[#5cb9ff] motion-reduce:animate-none" />
+        <LoaderCircleIcon class="size-3 shrink-0 animate-spin text-[var(--app-accent)] motion-reduce:animate-none" />
         <span class="truncate">Calculating sizes…</span>
       {:else}
         <span class="truncate" title={sizeScanMessage}>{sizeScanMessage}</span>
       {/if}
     </span>
     {#if sizeScanning}
-      <button type="button" class="shrink-0 rounded px-1.5 py-0.5 text-[#c5c1be] transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#5cb9ff]" onclick={onCancelSizeScan}>Cancel</button>
+      <button type="button" class="shrink-0 rounded px-1.5 py-0.5 text-[var(--app-fg-muted)] transition-colors hover:bg-[var(--app-border-strong)] hover:text-[var(--app-fg)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--app-accent)]" onclick={onCancelSizeScan}>Cancel</button>
     {/if}
   {:else if activity}
     <span class="ml-auto inline-flex shrink-0 items-center gap-1.5 tabular-nums text-[var(--app-fg-muted)]" aria-live="polite">
-      <LoaderCircleIcon class="size-3 animate-spin text-[#0a9bff] motion-reduce:animate-none" />{activity}
+      <LoaderCircleIcon class="size-3 animate-spin text-[var(--app-accent)] motion-reduce:animate-none" />{activity}
     </span>
   {/if}
   {#if targetCount > 0}
@@ -179,8 +179,8 @@
       class="{activity || sizeScanning || sizeScanMessage ? 'pl-3' : 'ml-auto'} shrink-0 tabular-nums text-[var(--app-fg-muted)]"
       aria-live="polite"
       aria-label={`${selecting ? `${formatCount(selectedEntries.length)} of ` : ""}${formatCount(targetCount)} items${selecting ? " selected" : ""}${targetBytes > 0 ? `, ${sizesPartial ? "at least " : ""}${formatSize(targetBytes)}` : ""}`}>
-      {#if selecting}<span class="text-[#5cb9ff]">{formatCount(Math.round(selectedTween.current))}</span> of {/if}{formatCount(Math.round(count.current))} item{targetCount === 1 ? "" : "s"}{#if selecting} selected{/if}{#if targetBytes > 0}<span
-          class="px-1 text-[#5c5854]">·</span
+      {#if selecting}<span class="text-[var(--app-accent)]">{formatCount(Math.round(selectedTween.current))}</span> of {/if}{formatCount(Math.round(count.current))} item{targetCount === 1 ? "" : "s"}{#if selecting} selected{/if}{#if targetBytes > 0}<span
+          class="px-1 text-[var(--app-fg-faint)]">·</span
         >{sizesPartial ? "≥ " : ""}{formatSize(bytes.current)}{/if}
     </span>
   {/if}
@@ -196,7 +196,7 @@
     display: block;
     width: 28%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, #5cb9ff, transparent);
+    background: linear-gradient(90deg, transparent, var(--app-accent), transparent);
     animation: scan-sweep 1.8s ease-in-out infinite;
   }
   @keyframes scan-sweep {
@@ -223,14 +223,14 @@
   }
   footer :global(button.crumb:hover),
   footer :global(button.crumb[data-state="open"]) {
-    background: #353230;
-    color: #e8e5e2;
+    background: var(--app-surface-raised);
+    color: var(--app-fg);
   }
   footer :global(button.crumb:focus-visible) {
-    outline: 1px solid #5cb9ff;
+    outline: 1px solid var(--app-accent);
   }
   .crumb-current {
-    color: #e8e5e2;
+    color: var(--app-fg);
   }
   .crumb-separator {
     flex-shrink: 0;
@@ -253,7 +253,7 @@
   }
   .key-pill-pending {
     background: rgb(255 184 76 / 16%);
-    color: #ffc76b;
+    color: var(--app-warning);
     letter-spacing: 0.02em;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }

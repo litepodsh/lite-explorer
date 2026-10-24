@@ -187,12 +187,12 @@
   bind:this={root}
   data-page={index}
   data-index={index}
-  class="pdf-page relative shrink-0 rounded-[13px] bg-[linear-gradient(180deg,rgb(255_255_255/0.04),rgb(255_255_255/0.01))] p-[3px] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.06),0_26px_50px_-30px_rgb(0_0_0/0.85)] transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] {painted
+  class="pdf-page relative shrink-0 rounded-lg bg-[linear-gradient(180deg,rgb(255_255_255/0.04),rgb(255_255_255/0.01))] p-[3px] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.06),0_26px_50px_-30px_rgb(0_0_0/0.85)] transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] {painted
     ? 'translate-y-0 opacity-100'
     : 'translate-y-3 opacity-0'}"
 >
   <div
-    class="relative overflow-hidden rounded-[10px] bg-white shadow-[inset_0_1px_0_rgb(255_255_255/0.6)]"
+    class="relative overflow-hidden rounded-md bg-white shadow-[inset_0_1px_0_rgb(255_255_255/0.6)]"
     style="width: {width}px; height: {height}px;"
   >
     <canvas bind:this={canvas} class="block" style="width: {width}px; height: {height}px;" aria-label={`Page ${index + 1}`}></canvas>

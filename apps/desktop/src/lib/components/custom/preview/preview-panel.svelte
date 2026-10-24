@@ -222,13 +222,13 @@
     {#if error}
       <div class="grid flex-1 place-content-center justify-items-center gap-1 px-4 text-center">
         <FileIcon class="mb-2 size-12 stroke-[1.2] text-[var(--app-fg-faint)]" />
-        <p class="text-[14px] font-semibold text-[var(--app-fg)]">Can’t preview this file</p>
+        <p class="text-[15px] font-semibold text-[var(--app-fg)]">Can’t preview this file</p>
         <p class="text-[12px] break-all text-[var(--app-fg-muted)]">{error}</p>
       </div>
     {:else if !preview}
       <div class="flex-1"></div>
     {:else if preview.kind === "directory"}
-      <div class="grid flex-1 place-items-center"><FolderIcon class="size-20 stroke-[1.2] text-blue-400" /></div>
+      <div class="grid flex-1 place-items-center"><FolderIcon class="size-20 stroke-[1.2] text-[var(--app-info)]" /></div>
     {:else if preview.kind === "archive"}
       <ArchiveView path={previewPath} name={preview.name} />
     {:else if preview.kind === "binary"}
@@ -379,7 +379,7 @@
             <span
               class="flex items-center gap-1 px-1.5 {htmlSafety.level === 'safe'
                 ? 'text-emerald-400'
-                : 'text-amber-400'}"
+                : 'text-[var(--app-warning)]'}"
               title={htmlSafety.reasons.join("\n") || "No active content"}>
               {#if htmlSafety.level === 'safe'}
                 <ShieldCheck class="size-3.5" />

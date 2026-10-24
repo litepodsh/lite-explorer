@@ -9,6 +9,18 @@ import {
   detectSevenZip,
   type CompressFormat,
 } from "#lib/file-ops/archive.js";
+import {
+  convertCapabilities,
+  convertImages,
+  isConvertible,
+  quickKindsFor,
+  quickOptions,
+  type ConvertOptions,
+  type ImageFormat,
+  type QuickKind,
+} from "#lib/file-ops/convert.js";
+import { renameBatch } from "#lib/file-ops/rename.js";
+import type { RenameStep } from "#lib/file-ops/rename-steps.js";
 import { extraction } from "#lib/archive/extraction.svelte.js";
 import { confirmation } from "#lib/components/custom/dialog/index.js";
 import type { DirectoryEntry } from "#lib/components/custom/file-list/index.js";
@@ -1028,6 +1040,52 @@ export class FilePaneController {
     if (this.contextTarget) this.renamingPath = this.contextTarget.path;
   }
 
+  /** Items the batch rename dialog is open for. */
+  renameDialogOpen = $state(false);
+  renameTargets = $state<DirectoryEntry[]>([]);
+
+  /** Batch rename works on two or more local items. */
+  canBatchRename(targets: readonly DirectoryEntry[]): boolean {
+    return (
+      targets.length >= 2 &&
+      !this.remoteRoot &&
+      !this.serverRoot &&
+      targets.every((target) => !isRemoteLike(target.path))
+    );
+  }
+
+  get canBatchRenameContextTargets(): boolean {
+    return this.canBatchRename(this.contextTargets);
+  }
+
+  openBatchRename(targets: readonly DirectoryEntry[] = this.contextTargets): boolean {
+    if (!this.canBatchRename(targets)) return false;
+    this.renameTargets = [...targets];
+    this.renameDialogOpen = true;
+    return true;
+  }
+
+  async renameSelectedBatch(steps: RenameStep[]) {
+    const targets = this.renameTargets;
+    this.renameDialogOpen = false;
+    if (targets.length === 0) return;
+    try {
+      const outcome = await renameBatch(
+        targets.map((target) => target.path),
+        steps,
+      );
+      await this.refreshListing(this.listingPath);
+      const paths = outcome.renamed.map((renamed) => renamed.to);
+      if (paths.length > 0) {
+        this.tabs.update({
+          selection: { paths, anchor: paths[0], focus: paths[paths.length - 1] },
+        });
+      }
+    } catch (error) {
+      await this.showError(`Couldn’t rename ${targetLabel(targets)}`, error);
+    }
+  }
+
   deleteContextTargets() {
     if (this.contextTargets.length) this.deleteEntries(this.contextTargets, { permanent: true });
   }
@@ -1156,6 +1214,7 @@ export class FilePaneController {
 
   /** Right-click on a selected entry acts on the whole selection; on another entry it selects only that one. */
   handleContextMenu(entry: DirectoryEntry) {
+    void this.#loadConvertCapabilities();
     if (this.selectedSet.has(entry.path)) {
       this.contextTargets = this.selectedEntries;
       this.tabs.update({ selection: { ...this.selection, focus: entry.path } });
@@ -1329,6 +1388,87 @@ export class FilePaneController {
       this.listingError = error instanceof Error ? error.message : String(error);
     }
     if (this.isBrowsableFolder()) await this.refreshListing(this.listingPath);
+  }
+
+  /** Extensions the backend can convert; empty until loaded on the first right-click. */
+  convertReadable = $state<string[]>([]);
+  convertWritable = $state<ImageFormat[]>([]);
+  convertDialogOpen = $state(false);
+  convertTargets = $state<DirectoryEntry[]>([]);
+  #convertLoaded = false;
+
+  async #loadConvertCapabilities() {
+    if (this.#convertLoaded) return;
+    this.#convertLoaded = true;
+    try {
+      const capabilities = await convertCapabilities();
+      this.convertReadable = capabilities.readableExtensions;
+      this.convertWritable = capabilities.writable;
+    } catch {
+      this.#convertLoaded = false;
+    }
+  }
+
+  get canConvertContextTargets(): boolean {
+    const targets = this.contextTargets;
+    if (targets.length === 0 || targets.some((target) => target.is_directory)) return false;
+    if (targets.some((target) => isRemoteLike(target.path))) return false;
+    return isConvertible(
+      targets.map((target) => target.name),
+      this.convertReadable,
+    );
+  }
+
+  get quickConvertKinds(): QuickKind[] {
+    return quickKindsFor(this.contextTargets.map((target) => target.name));
+  }
+
+  async #runConvert(
+    targets: DirectoryEntry[],
+    options: ConvertOptions,
+    replaceOriginal: boolean,
+  ) {
+    try {
+      const outcome = await convertImages(
+        targets.map((target) => target.path),
+        options,
+        replaceOriginal,
+      );
+      if (outcome.failed.length) {
+        await message(
+          outcome.failed.map((failure) => `${failure.name}: ${failure.error}`).join("\n"),
+          {
+            title:
+              outcome.failed.length === 1
+                ? `Couldn’t convert “${outcome.failed[0].name}”`
+                : `Couldn’t convert ${outcome.failed.length} images`,
+            kind: "error",
+          },
+        );
+      }
+    } catch (error) {
+      await this.showError(`Couldn’t convert ${targetLabel(targets)}`, error);
+      return;
+    }
+    await this.refreshListing(this.listingPath);
+  }
+
+  async quickConvert(kind: QuickKind) {
+    if (!this.canConvertContextTargets) return;
+    await this.#runConvert(this.contextTargets, quickOptions(kind), false);
+  }
+
+  openConvertDialog() {
+    if (!this.canConvertContextTargets || this.convertWritable.length === 0) return;
+    this.convertTargets = this.contextTargets;
+    this.convertDialogOpen = true;
+  }
+
+  async convertSelected(options: ConvertOptions, replaceOriginal: boolean) {
+    const targets = this.convertTargets;
+    this.convertDialogOpen = false;
+    if (targets.length === 0) return;
+    await this.#runConvert(targets, options, replaceOriginal);
   }
 
   async openCompressDialog() {
@@ -1564,6 +1704,8 @@ export class FilePaneController {
   renameFocused(showHidden: boolean): boolean {
     if (this.tabs.active.location.kind === "overview" || this.remoteRoot || this.serverRoot)
       return false;
+    // With several items selected, F2 opens the batch rename, like Finder.
+    if (this.selectedEntries.length >= 2) return this.openBatchRename(this.selectedEntries);
     const entry =
       this.focusedEntry(showHidden) ??
       (this.selectedEntries.length === 1 ? this.selectedEntries[0] : undefined);

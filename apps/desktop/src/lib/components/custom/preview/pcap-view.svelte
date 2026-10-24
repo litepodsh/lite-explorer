@@ -40,7 +40,7 @@
       {pcap.linkType} · {pcap.packets.length} paquetes{pcap.truncated ? " (truncado)" : ""}
     </p>
     <table class="w-full text-left text-[12px]">
-      <thead class="sticky top-7 z-10 bg-[var(--app-surface)] text-[10.5px] text-[var(--app-fg-faint)]">
+      <thead class="sticky top-7 z-10 bg-[var(--app-surface)] text-[11px] text-[var(--app-fg-faint)]">
         <tr>
           <th class="px-3 py-1.5 font-medium">#</th>
           <th class="px-3 py-1.5 font-medium">Hora</th>
@@ -55,7 +55,7 @@
             <td class="px-3 py-1 font-mono">{time(packet.timeMs)}</td>
             <td class="px-3 py-1">
               {#if packet.protocol}
-                <span class="rounded bg-white/5 px-1.5 py-0.5 text-[11px] text-[#9fb8e8]">{packet.protocol}</span>
+                <span class="rounded bg-[var(--app-hover)] px-1.5 py-0.5 text-[11px] text-[#9fb8e8]">{packet.protocol}</span>
               {/if}
             </td>
             <td class="px-3 py-1 text-right text-[var(--app-fg-muted)]">{formatSize(packet.length)}</td>

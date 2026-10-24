@@ -50,7 +50,7 @@
       {#each sketch.pages as item, index (index)}
         <button
           type="button"
-          class="shrink-0 rounded px-2 py-1 text-[11.5px] {index === selected
+          class="shrink-0 rounded px-2 py-1 text-[12px] {index === selected
             ? 'bg-[var(--app-surface-raised)] text-[var(--app-fg)]'
             : 'text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)]'}"
           onclick={() => (selected = index)}>

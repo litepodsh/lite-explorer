@@ -84,6 +84,10 @@ pub fn image_mime(extension: &str) -> Option<&'static str> {
         "bmp" => Some("image/bmp"),
         "ico" => Some("image/x-icon"),
         "svg" => Some("image/svg+xml"),
+        // The web view cannot show these, so `media_url` serves a decoded PNG instead.
+        "heic" => Some("image/heic"),
+        "heif" => Some("image/heif"),
+        "avif" => Some("image/avif"),
         _ => None,
     }
 }

@@ -95,7 +95,7 @@
   :global(.app-dialog-description) {
     margin: 0;
     color: var(--app-fg-muted);
-    font-size: 12.5px;
+    font-size: 13px;
     line-height: 1.45;
   }
   footer {

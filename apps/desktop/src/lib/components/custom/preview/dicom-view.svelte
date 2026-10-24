@@ -121,7 +121,7 @@
     <aside class="flex w-64 shrink-0 flex-col gap-4 overflow-auto border-l border-[var(--app-border)] bg-[var(--app-surface)] p-4">
       <div>
         <h2 class="truncate text-[13px] font-semibold">{dicom.patient || name}</h2>
-        {#if dicom.patientId}<p class="text-[11.5px] text-[var(--app-fg-muted)]">{dicom.patientId}</p>{/if}
+        {#if dicom.patientId}<p class="text-[12px] text-[var(--app-fg-muted)]">{dicom.patientId}</p>{/if}
       </div>
       <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12px]">
         {#if dicom.modality}
@@ -140,7 +140,7 @@
         {/if}
       </dl>
       <div class="flex flex-col gap-3 border-t border-[var(--app-border)] pt-3">
-        <label class="text-[11.5px] text-[var(--app-fg-muted)]">
+        <label class="text-[12px] text-[var(--app-fg-muted)]">
           Centro {Math.round(center)}
           <input
             type="range"
@@ -151,7 +151,7 @@
             value={center}
             oninput={(event) => (center = Number(event.currentTarget.value))} />
         </label>
-        <label class="text-[11.5px] text-[var(--app-fg-muted)]">
+        <label class="text-[12px] text-[var(--app-fg-muted)]">
           Ancho {Math.round(width)}
           <input
             type="range"

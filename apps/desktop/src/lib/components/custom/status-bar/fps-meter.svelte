@@ -32,7 +32,7 @@
     return () => cancelAnimationFrame(raf);
   });
 
-  const color = $derived(fps >= 55 ? "text-green-400" : fps >= 30 ? "text-yellow-400" : "text-red-400");
+  const color = $derived(fps >= 55 ? "text-[var(--app-success)]" : fps >= 30 ? "text-[var(--app-warning)]" : "text-[var(--app-danger)]");
 </script>
 
 <span

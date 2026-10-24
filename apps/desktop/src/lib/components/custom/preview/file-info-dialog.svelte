@@ -183,7 +183,7 @@
   .file-emblem { display: grid; place-items: center; width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: var(--app-hover); box-shadow: inset 0 1px var(--app-inset-highlight); color: var(--app-accent); }
   .file-emblem svg { width: 30px; height: 30px; }
   .identity-text { min-width: 0; }
-  h2 { margin: 0; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; user-select: text; }
+  h2 { margin: 0; font-size: 18px; font-weight: 600; overflow-wrap: anywhere; user-select: text; }
   p { margin: 4px 0 0; color: var(--app-fg-muted); font-size: 12px; }
   .sections { max-height: min(60dvh, 580px); overflow: auto; scrollbar-gutter: stable; }
   details { box-shadow: inset 0 1px var(--app-inset-highlight); }

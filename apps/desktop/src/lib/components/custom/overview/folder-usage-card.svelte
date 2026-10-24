@@ -42,7 +42,7 @@
 
 <article class="overflow-hidden rounded-[var(--app-radius)] border border-[var(--app-border)] bg-[var(--app-surface)]">
   <header class="flex items-center gap-3 border-b border-[var(--app-border)] px-4 py-3.5">
-    <HouseIcon class="size-7 shrink-0 stroke-[1.4] text-blue-400" />
+    <HouseIcon class="size-7 shrink-0 stroke-[1.4] text-[var(--app-info)]" />
     <div class="min-w-0">
       <h2 class="text-[15px] font-semibold text-[var(--app-fg)]">What’s using your home folder</h2>
       <p class="mt-0.5 truncate text-xs text-[var(--app-fg-muted)]">{rootName || "Home"}</p>
@@ -73,7 +73,7 @@
           class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-1.5 rounded-[calc(var(--app-radius)-5px)] border-0 bg-transparent px-2.5 py-2 text-left hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)]"
           title={entry.path}
           onclick={() => onOpen(entry)}>
-          <FolderIcon class="size-4 stroke-[1.8] {entry.is_hidden ? 'text-[var(--app-fg-faint)]' : 'text-blue-400'}" />
+          <FolderIcon class="size-4 stroke-[1.8] {entry.is_hidden ? 'text-[var(--app-fg-faint)]' : 'text-[var(--app-info)]'}" />
           <span class="truncate text-[13px] {entry.is_hidden ? 'text-[var(--app-fg-muted)]' : 'text-[var(--app-fg)]'}">{entry.name}</span>
           <span class="text-right font-mono text-xs tabular-nums text-[var(--app-fg)]">{formatSize(entry.bytes)}</span>
           <UsageBar

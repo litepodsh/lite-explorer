@@ -376,7 +376,7 @@
   }
   .settings-title {
     color: var(--app-fg-muted);
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
   }
   .settings-body {
@@ -454,19 +454,19 @@
   }
   .reset-label {
     color: var(--app-fg);
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 500;
   }
   .reset-row p {
     margin: 3px 0 0;
     color: var(--app-fg-muted);
-    font-size: 11.5px;
+    font-size: 12px;
   }
   .reset-button {
     flex-shrink: 0;
     padding: 5px 12px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--app-danger) 16%, transparent);
     color: var(--app-danger-fg);
     font-size: 12px;
@@ -514,13 +514,13 @@
   }
   .field-copy label {
     color: var(--app-fg);
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 500;
   }
   .field-copy p {
     margin: 3px 0 0;
     color: var(--app-fg-muted);
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.4;
   }
   .field-copy code {

@@ -139,7 +139,7 @@
       0 0 0 1px rgba(52, 211, 153, 0.4);
   }
   .toast-done .fill {
-    background: #34d399;
+    background: var(--app-success);
   }
   .toast-cancelled .fill {
     background: var(--app-fg-muted);
@@ -155,7 +155,7 @@
     height: 1.125rem;
     border-radius: 9999px;
     color: #0b1f17;
-    background: #34d399;
+    background: var(--app-success);
     animation: check-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
   .check :global(svg) {

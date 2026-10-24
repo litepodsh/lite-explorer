@@ -51,7 +51,7 @@
 
 <article class="overflow-hidden rounded-[var(--app-radius)] border border-[var(--app-border)] bg-[var(--app-surface)]">
   <header class="flex items-center gap-3 border-b border-[var(--app-border)] px-4 py-3.5">
-    <LaptopIcon class="size-7 shrink-0 stroke-[1.4] text-blue-400" />
+    <LaptopIcon class="size-7 shrink-0 stroke-[1.4] text-[var(--app-info)]" />
     <div class="min-w-0">
       <h2 class="flex flex-wrap items-baseline gap-x-2 text-[15px] font-semibold text-[var(--app-fg)]">
         <span class="truncate">{device.name}</span>
@@ -80,9 +80,9 @@
             <p class="truncate text-[13px] font-medium text-[var(--app-fg)]" title={volume.mount_point}>{volume.name}</p>
             <div class="mt-1 flex gap-1.5">
               {#if volume.file_system}
-                <span class="rounded-[5px] border border-[var(--app-border)] px-1.5 text-[11px] text-[var(--app-fg-muted)]">{volume.file_system}</span>
+                <span class="rounded-sm border border-[var(--app-border)] px-1.5 text-[11px] text-[var(--app-fg-muted)]">{volume.file_system}</span>
               {/if}
-              <span class="rounded-[5px] border border-[var(--app-border)] px-1.5 text-[11px] text-[var(--app-fg-muted)]"
+              <span class="rounded-sm border border-[var(--app-border)] px-1.5 text-[11px] text-[var(--app-fg-muted)]"
                 >{volume.is_primary ? "Primary" : "External"}</span>
             </div>
           </div>

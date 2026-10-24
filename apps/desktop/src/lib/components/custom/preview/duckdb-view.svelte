@@ -70,14 +70,14 @@
         {#each database.tables as item (item.name)}
           <button
             type="button"
-            class="flex w-full items-center gap-2 border-0 px-3 py-2 text-left text-[12.5px] {item.name === selected
+            class="flex w-full items-center gap-2 border-0 px-3 py-2 text-left text-[13px] {item.name === selected
               ? 'bg-[var(--app-surface-raised)] text-[var(--app-fg)]'
               : 'bg-transparent text-[var(--app-fg)] hover:bg-[var(--app-surface)]'}"
             onclick={() => void select(item.name)}>
             <TableIcon class="size-3.5 shrink-0 text-[var(--app-fg-faint)]" />
             <span class="min-w-0 flex-1 truncate">{item.name}</span>
             {#if item.rows >= 0}
-              <span class="shrink-0 text-[10.5px] text-[var(--app-fg-faint)]">{item.rows}</span>
+              <span class="shrink-0 text-[11px] text-[var(--app-fg-faint)]">{item.rows}</span>
             {/if}
           </button>
         {/each}
@@ -85,7 +85,7 @@
     </aside>
     <div class="min-h-0 min-w-0 flex-1">
       {#if error}
-        <p class="px-3 py-2 text-[12.5px] text-[var(--app-fg-muted)]">{error}</p>
+        <p class="px-3 py-2 text-[13px] text-[var(--app-fg-muted)]">{error}</p>
       {:else if table}
         <DataGrid
           rows={table.rows}

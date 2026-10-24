@@ -402,7 +402,7 @@
 	bind:open={commandPaletteState.open}
 	bind:value={selectedValue}
 	shouldFilter={false}
-	class="command-surface top-[16vh]! w-[min(39.2rem,calc(100%-2rem))]! max-w-none! rounded-[14px]! p-0 shadow-2xl ring-0! bg-transparent!"
+	class="command-surface top-[16vh]! w-[min(39.2rem,calc(100%-2rem))]! max-w-none! rounded-xl! p-0 shadow-2xl ring-0! bg-transparent!"
 	title="Command Palette"
 	description="Search commands, favorites, locations and paths">
 	<Command.Input

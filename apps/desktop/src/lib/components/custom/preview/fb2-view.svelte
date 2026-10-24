@@ -29,12 +29,12 @@
       <p class="text-[13px] text-[var(--app-fg-muted)]">{error}</p>
     </div>
   {:else if book}
-    <article class="mx-auto max-w-2xl px-6 py-8 font-serif text-[16px] leading-[1.75]">
+    <article class="mx-auto max-w-2xl px-6 py-8 font-serif text-[18px] leading-[1.75]">
       <header class="mb-6 border-b border-[var(--app-border)] pb-4">
         <h1 class="text-[22px] font-semibold">{book.title}</h1>
-        {#if book.author}<p class="mt-1 text-[14px] text-[var(--app-fg-muted)]">{book.author}</p>{/if}
+        {#if book.author}<p class="mt-1 text-[15px] text-[var(--app-fg-muted)]">{book.author}</p>{/if}
         {#if book.annotation}
-          <p class="mt-3 text-[13.5px] italic text-[var(--app-fg-muted)]">{book.annotation}</p>
+          <p class="mt-3 text-[13px] italic text-[var(--app-fg-muted)]">{book.annotation}</p>
         {/if}
       </header>
       {#each book.paragraphs as paragraph, index (index)}

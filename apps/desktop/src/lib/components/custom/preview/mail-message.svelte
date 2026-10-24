@@ -57,8 +57,8 @@
 
 <div class="flex h-full min-h-0 flex-col overflow-auto bg-[#faf9f7] text-[#1b1a18]">
   <header class="shrink-0 border-b border-[#e3ded8] px-5 py-4">
-    <h1 class="text-[17px] leading-snug font-semibold">{preview.subject}</h1>
-    <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12.5px]">
+    <h1 class="text-[18px] leading-snug font-semibold">{preview.subject}</h1>
+    <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px]">
       {#if preview.from}
         <dt class="font-medium text-[#8a857f]">De</dt>
         <dd class="min-w-0 break-words">{preview.from}</dd>
@@ -82,7 +82,7 @@
     <div class="shrink-0 flex flex-wrap gap-1.5 border-b border-[#e3ded8] px-5 py-2.5">
       {#each preview.attachments as attachment}
         <span
-          class="flex items-center gap-1.5 rounded-full border border-[#e3ded8] bg-white px-2.5 py-1 text-[11.5px] text-[#55504b]"
+          class="flex items-center gap-1.5 rounded-full border border-[#e3ded8] bg-white px-2.5 py-1 text-[12px] text-[#55504b]"
           title={`${attachment.mime} · ${formatSize(attachment.size)}`}>
           <Paperclip class="size-3.5 text-[#8a857f]" />
           <span class="max-w-48 truncate">{attachment.name}</span>
@@ -99,7 +99,7 @@
     {#if preview.html}
       <div bind:this={host}></div>
     {:else if preview.text}
-      <pre class="font-[inherit] text-[13.5px] leading-relaxed whitespace-pre-wrap text-[#2c2925]"
+      <pre class="font-[inherit] text-[13px] leading-relaxed whitespace-pre-wrap text-[#2c2925]"
         >{preview.text}</pre>
     {:else}
       <p class="text-[13px] text-[#8a857f]">This message has no readable body.</p>

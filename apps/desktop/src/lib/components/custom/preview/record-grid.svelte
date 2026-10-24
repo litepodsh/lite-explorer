@@ -15,11 +15,11 @@
 
 <div class="flex h-full min-h-0 flex-col bg-[var(--app-input)] text-[var(--app-fg)]">
   <details class="shrink-0 border-b border-[var(--app-border)]">
-    <summary class="cursor-pointer px-3 py-1.5 text-[11.5px] text-[var(--app-fg-muted)] select-none">Esquema</summary>
+    <summary class="cursor-pointer px-3 py-1.5 text-[12px] text-[var(--app-fg-muted)] select-none">Esquema</summary>
     {#if schemaLanguage}
       <NotebookCode source={schema} language={schemaLanguage} />
     {:else}
-      <pre class="max-h-52 overflow-auto bg-[var(--app-input)] px-3 py-2 font-mono text-[11.5px] leading-relaxed text-[var(--app-fg-muted)]">{schema}</pre>
+      <pre class="max-h-52 overflow-auto bg-[var(--app-input)] px-3 py-2 font-mono text-[12px] leading-relaxed text-[var(--app-fg-muted)]">{schema}</pre>
     {/if}
   </details>
   <div class="min-h-0 flex-1">

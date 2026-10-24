@@ -49,8 +49,8 @@
 
 <style>
   .picker, .copy { min-width: 0; }
-  .label, strong { color: var(--app-fg); font-size: 12.5px; font-weight: 600; }
-  p, small { color: var(--app-fg-muted); font-size: 11.5px; line-height: 1.4; }
+  .label, strong { color: var(--app-fg); font-size: 13px; font-weight: 600; }
+  p, small { color: var(--app-fg-muted); font-size: 12px; line-height: 1.4; }
   p { margin: 3px 0 10px; }
   .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 7px; }
   button { display: flex; min-width: 0; flex-direction: column; gap: 7px; padding: 6px; border: 0; border-radius: calc(var(--app-radius) - 3px); background: transparent; text-align: left; transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1), background-color 180ms cubic-bezier(0.32, 0.72, 0, 1); }

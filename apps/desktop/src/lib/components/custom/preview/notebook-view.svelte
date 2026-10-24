@@ -37,8 +37,8 @@
     </div>
   {:else if notebook}
     <div class="mx-auto max-w-3xl px-4 py-4">
-      <div class="mb-3 flex items-center gap-2 text-[11.5px] text-[var(--app-fg-muted)]">
-        {#if notebook.kernel}<span class="rounded bg-white/5 px-1.5 py-0.5">{notebook.kernel}</span>{/if}
+      <div class="mb-3 flex items-center gap-2 text-[12px] text-[var(--app-fg-muted)]">
+        {#if notebook.kernel}<span class="rounded bg-[var(--app-hover)] px-1.5 py-0.5">{notebook.kernel}</span>{/if}
         {#if notebook.language}<span>{notebook.language}</span>{/if}
         {#if notebook.truncated}<span>· truncado</span>{/if}
       </div>
@@ -73,7 +73,7 @@
               {/each}
             </div>
           {:else}
-            <pre class="overflow-auto rounded-lg border border-[var(--app-border)] bg-[var(--app-input)] px-3 py-2 font-mono text-[12.5px] text-[var(--app-fg)]">{cell.source}</pre>
+            <pre class="overflow-auto rounded-lg border border-[var(--app-border)] bg-[var(--app-input)] px-3 py-2 font-mono text-[13px] text-[var(--app-fg)]">{cell.source}</pre>
           {/if}
         </section>
       {/each}

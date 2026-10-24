@@ -315,7 +315,7 @@
     display: grid;
     gap: 8px;
     padding: 10px 12px;
-    border-radius: 9px;
+    border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--app-accent) 8%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 28%, transparent);
     font-size: 12px;
@@ -343,7 +343,7 @@
   }
   .trust code {
     padding: 6px 8px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: var(--loc-field);
     color: var(--loc-text);
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
@@ -392,7 +392,7 @@
     background: none;
     color: var(--loc-accent);
     font: inherit;
-    font-size: 11.5px;
+    font-size: 12px;
   }
   .link:hover {
     text-decoration: underline;
@@ -402,7 +402,7 @@
     align-items: center;
     gap: 10px;
     padding: 10px 12px;
-    border-radius: 9px;
+    border-radius: var(--radius-md);
     background: var(--app-hover);
     box-shadow: inset 0 0 0 1px var(--loc-line);
   }
@@ -435,7 +435,7 @@
     min-width: 0;
     padding: 6px 8px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: transparent;
     color: inherit;
     font: inherit;
@@ -451,7 +451,7 @@
   .skeleton {
     height: 38px;
     margin: 0 8px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: linear-gradient(90deg, color-mix(in srgb, var(--app-fg) 3%, transparent), color-mix(in srgb, var(--app-fg) 7%, transparent), color-mix(in srgb, var(--app-fg) 3%, transparent));
     background-size: 200% 100%;
     animation: scan-skeleton 1.2s var(--loc-ease) infinite;
@@ -490,7 +490,7 @@
     gap: 9px;
     padding: 7px 8px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: transparent;
     color: inherit;
     font: inherit;
@@ -528,7 +528,7 @@
     min-width: 0;
   }
   .copy strong {
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 500;
   }
   .copy small {
@@ -559,7 +559,7 @@
     height: 24px;
     margin-left: -4px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--loc-muted);
   }

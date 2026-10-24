@@ -336,24 +336,24 @@
       {#if status === "loading"}
         <div class="flex flex-col items-center gap-7 px-6 py-8">
           {#each [0, 1] as skeleton (skeleton)}
-            <div class="w-full max-w-[560px] rounded-[13px] bg-[linear-gradient(180deg,rgb(255_255_255/0.04),rgb(255_255_255/0.01))] p-[3px] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.06)]">
-              <div class="h-[740px] w-full animate-pulse rounded-[10px] bg-[var(--app-input)]"></div>
+            <div class="w-full max-w-[560px] rounded-lg bg-[linear-gradient(180deg,rgb(255_255_255/0.04),rgb(255_255_255/0.01))] p-[3px] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.06)]">
+              <div class="h-[740px] w-full animate-pulse rounded-md bg-[var(--app-input)]"></div>
             </div>
           {/each}
         </div>
       {:else if status === "password"}
         <div class="grid h-full place-items-center px-6">
           <div
-            class="w-full max-w-[300px] rounded-[18px] bg-[linear-gradient(180deg,rgb(255_255_255/0.05),rgb(255_255_255/0.02))] p-[3px] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.08),0_30px_60px_-30px_rgb(0_0_0/0.9)]"
+            class="w-full max-w-[300px] rounded-xl bg-[linear-gradient(180deg,rgb(255_255_255/0.05),rgb(255_255_255/0.02))] p-[3px] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.08),0_30px_60px_-30px_rgb(0_0_0/0.9)]"
           >
             <form
-              class="flex flex-col items-center gap-3 rounded-[15px] bg-[var(--app-input)] px-6 py-7 text-center shadow-[inset_0_1px_0_rgb(255_255_255/0.05)]"
+              class="flex flex-col items-center gap-3 rounded-xl bg-[var(--app-input)] px-6 py-7 text-center shadow-[inset_0_1px_0_rgb(255_255_255/0.05)]"
               onsubmit={submitPassword}
             >
-              <span class="grid size-11 place-items-center rounded-full bg-white/[0.06] text-[var(--app-fg-muted)] shadow-[inset_0_1px_0_rgb(255_255_255/0.1)]">
+              <span class="grid size-11 place-items-center rounded-full bg-[var(--app-hover)] text-[var(--app-fg-muted)] shadow-[inset_0_1px_0_rgb(255_255_255/0.1)]">
                 <LockIcon class="size-5 stroke-[1.6]" />
               </span>
-              <p class="text-[14px] font-semibold text-[var(--app-fg)]">Protected PDF</p>
+              <p class="text-[15px] font-semibold text-[var(--app-fg)]">Protected PDF</p>
               <p class="text-[12px] text-[var(--app-fg-muted)]">{badPassword ? "Wrong password, try again." : "Enter the password to open this document."}</p>
               <input
                 bind:this={passwordInput}
@@ -361,15 +361,15 @@
                 type="password"
                 placeholder="Password"
                 autocomplete="off"
-                class="h-9 w-full rounded-[10px] border border-white/10 bg-black/30 px-3 text-[13px] text-[var(--app-fg)] outline-none transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] placeholder:text-[var(--app-fg-faint)] focus:border-[var(--app-accent)]/60 focus:shadow-[0_0_0_3px_rgb(10_155_255/0.15)]" />
+                class="h-9 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-input)] px-3 text-[13px] text-[var(--app-fg)] outline-none transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] placeholder:text-[var(--app-fg-faint)] focus:border-[var(--app-accent)]/60 focus:shadow-[0_0_0_3px_rgb(10_155_255/0.15)]" />
               <div class="mt-1 flex w-full items-center gap-2">
                 <button
                   type="button"
-                  class="h-9 flex-1 rounded-full border-0 bg-white/[0.05] text-[12.5px] font-medium text-[var(--app-fg-muted)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.09] active:scale-[0.97]"
+                  class="h-9 flex-1 rounded-full border-0 bg-[var(--app-hover)] text-[13px] font-medium text-[var(--app-fg-muted)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.09] active:scale-[0.97]"
                   onclick={cancelPassword}>Cancel</button>
                 <button
                   type="submit"
-                  class="h-9 flex-1 rounded-full border-0 bg-[var(--app-accent)] text-[12.5px] font-semibold text-[#04121f] shadow-[inset_0_1px_0_rgb(255_255_255/0.35)] transition-[filter,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:brightness-110 active:scale-[0.97]"
+                  class="h-9 flex-1 rounded-full border-0 bg-[var(--app-accent)] text-[13px] font-semibold text-[#04121f] shadow-[inset_0_1px_0_rgb(255_255_255/0.35)] transition-[filter,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:brightness-110 active:scale-[0.97]"
                   >Unlock</button>
               </div>
             </form>
@@ -378,7 +378,7 @@
       {:else if status === "error"}
         <div class="grid h-full place-content-center justify-items-center gap-1 px-6 text-center">
           <FileIcon class="mb-2 size-12 stroke-[1.2] text-[var(--app-fg-faint)]" />
-          <p class="text-[14px] font-semibold text-[var(--app-fg)]">Can’t preview this PDF</p>
+          <p class="text-[15px] font-semibold text-[var(--app-fg)]">Can’t preview this PDF</p>
           <p class="text-[12px] break-all text-[var(--app-fg-muted)]">{errorMessage}</p>
         </div>
       {:else}
@@ -402,12 +402,12 @@
       >
         <button
           type="button"
-          class="pdf-tool {thumbsOpen ? 'bg-white/[0.12] text-[var(--app-fg)]' : ''}"
+          class="pdf-tool {thumbsOpen ? 'bg-[var(--app-hover-strong)] text-[var(--app-fg)]' : ''}"
           aria-label="Toggle page thumbnails"
           aria-pressed={thumbsOpen}
           onclick={() => (thumbsOpen = !thumbsOpen)}><PanelLeftIcon class="size-[15px] stroke-[1.7]" /></button
         >
-        <span class="mx-0.5 h-4 w-px shrink-0 bg-white/10"></span>
+        <span class="mx-0.5 h-4 w-px shrink-0 bg-[var(--app-border-strong)]"></span>
         <button type="button" class="pdf-tool" aria-label="Previous page" disabled={currentPage <= 1} onclick={() => goToPage(currentPage - 2)}
           ><ChevronLeftIcon class="size-[15px] stroke-[1.7]" /></button
         >
@@ -416,18 +416,18 @@
             value={currentPage}
             onchange={commitPageInput}
             aria-label="Page number"
-            class="h-6 w-6 shrink-0 rounded-md border-0 bg-white/[0.05] text-center text-[11px] text-[var(--app-fg)] outline-none transition-shadow duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] focus:shadow-[0_0_0_3px_rgb(10_155_255/0.18)]" />
-          <span class="shrink-0 text-[10.5px] text-[var(--app-fg-muted)]">/ {numPages}</span>
+            class="h-6 w-6 shrink-0 rounded-md border-0 bg-[var(--app-hover)] text-center text-[11px] text-[var(--app-fg)] outline-none transition-shadow duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] focus:shadow-[0_0_0_3px_rgb(10_155_255/0.18)]" />
+          <span class="shrink-0 text-[11px] text-[var(--app-fg-muted)]">/ {numPages}</span>
         </div>
         <button type="button" class="pdf-tool" aria-label="Next page" disabled={currentPage >= numPages} onclick={() => goToPage(currentPage)}
           ><ChevronRightIcon class="size-[15px] stroke-[1.7]" /></button
         >
-        <span class="mx-0.5 h-4 w-px shrink-0 bg-white/10"></span>
+        <span class="mx-0.5 h-4 w-px shrink-0 bg-[var(--app-border-strong)]"></span>
         <button type="button" class="pdf-tool" aria-label="Zoom out" onclick={() => stepZoom(-1)}><MinusIcon class="size-[15px] stroke-[1.7]" /></button
         >
         <button
           type="button"
-          class="min-w-11 rounded-full border-0 bg-transparent px-1 text-center text-[11.5px] tabular-nums text-[var(--app-fg-muted)] transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.08] hover:text-[var(--app-fg)]"
+          class="min-w-11 rounded-full border-0 bg-transparent px-1 text-center text-[12px] tabular-nums text-[var(--app-fg-muted)] transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.08] hover:text-[var(--app-fg)]"
           aria-label="Fit width"
           title="Fit width"
           onclick={toggleFitWidth}>{zoomPercent}%</button
@@ -436,13 +436,13 @@
         >
         <button
           type="button"
-          class="pdf-tool {fitWidth ? 'bg-white/[0.12] text-[var(--app-fg)]' : ''}"
+          class="pdf-tool {fitWidth ? 'bg-[var(--app-hover-strong)] text-[var(--app-fg)]' : ''}"
           aria-label="Fit width"
           aria-pressed={fitWidth}
           onclick={toggleFitWidth}><MoveHorizontalIcon class="size-[15px] stroke-[1.7]" /></button
         >
         {#if onMaximize}
-          <span class="mx-0.5 h-4 w-px shrink-0 bg-white/10"></span>
+          <span class="mx-0.5 h-4 w-px shrink-0 bg-[var(--app-border-strong)]"></span>
           <button
             type="button"
             class="pdf-tool"
@@ -461,7 +461,7 @@
     {#if selection}
       <button
         type="button"
-        class="absolute z-30 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgb(48_45_43/0.96)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--app-fg)] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.1),0_14px_30px_-12px_rgb(0_0_0/0.8)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[rgb(62_58_55/0.98)] active:scale-[0.96]"
+        class="absolute z-30 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgb(48_45_43/0.96)] px-3 py-1.5 text-[12px] font-medium text-[var(--app-fg)] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.1),0_14px_30px_-12px_rgb(0_0_0/0.8)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[rgb(62_58_55/0.98)] active:scale-[0.96]"
         style="left: {selection.x}px; top: {selection.y}px;"
         aria-label="Copy selected text"
         onmousedown={(event) => event.preventDefault()}

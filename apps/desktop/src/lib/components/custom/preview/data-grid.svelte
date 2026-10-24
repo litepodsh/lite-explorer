@@ -284,7 +284,7 @@
                       data-cell
                       data-row={rowIndex + 1}
                       data-column={column}
-                      class="{classFor(column)} overflow-hidden text-ellipsis whitespace-nowrap px-3 leading-[30px] text-[12.5px]"
+                      class="{classFor(column)} overflow-hidden text-ellipsis whitespace-nowrap px-3 leading-[30px] text-[13px]"
                       title={value}>{value}</div>
                   {/each}
                 </div>
@@ -299,7 +299,7 @@
   {#if selection}
     <button
       type="button"
-      class="absolute z-30 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--app-surface-raised)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--app-fg)] shadow-[var(--app-shadow)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--app-surface)] active:scale-[0.96]"
+      class="absolute z-30 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--app-surface-raised)] px-3 py-1.5 text-[12px] font-medium text-[var(--app-fg)] shadow-[var(--app-shadow)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--app-surface)] active:scale-[0.96]"
       style="left: {selection.x}px; top: {selection.y}px;"
       onmousedown={(event) => event.preventDefault()}
       onclick={() => void copySelection()}>

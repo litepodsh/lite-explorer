@@ -90,14 +90,14 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div
-  class="viewer-window flex h-screen w-screen flex-col overflow-hidden bg-[#141211] text-[#e8e5e2]"
+  class="viewer-window flex h-screen w-screen flex-col overflow-hidden bg-[#141211] text-[var(--app-fg)]"
   data-platform={platform}
 >
   <header
     class="viewer-titlebar relative flex h-11 shrink-0 items-center justify-center px-4"
     data-tauri-drag-region
   >
-    <span class="pointer-events-none max-w-[60%] truncate text-[12.5px] font-medium text-[#9c9895]" data-tauri-drag-region>
+    <span class="pointer-events-none max-w-[60%] truncate text-[13px] font-medium text-[#9c9895]" data-tauri-drag-region>
       {preview?.name ?? ""}
     </span>
     {#if controlsPlatform}
@@ -111,12 +111,12 @@
     {#if error}
       <div class="grid h-full place-content-center justify-items-center gap-2 px-6 text-center">
         <FileIcon class="mb-1 size-12 stroke-[1.2] text-[#67635f]" />
-        <p class="text-[14px] font-semibold text-[#e8e5e2]">Can’t preview this file</p>
+        <p class="text-[15px] font-semibold text-[var(--app-fg)]">Can’t preview this file</p>
         <p class="text-[12px] break-all text-[#9c9895]">{error}</p>
         {#if path}
           <button
             type="button"
-            class="mt-1 flex items-center gap-1.5 rounded-full border-0 bg-white/[0.06] px-3.5 py-1.5 text-[12px] font-medium text-[#e8e5e2] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.12] active:scale-[0.97]"
+            class="mt-1 flex items-center gap-1.5 rounded-full border-0 bg-white/[0.06] px-3.5 py-1.5 text-[12px] font-medium text-[var(--app-fg)] transition-[background-color,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.12] active:scale-[0.97]"
             onclick={() => openTarget(path)}
           >
             <ExternalLinkIcon class="size-3.5 stroke-[1.8]" /> Open with default app

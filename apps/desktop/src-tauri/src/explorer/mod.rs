@@ -1,4 +1,5 @@
 pub mod archive;
+pub mod convert;
 pub mod entries;
 pub mod exif;
 pub mod favorites;
@@ -9,6 +10,7 @@ mod info_formats;
 pub mod local_path;
 pub mod opener;
 pub mod paths;
+pub mod rename;
 pub mod recents;
 pub mod sizes;
 pub mod watch;

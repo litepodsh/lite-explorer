@@ -70,9 +70,9 @@
               : 'hover:bg-[var(--app-surface-raised)]'}"
             onclick={() => void select(item.index)}>
             <span class="flex items-baseline justify-between gap-2">
-              <span class="min-w-0 truncate text-[12.5px] font-medium text-[var(--app-fg)]">{item.subject}</span>
+              <span class="min-w-0 truncate text-[13px] font-medium text-[var(--app-fg)]">{item.subject}</span>
               {#if item.date}
-                <span class="shrink-0 text-[10.5px] text-[var(--app-fg-faint)]">{item.date.slice(5, 10)}</span>
+                <span class="shrink-0 text-[11px] text-[var(--app-fg-faint)]">{item.date.slice(5, 10)}</span>
               {/if}
             </span>
             <span class="mt-0.5 block truncate text-[11px] text-[var(--app-fg-muted)]">{item.from}</span>
@@ -87,7 +87,7 @@
       {:else}
         <div class="grid h-full place-items-center">
           <span
-            class="size-6 animate-spin rounded-full border-2 border-white/20 border-t-white/70"
+            class="size-6 animate-spin rounded-full border-2 border-[var(--app-border-strong)] border-t-[var(--app-fg-muted)]"
             aria-label="Loading"></span>
         </div>
       {/if}

@@ -85,7 +85,7 @@
   }
 
   .summary-core {
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: radial-gradient(120% 80% at 50% 38%, color-mix(in srgb, var(--app-accent) 7%, transparent), transparent 60%), var(--app-input);
     box-shadow: inset 0 1px 0 var(--app-inset-highlight);
     animation: summary-in 360ms var(--ease) both;

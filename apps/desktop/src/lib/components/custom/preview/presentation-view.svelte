@@ -86,7 +86,7 @@
     {#if loading && !deck}
       <div class="pointer-events-none absolute inset-0 grid place-items-center">
         <span
-          class="size-6 animate-spin rounded-full border-2 border-white/20 border-t-white/70"
+          class="size-6 animate-spin rounded-full border-2 border-[var(--app-border-strong)] border-t-[var(--app-fg-muted)]"
           aria-label="Loading"></span>
       </div>
     {/if}

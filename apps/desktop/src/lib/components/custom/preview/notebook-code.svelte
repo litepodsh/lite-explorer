@@ -32,6 +32,6 @@
   });
 </script>
 
-<pre class="overflow-auto bg-[var(--app-input)] px-3 py-2 font-mono text-[12.5px] leading-relaxed text-[var(--app-fg)]"><code
+<pre class="overflow-auto bg-[var(--app-input)] px-3 py-2 font-mono text-[13px] leading-relaxed text-[var(--app-fg)]"><code
     bind:this={code}
     class="font-[inherit]"></code></pre>

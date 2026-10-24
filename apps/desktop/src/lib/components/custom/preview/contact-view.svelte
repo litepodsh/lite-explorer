@@ -48,13 +48,13 @@
       {#each contacts as contact (contact.name + contact.emails.join())}
         <article class="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
           <header class="flex items-center gap-3">
-            <span class="grid size-11 shrink-0 place-items-center rounded-full bg-white/5 text-[15px] font-semibold text-[var(--app-fg-muted)]">
+            <span class="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--app-hover)] text-[15px] font-semibold text-[var(--app-fg-muted)]">
               {#if initials(contact.name)}{initials(contact.name)}{:else}<UserRound class="size-5" />{/if}
             </span>
             <div class="min-w-0">
               <h2 class="truncate text-[15px] font-semibold">{contact.name}</h2>
               {#if contact.title || contact.organization}
-                <p class="truncate text-[12.5px] text-[var(--app-fg-muted)]">
+                <p class="truncate text-[13px] text-[var(--app-fg-muted)]">
                   {[contact.title, contact.organization].filter(Boolean).join(" · ")}
                 </p>
               {/if}
@@ -62,7 +62,7 @@
           </header>
           <div class="mt-3 grid gap-1.5 text-[13px]">
             {#each contact.emails as email}
-              <a class="flex items-center gap-2 text-[#60a5fa] hover:underline" href="mailto:{email}">
+              <a class="flex items-center gap-2 text-[var(--app-info)] hover:underline" href="mailto:{email}">
                 <Mail class="size-3.5 shrink-0 text-[var(--app-fg-faint)]" /><span class="truncate">{email}</span>
               </a>
             {/each}
@@ -77,7 +77,7 @@
               </span>
             {/each}
             {#each contact.urls as url}
-              <a class="flex items-center gap-2 text-[#60a5fa] hover:underline" href={url}>
+              <a class="flex items-center gap-2 text-[var(--app-info)] hover:underline" href={url}>
                 <Globe class="size-3.5 shrink-0 text-[var(--app-fg-faint)]" /><span class="truncate">{url}</span>
               </a>
             {/each}
@@ -88,7 +88,7 @@
             {/if}
           </div>
           {#if contact.note}
-            <p class="mt-3 border-t border-[var(--app-border)] pt-3 text-[12.5px] whitespace-pre-wrap text-[var(--app-fg-muted)]">{contact.note}</p>
+            <p class="mt-3 border-t border-[var(--app-border)] pt-3 text-[13px] whitespace-pre-wrap text-[var(--app-fg-muted)]">{contact.note}</p>
           {/if}
         </article>
       {/each}

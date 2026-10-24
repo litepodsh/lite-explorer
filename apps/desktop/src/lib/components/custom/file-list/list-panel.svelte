@@ -806,7 +806,7 @@
   .column-target-before { box-shadow: inset 2px 0 var(--app-accent); }
   .column-target-after { box-shadow: inset -2px 0 var(--app-accent); }
   .column-ghost { position: fixed; top: 0; left: 0; z-index: 40; pointer-events: none; padding: 4px; border-radius: var(--app-radius); background: var(--app-surface-raised); color: var(--app-fg); box-shadow: var(--app-shadow), inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 28%, transparent); }
-  .ghost-title { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 9px; border-radius: 6px 6px 0 0; background: var(--app-surface-raised); color: var(--app-fg); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .ghost-title { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 9px; border-radius: var(--radius-sm) 6px 0 0; background: var(--app-surface-raised); color: var(--app-fg); font-size: 11px; font-weight: 600; text-transform: uppercase; }
   .ghost-cell { padding: 7px 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; background: var(--app-surface); box-shadow: inset 0 1px var(--app-inset-highlight); }
   .ghost-cell:last-child { border-radius: 0 0 6px 6px; }
   /* `--content-overlap` is the toolbar height the pane slides under (0 when the tab bar is open). */

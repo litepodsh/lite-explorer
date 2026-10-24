@@ -94,7 +94,7 @@ pub async fn media_url(
         let local =
             crate::network::servers::download_media_to_cache(&app, &database.0, &sessions, &path)
                 .await?;
-        return register_local(&registry, PathBuf::from(local));
+        return register_local(&registry, viewable(&app, PathBuf::from(local)).await?);
     }
     if remote::is_remote_path(&path) {
         let (id, bucket, key, size) = remote::object_size(&database.0, &clients, &path).await?;
@@ -109,7 +109,18 @@ pub async fn media_url(
             size,
         });
     }
-    register_local(&registry, PathBuf::from(path))
+    register_local(&registry, viewable(&app, PathBuf::from(path)).await?)
+}
+
+/// HEIC and AVIF are decoded to a cached PNG, because the web view cannot show them.
+async fn viewable(app: &AppHandle, path: PathBuf) -> Result<PathBuf, String> {
+    if !super::thumbnails::needs_decode(&path) {
+        return Ok(path);
+    }
+    let cache = app.path().app_cache_dir().map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || super::thumbnails::decoded_png(&cache, &path))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 pub(crate) fn register_local(registry: &MediaRegistry, path: PathBuf) -> Result<MediaUrl, String> {

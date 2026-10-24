@@ -63,7 +63,7 @@
                 {#if event.kind === "todo"}
                   <CheckSquare class="size-3.5 text-[var(--app-fg-muted)]" />
                 {/if}
-                <h2 class="truncate text-[13.5px] font-medium">{event.summary}</h2>
+                <h2 class="truncate text-[13px] font-medium">{event.summary}</h2>
               </div>
               {#if event.location}
                 <p class="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--app-fg-muted)]">

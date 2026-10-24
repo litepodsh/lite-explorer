@@ -31,8 +31,8 @@
     </div>
   {:else if message}
     <header class="shrink-0 border-b border-[var(--app-border)] px-5 py-4">
-      <h1 class="text-[17px] leading-snug font-semibold">{message.subject}</h1>
-      <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12.5px]">
+      <h1 class="text-[18px] leading-snug font-semibold">{message.subject}</h1>
+      <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px]">
         {#if message.sender}
           <dt class="font-medium text-[var(--app-fg-muted)]">De</dt><dd class="break-words">{message.sender}</dd>
         {/if}
@@ -47,14 +47,14 @@
     {#if message.attachments.length > 0}
       <div class="shrink-0 flex flex-wrap gap-1.5 border-b border-[var(--app-border)] px-5 py-2.5">
         {#each message.attachments as attachment}
-          <span class="flex items-center gap-1.5 rounded-full border border-[var(--app-border)] bg-white/5 px-2.5 py-1 text-[11.5px] text-[var(--app-fg-muted)]">
+          <span class="flex items-center gap-1.5 rounded-full border border-[var(--app-border)] bg-[var(--app-hover)] px-2.5 py-1 text-[12px] text-[var(--app-fg-muted)]">
             <Paperclip class="size-3.5 text-[var(--app-fg-muted)]" />{attachment}
           </span>
         {/each}
       </div>
     {/if}
     <div class="min-h-0 flex-1 px-5 py-4">
-      <pre class="font-[inherit] text-[13.5px] leading-relaxed whitespace-pre-wrap text-[var(--app-fg-muted)]">{message.body}</pre>
+      <pre class="font-[inherit] text-[13px] leading-relaxed whitespace-pre-wrap text-[var(--app-fg-muted)]">{message.body}</pre>
     </div>
   {/if}
 </div>

@@ -166,7 +166,7 @@
   }
   .provider-pending {
     padding: 14px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--app-accent) 8%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 20%, transparent);
     color: var(--loc-text);

@@ -58,13 +58,13 @@
   }
   .label {
     color: var(--app-fg);
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 500;
   }
   p {
     margin: 3px 0 0;
     color: var(--app-fg-muted);
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.4;
   }
   .segments {

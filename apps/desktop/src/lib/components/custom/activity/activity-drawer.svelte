@@ -5,6 +5,7 @@
   import FolderInputIcon from "@lucide/svelte/icons/folder-input";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import ArchiveIcon from "@lucide/svelte/icons/archive";
+  import ImageIcon from "@lucide/svelte/icons/image";
   import FilePlusIcon from "@lucide/svelte/icons/file-plus";
   import PencilIcon from "@lucide/svelte/icons/pencil";
   import CheckIcon from "@lucide/svelte/icons/check";
@@ -59,6 +60,7 @@
     receive: DownloadIcon,
     extract: ArchiveIcon,
     compress: ArchiveIcon,
+    convert: ImageIcon,
     create: FilePlusIcon,
     rename: PencilIcon,
     action: RotateCwIcon,
@@ -212,20 +214,20 @@
     border-radius: 999px;
     background: var(--app-accent);
     color: var(--app-accent-fg);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 700;
   }
   .filters {
     display: flex;
     gap: 3px;
     padding: 2px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--app-input);
   }
   .filters button {
     padding: 4px 10px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--app-fg-muted);
     font: inherit;
@@ -245,7 +247,7 @@
   .ghost {
     padding: 5px 8px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--app-fg-muted);
     font: inherit;
@@ -283,7 +285,7 @@
   .empty {
     padding: 30px 0;
     color: var(--app-fg-muted);
-    font-size: 12.5px;
+    font-size: 13px;
     text-align: center;
   }
   .job {
@@ -292,7 +294,7 @@
     align-items: center;
     gap: 12px;
     padding: 10px;
-    border-radius: 9px;
+    border-radius: var(--radius-md);
   }
   .job:hover {
     background: var(--app-surface-raised);
@@ -305,7 +307,7 @@
     place-items: center;
     width: 30px;
     height: 30px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--app-surface-raised);
     color: var(--app-accent);
   }
@@ -333,7 +335,7 @@
     margin-top: 2px;
     overflow: hidden;
     color: var(--app-fg-muted);
-    font-size: 11.5px;
+    font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -359,11 +361,11 @@
     font-size: 11px;
   }
   .stats.ok {
-    color: #28c840;
+    color: var(--app-success);
   }
   .stats.error {
     display: block;
-    color: #ff928b;
+    color: var(--app-danger-fg);
   }
   .timing {
     display: flex;
@@ -395,9 +397,9 @@
     color: var(--app-fg);
   }
   .state-ok {
-    color: #28c840;
+    color: var(--app-success);
   }
   .state-fail {
-    color: #ff5f57;
+    color: var(--app-danger);
   }
 </style>

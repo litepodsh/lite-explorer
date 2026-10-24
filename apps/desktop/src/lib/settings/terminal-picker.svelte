@@ -135,13 +135,13 @@
   }
   .label {
     color: var(--app-fg);
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 500;
   }
   p {
     margin: 3px 0 0;
     color: var(--app-fg-muted);
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.4;
   }
   .picker {
@@ -154,7 +154,7 @@
     gap: 8px;
     padding: 5px 10px;
     border: 1px solid var(--app-border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--app-input);
     color: var(--app-fg);
     font-size: 12px;
@@ -199,7 +199,7 @@
     overflow-y: auto;
     margin: 0;
     padding: 4px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--app-surface);
     box-shadow:
       0 0 0 1px var(--app-border),
@@ -213,7 +213,7 @@
     gap: 8px;
     padding: 5px 8px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--app-fg);
     font-size: 12px;

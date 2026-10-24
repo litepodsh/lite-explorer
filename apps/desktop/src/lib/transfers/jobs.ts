@@ -44,6 +44,7 @@ export type JobKind =
   | "create"
   | "rename"
   | "compress"
+  | "convert"
   | "action";
 export type JobState = "active" | "paused" | "done" | "failed" | "cancelled";
 
