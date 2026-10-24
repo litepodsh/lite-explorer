@@ -1,6 +1,6 @@
 [package]
 name = "liteexplorer"
-version = "0.1.37"
+version = "0.1.38"
 description = "A cross-platform file explorer for local files, network shares, and cloud storage"
 authors = ["Litepod Studio"]
 license = "MIT"
@@ -119,7 +119,17 @@ image = { version = "0.25", default-features = false, features = [
   "bmp",
   "ico",
   "tiff",
+  "avif",
 ] }
+# SVG to raster. Fonts are loaded once from the system; local files and the network are never read.
+resvg = { version = "0.44", default-features = false, features = ["text", "system-fonts", "raster-images"] }
+# HEIC and AVIF input, in pure Rust (no system codecs): the HEVC decoder is MIT/Apache, rav1d is BSD.
+heic-decoder = "0.1"
+avif-decode = { version = "3", default-features = false }
+# Lossy WebP. The `image` crate only writes lossless WebP.
+webp = "0.3"
+# JPEG with 4:4:4 chroma at high quality (the `image` encoder is stuck on 4:2:2).
+jpeg-encoder = "0.7"
 notify-debouncer-mini = "0.7.0"
 # Parallel directory walk for search, with its .gitignore filtering turned off.
 ignore = "0.4"
