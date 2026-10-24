@@ -1,3 +1,0 @@
-# rav1d's x86 asm is not PIC. Binding symbols locally lets lld link it into the cdylib.
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "link-arg=-Wl,-Bsymbolic"]
