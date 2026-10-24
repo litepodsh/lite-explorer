@@ -24,6 +24,19 @@ export function resolveTheme(theme: Theme, mode: ThemeMode, prefersDark: boolean
   return mode === "system" ? pairMember(theme, prefersDark) : theme;
 }
 
+/**
+ * The theme the native window should use. In system mode it follows the operating system, so the
+ * web view reports the real `prefers-color-scheme` (a forced theme would always say "dark" and the
+ * light side of a pair could never appear). Otherwise it matches the theme the person picked.
+ */
+export function windowTheme(
+  theme: Theme,
+  mode: ThemeMode,
+): "light" | "dark" | null {
+  if (mode === "system") return null;
+  return isLightTheme(theme) ? "light" : "dark";
+}
+
 export function applyAppearance(
   settings: Appearance,
   document: Document,

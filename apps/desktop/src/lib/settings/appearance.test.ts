@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyAppearance, isLightTheme, resolveTheme } from "./appearance.js";
+import { applyAppearance, isLightTheme, resolveTheme, windowTheme } from "./appearance.js";
 import { defaultSettings } from "./settings.js";
 
 describe("resolveTheme", () => {
@@ -21,6 +21,23 @@ describe("resolveTheme", () => {
   test("flips within the Contrast pair", () => {
     expect(resolveTheme("oled", "system", false)).toBe("light");
     expect(resolveTheme("light", "system", true)).toBe("oled");
+  });
+});
+
+describe("windowTheme", () => {
+  test("system mode lets the operating system decide", () => {
+    for (const theme of ["oled", "light", "dark", "explorer-light", "off-black", "off-white"] as const) {
+      expect(windowTheme(theme, "system")).toBeNull();
+    }
+  });
+
+  test("a manual theme pins the window to its own side", () => {
+    expect(windowTheme("oled", "manual")).toBe("dark");
+    expect(windowTheme("dark", "manual")).toBe("dark");
+    expect(windowTheme("off-black", "manual")).toBe("dark");
+    expect(windowTheme("light", "manual")).toBe("light");
+    expect(windowTheme("off-white", "manual")).toBe("light");
+    expect(windowTheme("explorer-light", "manual")).toBe("light");
   });
 });
 
