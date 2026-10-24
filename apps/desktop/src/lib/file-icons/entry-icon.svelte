@@ -66,8 +66,10 @@
 
 <style>
   .custom-light-icon { display: none; }
+  :global(:root[data-theme="explorer-light"] .custom-light-icon),
   :global(:root[data-theme="light"] .custom-light-icon),
   :global(:root[data-theme="off-white"] .custom-light-icon) { display: block; }
+  :global(:root[data-theme="explorer-light"] .custom-dark-icon),
   :global(:root[data-theme="light"] .custom-dark-icon),
   :global(:root[data-theme="off-white"] .custom-dark-icon) { display: none; }
 </style>

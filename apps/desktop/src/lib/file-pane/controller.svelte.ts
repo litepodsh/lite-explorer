@@ -19,6 +19,17 @@ import {
   type ImageFormat,
   type QuickKind,
 } from "#lib/file-ops/convert.js";
+import {
+  ffmpegStatus,
+  mediaKindOf,
+  transcodeRun,
+  type TranscodeOptions,
+} from "#lib/file-ops/transcode.js";
+import {
+  quickMediaKindsFor,
+  quickMediaOptions,
+  type QuickMediaKind,
+} from "#lib/file-ops/transcode-model.js";
 import { renameBatch } from "#lib/file-ops/rename.js";
 import type { RenameStep } from "#lib/file-ops/rename-steps.js";
 import { extraction } from "#lib/archive/extraction.svelte.js";
@@ -1469,6 +1480,81 @@ export class FilePaneController {
     this.convertDialogOpen = false;
     if (targets.length === 0) return;
     await this.#runConvert(targets, options, replaceOriginal);
+  }
+
+  /** Items the video and audio conversion dialog is open for. */
+  transcodeDialogOpen = $state(false);
+  transcodeTargets = $state<DirectoryEntry[]>([]);
+
+  /** "video" or "audio" when every right-clicked item is a local file of that kind. */
+  get mediaContextKind(): "video" | "audio" | null {
+    const targets = this.contextTargets;
+    if (targets.length === 0 || this.remoteRoot || this.serverRoot) return null;
+    if (targets.some((target) => target.is_directory || isRemoteLike(target.path))) return null;
+    return mediaKindOf(targets.map((target) => target.name));
+  }
+
+  get quickMediaKinds(): QuickMediaKind[] {
+    return quickMediaKindsFor(this.contextTargets.map((target) => target.name));
+  }
+
+  openTranscodeDialog(): boolean {
+    if (!this.mediaContextKind) return false;
+    this.transcodeTargets = this.contextTargets;
+    this.transcodeDialogOpen = true;
+    return true;
+  }
+
+  async #runTranscode(
+    targets: DirectoryEntry[],
+    options: TranscodeOptions,
+    suffix: string | null,
+    replaceOriginal: boolean,
+  ) {
+    try {
+      const outcome = await transcodeRun(
+        targets.map((target) => target.path),
+        options,
+        suffix,
+        replaceOriginal,
+      );
+      if (outcome.failed.length) {
+        await message(
+          outcome.failed.map((failure) => `${failure.name}: ${failure.error}`).join("\n"),
+          {
+            title:
+              outcome.failed.length === 1
+                ? `Couldn’t convert “${outcome.failed[0].name}”`
+                : `Couldn’t convert ${outcome.failed.length} files`,
+            kind: "error",
+          },
+        );
+      }
+    } catch (error) {
+      await this.showError(`Couldn’t convert ${targetLabel(targets)}`, error);
+      return;
+    }
+    await this.refreshListing(this.listingPath);
+  }
+
+  async transcodeSelected(options: TranscodeOptions, suffix: string | null, replaceOriginal: boolean) {
+    const targets = this.transcodeTargets;
+    this.transcodeDialogOpen = false;
+    if (targets.length === 0) return;
+    await this.#runTranscode(targets, options, suffix, replaceOriginal);
+  }
+
+  /** One-click conversion. Without ffmpeg it opens the dialog, which offers to download it. */
+  async quickTranscode(kind: QuickMediaKind) {
+    if (!this.mediaContextKind) return;
+    const targets = this.contextTargets;
+    const status = await ffmpegStatus().catch(() => null);
+    if (!status?.available) {
+      this.openTranscodeDialog();
+      return;
+    }
+    const { options, suffix } = quickMediaOptions(kind);
+    await this.#runTranscode(targets, options, suffix, false);
   }
 
   async openCompressDialog() {

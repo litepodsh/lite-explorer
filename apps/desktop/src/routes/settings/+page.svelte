@@ -186,11 +186,10 @@
         <div class="card"><div class="card-core">
           <ThemePicker
             value={current.theme}
-            disabled={current.themeMode === "system"}
             onchange={(value) => settings.set("theme", value as Theme)} />
           <DialogSwitch
             label="Use system appearance"
-            description="Follows your system light or dark setting. Specialty themes stay available when this is off."
+            description="Follows your system light or dark setting, flipping inside the selected theme pair. Turn off to pin one theme."
             checked={current.themeMode === "system"}
             onchange={(checked) => settings.set("themeMode", checked ? "system" : "manual")} />
         </div></div>

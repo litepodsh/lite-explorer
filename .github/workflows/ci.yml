@@ -1,8 +1,14 @@
 name: CI
 
 on:
+  push:
   pull_request:
   workflow_dispatch:
+
+# A newer push to the same branch makes an older, still-running one pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -44,12 +50,19 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential curl file patchelf \
+            build-essential nasm curl file patchelf \
             libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
 
+      # NASM builds the assembly of rav1d (AVIF decoding) on every x86_64 target, and aws-lc on
+      # Windows. Linux gets it from apt above. The Apple Silicon target does not need it, but the
+      # Intel one is cross-built on an Apple Silicon runner, so macOS always installs it.
       - name: Install NASM for aws-lc
         if: runner.os == 'Windows'
         uses: ilammy/setup-nasm@v1
+
+      - name: Install NASM for rav1d
+        if: runner.os == 'macOS'
+        run: brew install nasm
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -88,7 +101,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential curl file patchelf \
+            build-essential nasm curl file patchelf \
             libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
 
       - uses: dtolnay/rust-toolchain@stable

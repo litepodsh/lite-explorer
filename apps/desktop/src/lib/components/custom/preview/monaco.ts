@@ -1,5 +1,7 @@
 import type * as Monaco from "monaco-editor/editor/editor.api";
 import type { HighlighterCore, ThemeRegistration } from "shiki/core";
+import { isLightTheme } from "#lib/settings/appearance.js";
+import type { Theme } from "#lib/settings/settings.js";
 import { GRAMMAR_LOADERS } from "./grammars.js";
 import { LruCache } from "./lru.js";
 
@@ -27,10 +29,10 @@ const models = new LruCache<string, CachedModel>(MODEL_CACHE_SIZE, (_key, entry)
   entry.model.dispose(),
 );
 
-/** Monaco's light base theme matches the two light app presets; all others use Shiki's dark theme. */
+/** Monaco's light base theme matches the light app presets; all others use Shiki's dark theme. */
 export function previewTheme(): string {
-  const theme = document.documentElement.dataset.theme;
-  return theme === "light" || theme === "off-white" ? "vs" : PREVIEW_THEME;
+  const theme = document.documentElement.dataset.theme as Theme | undefined;
+  return theme && isLightTheme(theme) ? "vs" : PREVIEW_THEME;
 }
 
 export function loadMonaco(): Promise<MonacoApi> {

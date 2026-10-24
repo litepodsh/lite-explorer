@@ -13,4 +13,5 @@ pub mod paths;
 pub mod rename;
 pub mod recents;
 pub mod sizes;
+pub mod transcode;
 pub mod watch;

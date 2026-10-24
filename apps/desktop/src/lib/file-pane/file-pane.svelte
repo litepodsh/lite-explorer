@@ -29,6 +29,8 @@
   import ArchiveIcon from "@lucide/svelte/icons/archive";
   import ImageIcon from "@lucide/svelte/icons/image";
   import ZapIcon from "@lucide/svelte/icons/zap";
+  import FilmIcon from "@lucide/svelte/icons/film";
+  import MusicIcon from "@lucide/svelte/icons/music";
   import FolderOutputIcon from "@lucide/svelte/icons/folder-output";
   import UnplugIcon from "@lucide/svelte/icons/unplug";
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
@@ -39,6 +41,7 @@
   import { isArchive } from "#lib/file-ops/archive.js";
   import { isAppBundle } from "#lib/file-ops/bundles.js";
   import { quickLabel } from "#lib/file-ops/convert.js";
+  import { quickMediaLabel } from "#lib/file-ops/transcode-model.js";
   import { platformState } from "#lib/state/platform.svelte.js";
   import { drag } from "#lib/file-drag/drag.svelte.js";
   import type { DraggedEntry } from "#lib/file-drag/drag.svelte.js";
@@ -47,6 +50,7 @@
   import PathStatusBar from "#lib/components/custom/status-bar/path-status-bar.svelte";
   import CompressDialog from "#lib/components/custom/dialog/compress-dialog.svelte";
   import ConvertDialog from "#lib/components/custom/dialog/convert-dialog.svelte";
+  import TranscodeDialog from "#lib/components/custom/dialog/transcode-dialog.svelte";
   import RenameDialog from "#lib/components/custom/dialog/rename-dialog.svelte";
   import { ListPanel, type DirectoryEntry } from "#lib/components/custom/file-list/index.js";
   import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
@@ -488,6 +492,30 @@
                 </ContextMenu.SubContent>
               </ContextMenu.Sub>
             {/if}
+            {#if controller.mediaContextKind}
+              {@const mediaKind = controller.mediaContextKind}
+              <ContextMenu.Item onSelect={() => controller.openTranscodeDialog()}>
+                {#if mediaKind === "audio"}<MusicIcon class="size-4" />{:else}<FilmIcon class="size-4" />{/if}
+                {count > 1
+                  ? `Convert ${count} ${mediaKind === "audio" ? "Audio Files" : "Videos"}…`
+                  : mediaKind === "audio"
+                    ? "Convert Audio…"
+                    : "Convert Video…"}
+              </ContextMenu.Item>
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger>
+                  <ZapIcon class="size-4" />
+                  Quick Convert
+                </ContextMenu.SubTrigger>
+                <ContextMenu.SubContent>
+                  {#each controller.quickMediaKinds as kind (kind)}
+                    <ContextMenu.Item onSelect={() => void controller.quickTranscode(kind)}>
+                      {quickMediaLabel(kind, mediaKind)}
+                    </ContextMenu.Item>
+                  {/each}
+                </ContextMenu.SubContent>
+              </ContextMenu.Sub>
+            {/if}
             {#if target && isArchive(target.name)}
               <ContextMenu.Item onSelect={() => void controller.extractContextTargetHere()}>
                 <FolderOutputIcon class="size-4" />
@@ -589,6 +617,11 @@
         : controller.listingPartial
           ? `Loading ${controller.selected}… ${formatCount(controller.entries.length)} items so far`
           : null)} />
+  <TranscodeDialog
+    bind:open={controller.transcodeDialogOpen}
+    targets={controller.transcodeTargets}
+    onConvert={(options, suffix, replaceOriginal) =>
+      void controller.transcodeSelected(options, suffix, replaceOriginal)} />
   <RenameDialog
     bind:open={controller.renameDialogOpen}
     targets={controller.renameTargets}

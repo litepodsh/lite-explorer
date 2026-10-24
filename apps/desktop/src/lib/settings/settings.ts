@@ -1,7 +1,7 @@
 export type WindowControlsMode = "automatic" | "visible" | "hover" | "hidden";
 export type KeyboardMode = "standard" | "yazi";
 export type ChordTimeout = 1000 | 1500 | 3000;
-export type Theme = "off-white" | "light" | "dark" | "off-black" | "oled";
+export type Theme = "explorer-light" | "off-white" | "light" | "dark" | "off-black" | "oled";
 export type ThemeMode = "manual" | "system";
 export type Radius = "compact" | "soft" | "round";
 export type Elevation = "flat" | "soft" | "lifted";
@@ -79,6 +79,7 @@ const isBoolean = (value: unknown): value is boolean => typeof value === "boolea
 
 const VALIDATORS: { [K in SettingKey]: (value: unknown) => value is Settings[K] } = {
   theme: (value): value is Theme =>
+    value === "explorer-light" ||
     value === "off-white" ||
     value === "light" ||
     value === "dark" ||

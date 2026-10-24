@@ -69,6 +69,27 @@
 }
 
 /* Light materials */
+:root[data-theme="explorer-light"] {
+  --app-bg: #fafaf9;
+  --app-sidebar: #f0efed;
+  --app-surface: #fff;
+  --app-surface-raised: #fff;
+  --app-input: #fff;
+  --app-fg: #1c1c1c;
+  --app-fg-muted: #61605e;
+  --app-fg-faint: #8a8987;
+  --app-border: #dcdbd8;
+  --app-accent: #0a9bff;
+  --app-accent-fg: #fff;
+  --app-danger: #c8343a;
+  --app-danger-fg: #a92c31;
+  --app-overlay: rgb(28 28 28 / 14%);
+  --app-menu-shadow: 0 10px 30px -12px rgb(28 26 24 / 30%);
+  --app-info: #1f6fc7;
+  --app-success: #167a55;
+  --app-warning: #a96a0b;
+  --app-shadow: 0 12px 28px -20px rgb(28 28 28 / 24%);
+}
 :root[data-theme="off-white"] {
   --app-bg: #f4f1ed;
   --app-sidebar: #ebe7e1;
@@ -386,6 +407,7 @@
   color-scheme: dark;
 }
 
+html[data-theme="explorer-light"],
 html[data-theme="off-white"],
 html[data-theme="light"] {
   color-scheme: light;
