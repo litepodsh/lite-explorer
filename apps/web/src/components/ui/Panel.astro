@@ -1,0 +1,32 @@
+---
+import { cn } from '../../lib/utils';
+import Icon from './Icon.astro';
+
+interface Props {
+	icon?: string;
+	title: string;
+	subtitle?: string;
+	as?: 'h2' | 'h3';
+	class?: string;
+	[key: string]: unknown;
+}
+
+const { icon, title, subtitle, as: Heading = 'h3', class: className, ...rest } = Astro.props;
+---
+
+<article
+	class={cn('overflow-hidden rounded-[18px] border border-border bg-surface shadow-[0_12px_28px_-22px_rgb(0_0_0/0.5)]', className)}
+	{...rest}
+>
+	<header class="flex items-center gap-3.5 border-b border-border px-5 py-4">
+		{icon && <Icon name={icon} size={24} class="shrink-0 text-accent" />}
+		<div class="min-w-0 flex-1">
+			<Heading class="text-[16px] font-semibold tracking-[-0.01em]">{title}</Heading>
+			{subtitle && <p class="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
+		</div>
+		<slot name="meta" />
+	</header>
+	<div class="p-5">
+		<slot />
+	</div>
+</article>

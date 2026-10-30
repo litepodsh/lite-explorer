@@ -1,7 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import Header from './Header.astro';
-import Footer from './Footer.astro';
+import AppShell from './AppShell.astro';
 import Eyebrow from '../ui/Eyebrow.astro';
 import { legal } from '../../lib/content';
 
@@ -16,12 +15,13 @@ interface Props {
 const { title, description, eyebrow, toc } = Astro.props;
 ---
 
-<Layout title={`${title} — Lite Explorer`} description={description}>
-	<div class="grain" aria-hidden="true"></div>
-
-	<Header />
-
-	<main class="shell pt-16 pb-24 md:pt-24">
+<Layout
+	title={`${title} — Lite Explorer`}
+	description={description}
+	crumbs={[{ name: title, path: Astro.url.pathname }]}
+>
+	<AppShell title={title}>
+	<main class="mx-auto w-full max-w-[1040px] px-4 pt-12 pb-16 sm:px-6 md:pt-16">
 		<div class="max-w-[760px]">
 			<Eyebrow dot>{eyebrow}</Eyebrow>
 			<h1 class="mt-4 text-[clamp(2.2rem,5vw,3.4rem)]">{title}</h1>
@@ -60,10 +60,6 @@ const { title, description, eyebrow, toc } = Astro.props;
 		</div>
 	</main>
 
-	<Footer />
+	</AppShell>
 </Layout>
 
-<script>
-	// The header uses the scroll-reveal class; legal pages show it right away.
-	document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-visible'));
-</script>

@@ -1,0 +1,153 @@
+---
+import { hostLink, site } from '../../lib/content';
+import Icon from '../ui/Icon.astro';
+import ThemeToggle from '../ui/ThemeToggle.astro';
+
+const nav = [
+	{ id: 'overview', href: '/#overview', label: 'Overview', icon: 'overview' },
+	{ id: 'workspace', href: '/#workspace', label: 'Workspace', icon: 'layers' },
+	{ id: 'preview', href: '/#preview', label: 'Preview', icon: 'eye' },
+	{ id: 'keyboard', href: '/#keyboard', label: 'Keyboard', icon: 'keyboard' },
+	{ id: 'install', href: '/#install', label: 'Install', icon: 'download' },
+	{ id: 'faq', href: '/#faq', label: 'FAQ', icon: 'help' },
+];
+
+const places = [
+	{ href: site.repo, label: 'Repository', icon: 'github' },
+	{ href: site.releases, label: 'Releases', icon: 'tag' },
+	{ href: site.changelog, label: 'Changelog', icon: 'clock' },
+	{ href: site.roadmap, label: 'Roadmap', icon: 'folder' },
+];
+
+const legal = [
+	{ href: '/privacy', label: 'Privacy', icon: 'shield' },
+	{ href: '/terms', label: 'Terms', icon: 'file' },
+];
+
+const item =
+	'ease-glass flex h-9 items-center gap-3 rounded-[10px] px-3 text-[14px] text-foreground-soft transition-colors duration-150 hover:bg-[var(--overlay-1)] data-[active=true]:bg-[var(--overlay-2)] data-[active=true]:text-accent';
+---
+
+<div data-sidebar-scrim class="fixed inset-0 z-40 hidden bg-black/40 backdrop-blur-[2px] data-[open=true]:block lg:!hidden"></div>
+
+<aside
+	data-sidebar
+	aria-label="Site navigation"
+	class="ease-glass fixed inset-y-0 left-0 z-50 flex w-[272px] -translate-x-full flex-col border-r border-border bg-sidebar transition-transform duration-300 data-[open=true]:translate-x-0 lg:sticky lg:top-0 lg:z-10 lg:h-dvh lg:w-[256px] lg:shrink-0 lg:translate-x-0"
+>
+	<div class="flex h-[60px] shrink-0 items-center gap-2.5 px-4">
+		<a class="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em]" href="/" aria-label="Lite Explorer home">
+			<img src="/logo.svg" alt="" width="24" height="24" />
+			<span>{site.name}</span>
+		</a>
+		<span class="ml-auto rounded-md border border-border px-1.5 py-0.5 font-mono text-[10.5px] text-muted-dim">{site.version}</span>
+	</div>
+
+	<nav class="flex-1 overflow-y-auto px-3 pb-4" aria-label="Sections">
+		<ul class="m-0 grid list-none gap-0.5 p-0">
+			{
+				nav.map((link) => (
+					<li>
+						<a class={item} href={link.href} data-nav={link.id}>
+							<Icon name={link.icon} size={18} />
+							{link.label}
+						</a>
+					</li>
+				))
+			}
+		</ul>
+
+		<p class="mt-6 mb-1.5 px-3 text-[12.5px] font-medium text-muted-dim">Project</p>
+		<ul class="m-0 grid list-none gap-0.5 p-0">
+			{
+				places.map((link) => (
+					<li>
+						<a class={item} href={link.href} target="_blank" rel="noreferrer">
+							<Icon name={link.icon} size={18} />
+							{link.label}
+						</a>
+					</li>
+				))
+			}
+		</ul>
+
+		<p class="mt-6 mb-1.5 px-3 text-[12.5px] font-medium text-muted-dim">Legal</p>
+		<ul class="m-0 grid list-none gap-0.5 p-0">
+			{
+				legal.map((link) => (
+					<li>
+						<a class={item} href={link.href} data-path={link.href}>
+							<Icon name={link.icon} size={18} />
+							{link.label}
+						</a>
+					</li>
+				))
+			}
+		</ul>
+	</nav>
+
+	<div class="flex shrink-0 items-center gap-2 border-t border-border p-3">
+		<a
+			class="ease-glass group inline-flex min-w-0 flex-1 items-center gap-2 rounded-full border border-border px-2.5 py-1.5 text-xs text-muted transition-colors duration-200 hover:text-foreground"
+			href={hostLink}
+			target="_blank"
+			rel="noreferrer"
+			data-umami-event="litepod-referral"
+			data-umami-event-source="sidebar"
+			data-umami-event-destination="litepod.sh"
+		>
+			<span class="animate-litepod-ring grid size-[14px] shrink-0 place-items-center rounded-full motion-reduce:animate-none">
+				<img src={site.host.logo} alt="" width="12" height="12" />
+			</span>
+			<span class="truncate">{site.host.tagline}</span>
+		</a>
+		<ThemeToggle />
+	</div>
+</aside>
+
+<script>
+	const sidebar = document.querySelector<HTMLElement>('[data-sidebar]');
+	const scrim = document.querySelector<HTMLElement>('[data-sidebar-scrim]');
+	const toggles = document.querySelectorAll<HTMLElement>('[data-sidebar-toggle]');
+
+	const setOpen = (open: boolean) => {
+		sidebar?.setAttribute('data-open', String(open));
+		scrim?.setAttribute('data-open', String(open));
+		toggles.forEach((t) => t.setAttribute('aria-expanded', String(open)));
+	};
+
+	toggles.forEach((t) => t.addEventListener('click', () => setOpen(sidebar?.dataset.open !== 'true')));
+	scrim?.addEventListener('click', () => setOpen(false));
+	sidebar?.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => setOpen(false)));
+	window.addEventListener('keydown', (e) => e.key === 'Escape' && setOpen(false));
+
+	const links = new Map<string, HTMLElement>();
+	document.querySelectorAll<HTMLElement>('[data-nav]').forEach((el) => links.set(el.dataset.nav!, el));
+
+	const activate = (id: string | null) =>
+		links.forEach((el, key) => {
+			el.dataset.active = String(key === id);
+			if (key === id) el.setAttribute('aria-current', 'location');
+			else el.removeAttribute('aria-current');
+		});
+
+	// Highlight the legal page we are on; on the home page, spy on the sections.
+	const here = document.querySelector<HTMLElement>(`[data-path="${location.pathname.replace(/\/$/, '')}"]`);
+	if (here) {
+		here.dataset.active = 'true';
+		here.setAttribute('aria-current', 'page');
+	} else if ('IntersectionObserver' in window) {
+		const sections = [...links.keys()]
+			.map((id) => document.getElementById(id))
+			.filter((el): el is HTMLElement => !!el);
+		const spy = new IntersectionObserver(
+			(entries) => {
+				const hit = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+				if (hit) activate(hit.target.id);
+			},
+			{ rootMargin: '-20% 0px -65% 0px' },
+		);
+		sections.forEach((s) => spy.observe(s));
+		activate('overview');
+	}
+</script>

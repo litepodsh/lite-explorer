@@ -1,0 +1,41 @@
+---
+import { site } from '../../lib/content';
+import Button from '../ui/Button.astro';
+import Icon from '../ui/Icon.astro';
+
+interface Props {
+	title?: string;
+}
+
+const { title = 'Overview' } = Astro.props;
+---
+
+<header class="sticky top-0 z-30 flex h-[60px] items-center gap-3 border-b border-border bg-[var(--nav-backdrop)] px-4 backdrop-blur-[18px] backdrop-saturate-150 sm:px-6">
+	<button
+		type="button"
+		data-sidebar-toggle
+		aria-label="Toggle navigation"
+		aria-expanded="false"
+		class="ease-glass grid size-9 place-items-center rounded-full border border-border text-muted transition-colors duration-200 hover:text-foreground lg:hidden"
+	>
+		<Icon name="menu" size={18} />
+	</button>
+
+	<p class="m-0 text-[15px] font-semibold tracking-[-0.01em] lg:mx-auto lg:translate-x-0">{title}</p>
+
+	<div class="ml-auto flex items-center gap-2 lg:ml-0">
+		<a
+			class="ease-glass hidden h-9 items-center gap-2 rounded-full border border-border bg-[var(--overlay-1)] px-3.5 text-[13px] text-muted-dim transition-colors duration-200 hover:text-foreground sm:inline-flex"
+			href={site.repo}
+			target="_blank"
+			rel="noreferrer"
+		>
+			<Icon name="github" size={15} />
+			Star on GitHub
+		</a>
+		<Button href={site.download} size="sm" target="_blank" rel="noreferrer">
+			<Icon name="download" size={15} />
+			Download
+		</Button>
+	</div>
+</header>

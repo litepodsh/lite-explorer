@@ -1,22 +1,73 @@
 ---
 import '../styles/global.css';
+import { legal, site } from '../lib/content';
 
 interface Props {
 	title?: string;
 	description?: string;
+	/** Extra schema.org nodes merged into the page @graph. */
+	schema?: Record<string, unknown>[];
+	/** Breadcrumb trail after "Home", e.g. [{ name: 'Privacy', path: '/privacy' }]. */
+	crumbs?: { name: string; path: string }[];
+	ogType?: 'website' | 'article';
+	noindex?: boolean;
 }
 
 const {
-	title = 'Lite Explorer — Less chrome. More room for your files.',
-	description = 'A calm, native-feeling file explorer for macOS, Linux, and Windows. Tabs, split panes, and full keyboard control, built with Tauri and SvelteKit.',
+	title = 'Lite Explorer — Free, open-source file manager for macOS, Windows & Linux',
+	description = site.description,
+	schema = [],
+	crumbs = [],
+	ogType = 'website',
+	noindex = false,
 } = Astro.props;
 
-const site = Astro.site ?? new URL('https://explorer.litepod.sh');
-const canonical = new URL(Astro.url.pathname, site);
+const origin = Astro.site ?? new URL(site.url);
+const canonical = new URL(Astro.url.pathname, origin).href;
+const ogImage = new URL(site.ogImage, origin).href;
+const logo = new URL('/app-icon.png', origin).href;
+const home = new URL('/', origin).href;
+
+const organization = {
+	'@type': 'Organization',
+	'@id': `${home}#organization`,
+	name: legal.publisher,
+	url: site.host.url,
+	logo,
+	email: legal.email,
+	sameAs: [site.repo, site.host.url],
+};
+
+const website = {
+	'@type': 'WebSite',
+	'@id': `${home}#website`,
+	url: home,
+	name: site.name,
+	description: site.description,
+	inLanguage: 'en',
+	publisher: { '@id': organization['@id'] },
+};
+
+const breadcrumb = crumbs.length
+	? {
+			'@type': 'BreadcrumbList',
+			itemListElement: [{ name: 'Home', path: '/' }, ...crumbs].map((crumb, index) => ({
+				'@type': 'ListItem',
+				position: index + 1,
+				name: crumb.name,
+				item: new URL(crumb.path, origin).href,
+			})),
+		}
+	: null;
+
+const graph = {
+	'@context': 'https://schema.org',
+	'@graph': [organization, website, ...(breadcrumb ? [breadcrumb] : []), ...schema],
+};
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
 	<head>
 		<meta charset="utf-8" />
 		<script is:inline>
@@ -53,55 +104,55 @@ const canonical = new URL(Astro.url.pathname, site);
 			})();
 		</script>
 
+
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
 		<meta name="color-scheme" content="dark light" />
-		<meta name="theme-color" content="#242220" />
+		<meta name="theme-color" content="#242220" media="(prefers-color-scheme: dark)" />
+		<meta name="theme-color" content="#f5f3f1" media="(prefers-color-scheme: light)" />
 
 		<title>{title}</title>
 		<meta name="description" content={description} />
-		<meta name="robots" content="index, follow" />
+		<meta
+			name="robots"
+			content={noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'}
+		/>
 		<meta
 			name="keywords"
-			content="Lite Explorer, file manager, Tauri, SvelteKit, macOS, Windows, Linux, file explorer, tabs, split panes, keyboard, open source"
+			content="file manager, file explorer, Finder alternative, Windows Explorer alternative, open source file manager, macOS file manager, Linux file manager, Windows file manager, split pane file manager, dual pane file manager, command palette, keyboard file manager, yazi, Tauri, SvelteKit, S3 browser, SFTP client, SMB"
 		/>
-		<meta name="author" content="Litepod Studio" />
+		<meta name="author" content={legal.publisher} />
+		<meta name="application-name" content={site.name} />
+		<meta name="apple-mobile-web-app-title" content={site.name} />
+		<meta name="format-detection" content="telephone=no" />
 		<link rel="canonical" href={canonical} />
+		<link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
+		<link rel="alternate" type="text/plain" href="/llms.txt" title="LLM-friendly summary" />
+		<link rel="manifest" href="/site.webmanifest" />
 
-		<meta property="og:type" content="website" />
-		<meta property="og:site_name" content="Lite Explorer" />
+		<meta property="og:type" content={ogType} />
+		<meta property="og:site_name" content={site.name} />
+		<meta property="og:locale" content="en_US" />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
 		<meta property="og:url" content={canonical} />
-		<meta property="og:image" content="/lite-explorer-preview.png" />
+		<meta property="og:image" content={ogImage} />
+		<meta property="og:image:secure_url" content={ogImage} />
+		<meta property="og:image:type" content="image/png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content={site.ogImageAlt} />
 		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImage} />
+		<meta name="twitter:image:alt" content={site.ogImageAlt} />
 
 		<link rel="icon" type="image/png" href="/favicon.png" />
+		<link rel="icon" type="image/svg+xml" href="/logo.svg" />
 		<link rel="apple-touch-icon" href="/app-icon.png" />
 
-		<script
-			type="application/ld+json"
-			set:html={JSON.stringify({
-				'@context': 'https://schema.org',
-				'@type': 'SoftwareApplication',
-				name: 'Lite Explorer',
-				url: site.href,
-				description:
-					'A calm, native-feeling file explorer for macOS, Linux, and Windows. Tabs, split panes, and full keyboard control, built with Tauri and SvelteKit.',
-				applicationCategory: 'UtilitiesApplication',
-				operatingSystem: 'macOS, Windows, Linux',
-				offers: {
-					'@type': 'Offer',
-					price: '0',
-					priceCurrency: 'USD',
-				},
-				license: 'https://github.com/litepodsh/lite-explorer/blob/main/LICENSE',
-				author: {
-					'@type': 'Organization',
-					name: 'Litepod Studio',
-				},
-			})}
-		/>
+		<script type="application/ld+json" set:html={JSON.stringify(graph)} />
 
 		<script
 			is:inline

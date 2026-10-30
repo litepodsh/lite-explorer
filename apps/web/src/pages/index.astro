@@ -1,49 +1,297 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Header from '../components/site/Header.astro';
-import Hero from '../components/site/Hero.astro';
-import Marquee from '../components/site/Marquee.astro';
-import FeatureGrid from '../components/site/FeatureGrid.astro';
-import KeyboardSection from '../components/site/KeyboardSection.astro';
-import CtaBand from '../components/site/CtaBand.astro';
-import Footer from '../components/site/Footer.astro';
-import { highlights, keys, marquee } from '../lib/content';
+import AppShell from '../components/site/AppShell.astro';
+import WindowFrame from '../components/site/WindowFrame.astro';
+import Button from '../components/ui/Button.astro';
+import Eyebrow from '../components/ui/Eyebrow.astro';
+import Icon from '../components/ui/Icon.astro';
+import Kbd from '../components/ui/Kbd.astro';
+import Panel from '../components/ui/Panel.astro';
+import { faq, featureList, highlights, keys, preview, site, stats, legal } from '../lib/content';
+
+const origin = Astro.site ?? new URL(site.url);
+const abs = (path: string) => new URL(path, origin).href;
+
+const schema = [
+	{
+		'@type': 'SoftwareApplication',
+		'@id': `${abs('/')}#app`,
+		name: site.name,
+		alternateName: ['Lite Explorer file manager', 'liteexplorer'],
+		url: abs('/'),
+		description: site.description,
+		applicationCategory: 'UtilitiesApplication',
+		applicationSubCategory: 'File manager',
+		operatingSystem: 'macOS, Windows, Linux',
+		softwareVersion: site.version.replace(/^v/, ''),
+		downloadUrl: site.download,
+		installUrl: site.download,
+		releaseNotes: site.changelog,
+		license: site.licenseUrl,
+		isAccessibleForFree: true,
+		inLanguage: 'en',
+		image: abs(site.ogImage),
+		screenshot: [
+			{ '@type': 'ImageObject', url: abs('/preview-overview.png'), caption: 'Overview screen: disk capacity, volumes and home folder usage' },
+			{ '@type': 'ImageObject', url: abs('/preview-recents.png'), caption: 'Recents view' },
+		],
+		featureList,
+		offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD', availability: 'https://schema.org/InStock' },
+		author: { '@id': `${abs('/')}#organization` },
+		publisher: { '@id': `${abs('/')}#organization` },
+		codeRepository: site.repo,
+	},
+	{
+		'@type': 'FAQPage',
+		'@id': `${abs('/')}#faq`,
+		mainEntity: faq.map((item) => ({
+			'@type': 'Question',
+			name: item.q,
+			acceptedAnswer: { '@type': 'Answer', text: item.a },
+		})),
+	},
+];
+
+const section = 'scroll-mt-20 px-4 py-[clamp(36px,5vw,64px)] sm:px-6';
+const inner = 'mx-auto w-full max-w-[1080px]';
 ---
 
-<Layout>
-	<div class="grain" aria-hidden="true"></div>
+<Layout schema={schema}>
+	<AppShell title="Overview">
+		<main>
+			<!-- Hero -->
+			<section id="overview" class={section}>
+				<div class={inner}>
+					<Eyebrow dot class="reveal mb-4">{site.tagline}</Eyebrow>
+					<h1 class="reveal max-w-[20ch] text-[clamp(2.3rem,5vw,3.7rem)] tracking-[-0.035em]" style="--reveal-delay: 60ms">
+						The calm, keyboard-first file explorer for <span class="text-accent">macOS, Windows &amp; Linux</span>.
+					</h1>
+					<p class="reveal mt-5 max-w-[60ch] text-[clamp(15px,1.4vw,17px)] leading-[1.65] text-muted" style="--reveal-delay: 120ms">
+						Lite Explorer is a free, open-source file manager with tabs, split panes, a command
+						palette, search inside files and an Activity drawer for long jobs. A Finder-inspired
+						layout, built with Tauri and SvelteKit.
+					</p>
+					<div class="reveal mt-7 flex flex-wrap gap-3" style="--reveal-delay: 180ms">
+						<Button href={site.download} target="_blank" rel="noreferrer">
+							<Icon name="download" size={17} />
+							Download {site.version}
+						</Button>
+						<Button href={site.repo} variant="ghost" target="_blank" rel="noreferrer">
+							<Icon name="github" size={16} />
+							View repository
+						</Button>
+					</div>
 
-	<Header />
+					<!-- Stat row, styled after the app's Overview screen -->
+					<dl class="reveal mt-12 grid grid-cols-2 gap-x-6 gap-y-8 lg:grid-cols-4" style="--reveal-delay: 120ms">
+						{
+							stats.map((stat) => (
+								<div class="flex gap-3.5">
+									<Icon name={stat.icon} size={30} class="mt-1.5 shrink-0 text-accent" />
+									<div class="min-w-0">
+										<dd class="m-0 flex items-baseline gap-1.5 text-[clamp(1.7rem,3vw,2.3rem)] font-semibold tracking-[-0.03em] [font-variant-numeric:tabular-nums]">
+											{stat.value}
+											{stat.unit && <span class="text-[0.5em] font-medium text-muted">{stat.unit}</span>}
+										</dd>
+										<dt class="text-[14.5px] font-medium">{stat.label}</dt>
+										<p class="mt-0.5 text-[13px] text-muted">{stat.sub}</p>
+									</div>
+								</div>
+							))
+						}
+					</dl>
 
-	<main>
-		<Hero />
-		<Marquee items={marquee} />
-		<FeatureGrid items={highlights} />
-		<KeyboardSection keys={keys} />
-		<CtaBand />
-	</main>
+					<div class="reveal mt-12" style="--reveal-delay: 100ms">
+						<WindowFrame
+							title={site.name}
+							src="/preview-overview.png"
+							width={2638}
+							height={1670}
+							alt={site.ogImageAlt}
+						/>
+					</div>
+				</div>
+			</section>
 
-	<Footer />
+			<!-- Features -->
+			<section id="workspace" class={section}>
+				<div class={inner}>
+					<div class="reveal mb-9 max-w-[60ch]">
+						<Eyebrow class="mb-3">Workspace</Eyebrow>
+						<h2 class="text-[clamp(1.8rem,3.2vw,2.6rem)]">Built for the way you actually move through folders.</h2>
+						<p class="mt-4 leading-[1.65] text-muted">
+							No dashboards, no sync, no accounts. A fast local file browser that stays out of the
+							way and answers to the keyboard first.
+						</p>
+					</div>
+
+					<div class="grid gap-4 md:grid-cols-2">
+						{
+							highlights.map((item, index) => (
+								<Panel
+									class="reveal"
+									style={`--reveal-delay: ${(index % 2) * 90}ms`}
+									icon={item.icon}
+									title={item.title}
+									subtitle={item.tag}
+								>
+									<p class="m-0 text-[14.5px] leading-[1.65] text-muted">{item.body}</p>
+								</Panel>
+							))
+						}
+					</div>
+
+					<!-- UI vignettes that mirror the real app -->
+					<div class="mt-4 grid gap-4 lg:grid-cols-2">
+						<Panel class="reveal" icon="command" title="Command palette" subtitle="One search box for everything">
+							<span slot="meta" class="flex gap-1"><Kbd>⇧</Kbd><Kbd>⌘</Kbd><Kbd>P</Kbd></span>
+							<div class="rounded-xl border border-border bg-background-deep p-1.5">
+								<div class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[14px] text-muted">
+									<Icon name="search" size={16} />
+									<span class="text-foreground">Open folder, run command…</span>
+								</div>
+								<ul class="m-0 mt-1 grid list-none gap-0.5 border-t border-border p-0 pt-1.5 text-[14px]">
+									<li class="flex items-center gap-2.5 rounded-lg bg-[var(--overlay-2)] px-3 py-2"><Icon name="folder" size={16} class="text-accent" />Go to folder <span class="ml-auto text-xs text-muted-dim">⌘L</span></li>
+									<li class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-foreground-soft"><Icon name="panes" size={16} />Split pane <span class="ml-auto text-xs text-muted-dim">Command</span></li>
+									<li class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-foreground-soft"><Icon name="clock" size={16} />Recent folders <span class="ml-auto text-xs text-muted-dim">Place</span></li>
+								</ul>
+							</div>
+						</Panel>
+
+						<Panel class="reveal" icon="download" title="Activity" subtitle="Copies, moves, extraction and uploads" style="--reveal-delay: 90ms">
+							<div class="mb-4 inline-flex gap-0.5 rounded-xl bg-background-deep p-1 text-[13px]" role="presentation">
+								<span class="rounded-lg bg-[var(--overlay-2)] px-3 py-1 font-medium">All</span>
+								<span class="px-3 py-1 text-muted">Active</span>
+								<span class="px-3 py-1 text-muted">Done</span>
+								<span class="px-3 py-1 text-muted">Failed</span>
+							</div>
+							<ul class="m-0 grid list-none gap-4 p-0 text-[14px]">
+								<li>
+									<div class="mb-1.5 flex justify-between"><span>Extracting photos.zip</span><span class="font-mono text-xs text-muted">72%</span></div>
+									<div class="h-1 overflow-hidden rounded-full bg-[var(--overlay-2)]"><div class="h-full w-[72%] rounded-full bg-accent"></div></div>
+								</li>
+								<li>
+									<div class="mb-1.5 flex justify-between"><span>Copying 24 files</span><span class="font-mono text-xs text-muted">38%</span></div>
+									<div class="h-1 overflow-hidden rounded-full bg-[var(--overlay-2)]"><div class="h-full w-[38%] rounded-full bg-accent"></div></div>
+								</li>
+								<li class="flex items-center justify-between text-muted"><span>Moved to Trash</span><Icon name="check" size={15} class="text-[var(--primary)]" /></li>
+							</ul>
+						</Panel>
+					</div>
+				</div>
+			</section>
+
+			<!-- Preview -->
+			<section id="preview" class={section}>
+				<div class={inner}>
+					<div class="grid items-center gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+						<div class="reveal">
+							<Eyebrow class="mb-3">Preview</Eyebrow>
+							<h2 class="text-[clamp(1.8rem,3.2vw,2.6rem)]">See inside files without opening them.</h2>
+							<p class="mt-4 leading-[1.65] text-muted">
+								A built-in preview panel renders common formats right next to the list, and it only
+								loads when you need it.
+							</p>
+							<ul class="m-0 mt-5 grid list-none gap-2 p-0 text-[14.5px]">
+								{preview.map((p) => (
+									<li class="flex items-center gap-2.5"><Icon name="check" size={16} class="text-accent" />{p}</li>
+								))}
+							</ul>
+						</div>
+						<div class="reveal" style="--reveal-delay: 100ms">
+							<WindowFrame
+								title="Recents"
+								src="/preview-recents.png"
+								alt="Lite Explorer Recents view listing recently opened files and folders"
+							/>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Keyboard -->
+			<section id="keyboard" class={section}>
+				<div class={inner}>
+					<Panel as="h2" class="reveal" icon="keyboard" title="Usable without touching the mouse" subtitle="Keyboard first, Vim motions optional">
+						<div class="grid gap-8 lg:grid-cols-2">
+							<p class="m-0 leading-[1.65] text-muted">
+								Press <Kbd class="inline-grid align-middle">F1</Kbd> for the full list, or search it
+								by key. Prefer Vim motions? Turn on yazi mode for <code class="font-mono text-[0.9em] text-foreground-soft">j</code>/<code class="font-mono text-[0.9em] text-foreground-soft">k</code>,
+								<code class="font-mono text-[0.9em] text-foreground-soft">gg</code>, chords with a which-key popup, and single-key copy and paste.
+							</p>
+							<ul class="m-0 grid list-none p-0">
+								{
+									keys.map((key, index) => (
+										<li class:list={['flex items-center justify-between gap-4 py-2.5', index !== keys.length - 1 && 'border-b border-border']}>
+											<span class="inline-flex gap-[5px]">{key.combo.map((part) => <Kbd>{part}</Kbd>)}</span>
+											<span class="text-right text-[13.5px] text-muted">{key.label}</span>
+										</li>
+									))
+								}
+							</ul>
+						</div>
+					</Panel>
+				</div>
+			</section>
+
+			<!-- Install -->
+			<section id="install" class={section}>
+				<div class={inner}>
+					<div class="reveal mb-8 max-w-[60ch]">
+						<Eyebrow class="mb-3">Install</Eyebrow>
+						<h2 class="text-[clamp(1.8rem,3.2vw,2.6rem)]">Download Lite Explorer for free.</h2>
+						<p class="mt-4 leading-[1.65] text-muted">
+							Grab the build for your platform from the latest release. It is open source under the {site.license} license.
+						</p>
+					</div>
+					<div class="grid gap-4 md:grid-cols-3">
+						{
+							site.platforms.map((platform, index) => (
+								<Panel class="reveal" style={`--reveal-delay: ${index * 70}ms`} icon="download" title={`Lite Explorer for ${platform}`} subtitle={site.version}>
+									<Button href={site.download} variant="ghost" size="sm" target="_blank" rel="noreferrer" class="w-full">
+										Download for {platform}
+									</Button>
+									{platform === 'macOS' && (
+										<p class="m-0 mt-4 text-[13px] leading-[1.6] text-muted">
+											Open the universal DMG and drag the app to Applications. If macOS blocks it,
+											Control-click the DMG, choose <strong class="text-foreground-soft">Open</strong>,
+											then <strong class="text-foreground-soft">Open</strong> again.
+										</p>
+									)}
+								</Panel>
+							))
+						}
+					</div>
+				</div>
+			</section>
+
+			<!-- FAQ -->
+			<section id="faq" class={section}>
+				<div class={inner}>
+					<div class="reveal mb-8 max-w-[60ch]">
+						<Eyebrow class="mb-3">FAQ</Eyebrow>
+						<h2 class="text-[clamp(1.8rem,3.2vw,2.6rem)]">Frequently asked questions</h2>
+					</div>
+					<div class="reveal overflow-hidden rounded-[18px] border border-border bg-surface">
+						{
+							faq.map((item, index) => (
+								<details class:list={['group', index !== 0 && 'border-t border-border']} open={index === 0}>
+									<summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-[15.5px] font-medium marker:hidden [&::-webkit-details-marker]:hidden hover:bg-[var(--overlay-1)]">
+										<h3 class="text-[15.5px] font-medium tracking-normal">{item.q}</h3>
+										<Icon name="plus" size={16} class="shrink-0 text-muted transition-transform duration-200 group-open:rotate-45" />
+									</summary>
+									<p class="m-0 px-5 pb-5 text-[14.5px] leading-[1.7] text-muted">{item.a}</p>
+								</details>
+							))
+						}
+					</div>
+					<p class="mt-5 text-[13.5px] text-muted-dim">
+						More: <a class="text-accent underline-offset-4 hover:underline" href={legal.privacyPath}>privacy policy</a>,
+						<a class="text-accent underline-offset-4 hover:underline" href="/llms.txt">llms.txt</a>,
+						<a class="text-accent underline-offset-4 hover:underline" href={site.changelog} target="_blank" rel="noreferrer">changelog</a>.
+					</p>
+				</div>
+			</section>
+		</main>
+	</AppShell>
 </Layout>
-
-<script>
-	const targets = document.querySelectorAll('.reveal');
-	const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-	if (reduce || !('IntersectionObserver' in window)) {
-		targets.forEach((el) => el.classList.add('is-visible'));
-	} else {
-		const observer = new IntersectionObserver(
-			(entries) => {
-				entries.forEach((entry) => {
-					if (entry.isIntersecting) {
-						entry.target.classList.add('is-visible');
-						observer.unobserve(entry.target);
-					}
-				});
-			},
-			{ rootMargin: '0px 0px -10% 0px', threshold: 0.15 },
-		);
-		targets.forEach((el) => observer.observe(el));
-	}
-</script>
