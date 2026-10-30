@@ -46,17 +46,31 @@ enum MediaSource {
 /// Maps random tokens to their source. Tokens are handed to the webview and are the
 /// only thing exposed in the URL, so file paths never reach the frontend or the DOM.
 #[derive(Default)]
-pub struct MediaRegistry(Mutex<HashMap<String, MediaSource>>);
+pub struct MediaRegistry {
+    sources: Mutex<HashMap<String, MediaSource>>,
+    local_tokens: Mutex<HashMap<PathBuf, String>>,
+}
 
 impl MediaRegistry {
     fn register(&self, source: MediaSource) -> String {
+        if let MediaSource::Local(ref path) = source {
+            if let Some(existing) = self.local_tokens.lock().unwrap().get(path).cloned() {
+                return existing;
+            }
+        }
         let token = uuid::Uuid::new_v4().to_string();
-        self.0.lock().unwrap().insert(token.clone(), source);
+        if let MediaSource::Local(ref path) = source {
+            self.local_tokens
+                .lock()
+                .unwrap()
+                .insert(path.clone(), token.clone());
+        }
+        self.sources.lock().unwrap().insert(token.clone(), source);
         token
     }
 
     fn get(&self, token: &str) -> Option<MediaSource> {
-        self.0.lock().unwrap().get(token).cloned()
+        self.sources.lock().unwrap().get(token).cloned()
     }
 }
 
@@ -425,6 +439,10 @@ fn build_response(
     let mut builder = cors(Response::builder().status(status))
         .header(header::CONTENT_TYPE, HeaderValue::from_str(mime).unwrap())
         .header(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"))
+        .header(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=31536000, immutable"),
+        )
         .header(header::CONTENT_LENGTH, length.to_string());
     if range.partial {
         builder = builder.header(

@@ -310,10 +310,14 @@
 	const thumbnailPaths = $derived(
 		commandPaletteState.open
 			? [...pathResults, ...recentResults]
-					.flatMap((item) => item.entry && !item.entry.directory && categoryFor(item.entry.name) === "image" ? [item.entry.path] : [])
+					.flatMap((item) => {
+						if (!item.entry || item.entry.directory) return [];
+						const category = categoryFor(item.entry.name);
+						return category === "image" || category === "video" ? [item.entry.path] : [];
+					})
 			: [],
 	);
-	$effect(() => requestThumbnails(thumbnailPaths));
+	$effect(() => requestThumbnails(thumbnailPaths, false));
 
 	function nameIndices(result: FuseResult<PaletteItem>) {
 		return result.matches?.find((match) => match.key === "name")?.indices;

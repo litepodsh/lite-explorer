@@ -186,6 +186,7 @@ pub fn run() {
             app::quicklook::quick_look_close,
             media::media_url,
             media::thumbnails::image_thumbnails,
+            media::thumbnails::cancel_thumbnails,
             media::viewer::open_viewer,
             media::viewer::viewer_target,
             explorer::sizes::scan_directory_sizes,

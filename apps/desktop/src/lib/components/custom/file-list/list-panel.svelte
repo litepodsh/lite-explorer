@@ -598,9 +598,16 @@
 
   const visibleThumbnailPaths = $derived(rows.virtualItems.flatMap((row) =>
     (view === "grid" ? gridRowEntries(row.index) : [visibleEntries[row.index]])
-      .filter((entry): entry is DirectoryEntry => Boolean(entry) && canDragOut(entry) && categoryFor(entry.name) === "image")
+      .filter((entry): entry is DirectoryEntry => {
+        if (!entry || !canDragOut(entry)) return false;
+        const category = categoryFor(entry.name);
+        return category === "image" || category === "video";
+      })
       .map((entry) => entry.path)));
-  $effect(() => { requestThumbnails(visibleThumbnailPaths); });
+  $effect(() => {
+    if (previewing) return;
+    requestThumbnails(visibleThumbnailPaths, true, sortKey);
+  });
 
   function reorder(fromPath: string, toPath: string) {
     const from = entries.findIndex((entry: DirectoryEntry) => entry.path === fromPath);

@@ -10,6 +10,11 @@ fn main() {
     emit_env("GOOGLE_OAUTH_CLIENT_SECRET");
     emit_env("APTABASE_APP_KEY");
     emit_env("APTABASE_HOST");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        println!("cargo:rustc-link-lib=framework=AVFoundation");
+        println!("cargo:rustc-link-lib=framework=CoreMedia");
+        println!("cargo:rustc-link-lib=framework=CoreGraphics");
+    }
     tauri_build::build()
 }
 
