@@ -381,21 +381,61 @@
     drag.favoriteDropAt = null;
   }
 
-  // The preview pane slides in when a preview is requested and out when it clears. `previewEntry`
-  // lags the request so the pane keeps its content while the close animation runs. Preview is
-  // driven by `previewPath` (not the selection) so a right-click can highlight without previewing.
-  const PREVIEW_ANIMATION_MS = 160;
-  const PREVIEW_EASING = "cubic-bezier(0.2, 0, 0, 1)";
+  // The preview floats over the list as a card: it fades and lifts in when a preview is requested
+  // and out when it clears. `previewEntry` lags the request so the card keeps its content while
+  // the close transition runs. Preview is driven by `previewPath` (not the selection) so a
+  // right-click can highlight without previewing.
+  const PREVIEW_ANIMATION_MS = 200;
   const SUMMARY = "summary";
   let previewEntry = $state<DirectoryEntry | typeof SUMMARY | null>(null);
-  let listPaneEl = $state<HTMLElement | null>(null);
-  let previewPaneEl = $state<HTMLElement | null>(null);
-  let closeAnimations: Animation[] = [];
+  let previewShown = $state(false);
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // The floating card is resized from its left edge; the width persists across sessions.
+  const PREVIEW_WIDTH_KEY = "lite-explorer:preview-width";
+  const PREVIEW_MIN_W = 260;
+  let previewWidth = $state(readPreviewWidth());
+  let previewResizing = $state(false);
+
+  function readPreviewWidth(): number {
+    try {
+      const saved = Number(localStorage.getItem(PREVIEW_WIDTH_KEY));
+      return Number.isFinite(saved) && saved >= PREVIEW_MIN_W ? saved : 380;
+    } catch {
+      return 380;
+    }
+  }
+
+  function startPreviewResize(event: PointerEvent) {
+    const handle = event.currentTarget as HTMLElement;
+    const host = handle.parentElement?.parentElement;
+    if (!host) return;
+    event.preventDefault();
+    handle.setPointerCapture(event.pointerId);
+    previewResizing = true;
+    const move = (e: PointerEvent) => {
+      const box = host.getBoundingClientRect();
+      const max = Math.max(PREVIEW_MIN_W, box.width * 0.75);
+      previewWidth = Math.round(Math.min(max, Math.max(PREVIEW_MIN_W, box.right - 12 - e.clientX)));
+    };
+    const end = () => {
+      previewResizing = false;
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", end);
+      handle.removeEventListener("pointercancel", end);
+      try {
+        localStorage.setItem(PREVIEW_WIDTH_KEY, String(previewWidth));
+      } catch {}
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
+  }
 
   let previewRequestedEntry = $derived(
     previewPath ? (visibleEntries.find((entry: DirectoryEntry) => entry.path === previewPath) ?? null) : null,
   );
-  // Several selected entries show a summary in the preview pane instead of one file.
+  // Several selected entries show a summary in the preview card instead of one file.
   let summarizing = $derived(selectedVisible.length > 1);
   let previewTarget = $derived<DirectoryEntry | typeof SUMMARY | null>(summarizing ? SUMMARY : previewRequestedEntry);
 
@@ -410,50 +450,22 @@
 
   async function showPreview(entry: DirectoryEntry | typeof SUMMARY) {
     if (entry !== SUMMARY && !lazyPreview.component) void loadPreviewPanel();
+    clearTimeout(closeTimer);
     const wasHidden = previewEntry === null;
     previewEntry = entry;
-    if (closeAnimations.length > 0) {
-      // Reopened mid-close: grow back from wherever the close animation reached.
-      const preview = previewPaneEl ? getComputedStyle(previewPaneEl) : null;
-      const from = { flexGrow: preview?.flexGrow ?? "0", opacity: preview?.opacity ?? "0" };
-      const listFrom = listPaneEl ? getComputedStyle(listPaneEl).flexGrow : "100";
-      for (const animation of closeAnimations) animation.cancel();
-      closeAnimations = [];
-      growPreview(from, listFrom);
-    } else if (wasHidden) {
+    if (wasHidden) {
       await tick();
-      growPreview({ flexGrow: "0", opacity: "0" }, "100");
-    }
-  }
-
-  // Single start keyframes animate toward the sizes paneforge applies, including saved layouts.
-  function growPreview(from: { flexGrow: string; opacity: string }, listFrom: string) {
-    const options = { duration: previewDuration(), easing: PREVIEW_EASING };
-    previewPaneEl?.animate([{ ...from, offset: 0 }], options);
-    listPaneEl?.animate([{ flexGrow: listFrom, offset: 0 }], options);
+      requestAnimationFrame(() => (previewShown = true));
+    } else previewShown = true;
   }
 
   function hidePreview() {
-    if (!previewEntry || closeAnimations.length > 0) return;
-    if (!previewPaneEl || !listPaneEl) {
-      previewEntry = null;
-      return;
-    }
-    const options = { duration: previewDuration(), easing: PREVIEW_EASING, fill: "forwards" as const };
-    const animations = [
-      previewPaneEl.animate([{ flexGrow: "0", opacity: "0" }], options),
-      listPaneEl.animate([{ flexGrow: "100" }], options),
-    ];
-    closeAnimations = animations;
-    animations[0].onfinish = async () => {
-      if (closeAnimations !== animations) return;
-      closeAnimations = [];
-      previewEntry = null;
-      previewPaneEl = null;
-      // The list pane holds its end state until the preview pane is gone, then fills on its own.
-      await tick();
-      for (const animation of animations) animation.cancel();
-    };
+    clearTimeout(closeTimer);
+    if (!previewEntry) return;
+    previewShown = false;
+    closeTimer = setTimeout(() => {
+      if (!previewShown) previewEntry = null;
+    }, previewDuration());
   }
 
   const LIST_ROW_H = 36; // h-9
@@ -626,8 +638,9 @@
   }
 </script>
 
-<Resizable.PaneGroup direction="horizontal" autoSaveId={previewing ? undefined : "preview-panel"} class="min-h-0 min-w-0 flex-1">
-  <Resizable.Pane id="file-list" order={1} minSize={30} bind:ref={listPaneEl}>
+<div class="relative flex min-h-0 min-w-0 flex-1">
+<Resizable.PaneGroup direction="horizontal" class="min-h-0 min-w-0 flex-1">
+  <Resizable.Pane id="file-list" order={1} minSize={30}>
     <div
       role={view === "list" ? "grid" : undefined}
       aria-multiselectable={view === "list" ? "true" : undefined}
@@ -782,21 +795,27 @@
       </div>
     </div>
   </Resizable.Pane>
-  {#if previewEntry}
-    <Resizable.Handle />
-    <Resizable.Pane id="preview" order={2} defaultSize={35} minSize={20} maxSize={70} class="pt-(--content-overlap)" bind:ref={previewPaneEl}>
-      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-      <div class="h-full min-h-0" data-key-scope="preview" data-pane-id={paneId} tabindex="0">
-        {#if previewEntry === SUMMARY}
-          <SelectionSummary entries={selectedVisible} />
-        {:else if lazyPreview.component}
-          {@const PreviewPanel = lazyPreview.component}
-          <PreviewPanel entry={previewEntry} />
-        {/if}
-      </div>
-    </Resizable.Pane>
-  {/if}
 </Resizable.PaneGroup>
+{#if previewEntry}
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <div
+    class="preview-float"
+    data-open={previewShown}
+    data-resizing={previewResizing}
+    style={`--preview-ms: ${PREVIEW_ANIMATION_MS}ms; width: ${previewWidth}px`}
+    data-key-scope="preview"
+    data-pane-id={paneId}
+    tabindex="0">
+    <div class="preview-float-handle" role="separator" aria-orientation="vertical" aria-label="Resize preview" onpointerdown={startPreviewResize}></div>
+    {#if previewEntry === SUMMARY}
+      <SelectionSummary entries={selectedVisible} />
+    {:else if lazyPreview.component}
+      {@const PreviewPanel = lazyPreview.component}
+      <PreviewPanel entry={previewEntry} />
+    {/if}
+  </div>
+{/if}
+</div>
 {#if columnGhost}
   <div class="column-ghost" aria-hidden="true" style={`width: ${columnGhost.width}px; transform: translate3d(${columnGhost.x}px, ${columnGhost.y}px, 0)`}>
     <div class="ghost-title"><svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor"><circle cx="3" cy="3" r="1"/><circle cx="7" cy="3" r="1"/><circle cx="3" cy="7" r="1"/><circle cx="7" cy="7" r="1"/><circle cx="3" cy="11" r="1"/><circle cx="7" cy="11" r="1"/></svg>{COLUMN_LABELS[columnGhost.column]}</div>

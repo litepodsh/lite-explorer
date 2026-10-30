@@ -1945,3 +1945,212 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
 [data-slot="command-list"] {
   overscroll-behavior-y: contain;
 }
+
+/* Polish: the content area is a floating card over the sidebar ground, and the preview floats
+   over the file list as a second card instead of splitting the pane. */
+.finder-window {
+  background: var(--app-sidebar);
+}
+.finder-window .finder-content {
+  margin: 0;
+  height: calc(100dvh - var(--titlebar-height));
+  border-radius: 0;
+  box-shadow: inset 1px 0 var(--app-border);
+}
+.preview-float {
+  position: absolute;
+  z-index: 15;
+  top: calc(var(--toolbar-overlap, 0px) + 10px);
+  right: 12px;
+  bottom: 12px;
+  max-width: calc(100% - 24px);
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--app-surface) 82%, transparent);
+  box-shadow:
+    0 0 0 1px var(--app-border-strong),
+    inset 0 1px 0 var(--app-inset-highlight),
+    var(--app-menu-shadow);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  opacity: 0;
+  transform: translateX(16px) scale(0.98);
+  transform-origin: right center;
+  pointer-events: none;
+  transition:
+    opacity var(--preview-ms, 200ms) cubic-bezier(0.32, 0.72, 0, 1),
+    transform var(--preview-ms, 200ms) cubic-bezier(0.32, 0.72, 0, 1);
+}
+.preview-float[data-open="true"] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.preview-float-handle {
+  position: absolute;
+  z-index: 2;
+  inset: 0 auto 0 0;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.preview-float-handle::after {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 3px;
+  height: 36px;
+  border-radius: 2px;
+  background: var(--app-fg-faint);
+  content: "";
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 150ms;
+}
+.preview-float:hover .preview-float-handle::after,
+.preview-float[data-resizing="true"] .preview-float-handle::after {
+  opacity: 0.7;
+}
+.preview-float[data-resizing="true"] {
+  transition: none;
+  user-select: none;
+}
+.preview-float > aside {
+  flex: 1;
+  background: transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  .preview-float {
+    transition: none;
+  }
+}
+
+/* Polish: springier hover and press on tiles, rows and sidebar items. */
+.finder-content .file-tile {
+  border-radius: 14px;
+  transition:
+    background-color 140ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 260ms cubic-bezier(0.34, 1.4, 0.5, 1),
+    box-shadow 160ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.finder-content .file-tile:active {
+  transform: scale(0.97);
+}
+.finder-content .file-tile[data-selected] {
+  background: color-mix(in srgb, var(--app-accent) 16%, transparent);
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--app-accent) 55%, transparent),
+    0 8px 18px -12px color-mix(in srgb, var(--app-accent) 60%, transparent);
+}
+.finder-content .file-tile > :nth-child(2) {
+  transition: transform 260ms cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+.finder-content .file-tile:hover > :nth-child(2) {
+  transform: translateY(-2px) scale(1.04);
+}
+.finder-content .file-row:hover,
+.finder-content .file-row[data-selected] {
+  border-radius: 10px;
+}
+.finder-sources button {
+  transition:
+    background-color 140ms cubic-bezier(0.32, 0.72, 0, 1),
+    color 140ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 220ms cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+.finder-sources button:active {
+  transform: scale(0.98);
+}
+.finder-sources button.active {
+  background: color-mix(in srgb, var(--app-accent) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 28%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .finder-content .file-tile,
+  .finder-content .file-tile > :nth-child(2),
+  .finder-sources button {
+    transition: none;
+  }
+  .finder-content .file-tile:hover > :nth-child(2) {
+    transform: none;
+  }
+}
+
+/* Floating action pill: appears at the bottom of the card while items are selected. */
+.selection-pill {
+  position: absolute;
+  z-index: 25;
+  left: 50%;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--app-surface-raised) 86%, transparent);
+  box-shadow:
+    0 0 0 1px var(--app-border-strong),
+    inset 0 1px 0 var(--app-inset-highlight),
+    var(--app-menu-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  color: var(--app-fg);
+  font-size: 12.5px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 18px) scale(0.96);
+  transition:
+    opacity 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 320ms cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+.selection-pill[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0) scale(1);
+}
+.selection-pill-count {
+  padding: 0 10px 0 8px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.selection-pill-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: var(--app-border-strong);
+}
+.selection-pill button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  transition:
+    background-color 140ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 220ms cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+.selection-pill button:hover {
+  background: var(--app-hover-strong);
+}
+.selection-pill button:active {
+  transform: scale(0.94);
+}
+.selection-pill button svg {
+  width: 14px;
+  height: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .selection-pill,
+  .selection-pill button {
+    transition: none;
+  }
+}

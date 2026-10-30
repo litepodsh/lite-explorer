@@ -8,6 +8,7 @@
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
+  import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import Columns2Icon from "@lucide/svelte/icons/columns-2";
   import Grid2X2Icon from "@lucide/svelte/icons/grid-2x2";
@@ -1324,6 +1325,16 @@
     />
 
     <TransferToast jobs={jobs} />
+
+    {@const selectionCount = activeController.selectedEntries.length}
+    <div class="selection-pill" data-open={selectionCount > 0} role="toolbar" aria-label="Selection actions" inert={selectionCount === 0}>
+      <span class="selection-pill-count">{selectionCount} {selectionCount === 1 ? "item" : "items"}</span>
+      <span class="selection-pill-sep"></span>
+      <button type="button" onclick={() => void commands.run("file.copy", keyboardContext("list"))}><CopyIcon />Copy</button>
+      <button type="button" onclick={() => void commands.run("file.cut", keyboardContext("list"))}><ScissorsIcon />Cut</button>
+      <span class="selection-pill-sep"></span>
+      <button type="button" aria-label="Move to Trash" title="Move to Trash" onclick={() => void commands.run("file.trash", keyboardContext("list"))}><Trash2Icon /></button>
+    </div>
 
     {#if transferClipboard.items.length}
       <aside
