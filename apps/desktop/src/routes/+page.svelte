@@ -8,6 +8,8 @@
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
+  import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
+  import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import Columns2Icon from "@lucide/svelte/icons/columns-2";
@@ -44,6 +46,7 @@
   import { FilePane } from "#lib/file-pane/index.js";
   import { FilePaneController } from "#lib/file-pane/controller.svelte.js";
   import { PanesStore } from "#lib/panes/panes.svelte.js";
+  import { paneTransferBlocked, type PaneTransfer } from "#lib/panes/pane-transfer.js";
   import { downloadRemoteItems, removeRemoteLocation, uploadRemoteFiles } from "#lib/remote/remote-locations.js";
   import { formatLocationUrl } from "#lib/remote/location-url.js";
   import {
@@ -79,6 +82,7 @@
   import { updates } from "#lib/updates/updates.svelte.js";
   import { whatsNew } from "#lib/updates/whats-new.svelte.js";
   import { TransferClipboard } from "#lib/transfer-clipboard/queue.svelte.js";
+  import type { ClipboardMode } from "#lib/transfer-clipboard/queue.js";
   import { CommandRegistry } from "#lib/keyboard/commands.js";
   import { KeyboardDispatcher } from "#lib/keyboard/dispatcher.svelte.js";
   import { allBindings, appliesTo } from "#lib/keyboard/keymap.js";
@@ -462,32 +466,92 @@
     setTimeout(() => pastedPaths = new Set([...pastedPaths].filter((path) => !paths.includes(path))), 2800);
   }
 
+  function isRemoteController(controller: FilePaneController): boolean {
+    return controller.remoteListing || isNetworkPath(controller.listingPath);
+  }
+
+  /** Local folders honour `mode`; anything touching a remote location copies. Returns the local paths created. */
+  async function transferPaths(
+    mode: ClipboardMode,
+    paths: string[],
+    destination: string,
+    sourceRemote: boolean,
+    targetRemote: boolean,
+  ): Promise<string[]> {
+    if (!sourceRemote && !targetRemote) {
+      const label = `${mode === "copy" ? "Copy" : "Move"}: ${paths.length} items`;
+      const entries = await (mode === "copy" ? copyItems : moveItems)(paths, destination, label);
+      return entries.map((entry) => entry.path);
+    }
+    if (!sourceRemote) await uploadRemoteFiles(destination, paths);
+    else if (!targetRemote) await downloadRemoteItems(paths, destination);
+    else for (const path of paths) await copyItem(path, destination);
+    return [];
+  }
+
+  function refreshAllListings() {
+    for (const controller of controllers.values()) void controller.refreshListing(controller.listingPath);
+  }
+
   async function handleExternalDrop(targetPaneId: string, entries: DraggedEntry[], folder?: string) {
     const target = controllerFor(targetPaneId);
     const source = entries[0] ? controllerFor(entries[0].paneId) : null;
     const destination = folder ?? target.listingPath;
     const paths = entries.map((entry) => entry.path);
     if (!source || !destination || paths.length === 0 || paths.includes(destination)) return;
-    const sourceRemote = source.remoteListing || isNetworkPath(source.listingPath);
-    const targetRemote = target.remoteListing || isNetworkPath(target.listingPath);
     try {
-      if (!sourceRemote && !targetRemote) {
-        await moveItems(paths, destination, `Move: ${paths.length} items`);
-      } else if (!sourceRemote && targetRemote) {
-        await uploadRemoteFiles(destination, paths);
-      } else if (sourceRemote && !targetRemote) {
-        await downloadRemoteItems(paths, destination);
-      } else {
-        for (const path of paths) await copyItem(path, destination);
-      }
+      await transferPaths("move", paths, destination, isRemoteController(source), isRemoteController(target));
     } catch (error) {
       await message(error instanceof Error ? error.message : String(error), {
         title: "Couldn’t transfer",
         kind: "error",
       });
     }
-    for (const controller of controllers.values()) void controller.refreshListing(controller.listingPath);
+    refreshAllListings();
   }
+
+  let paneTransferRunning = $state(false);
+
+  /** The active pane's selection going to the other pane, or null with a single pane. */
+  function paneTransfer(mode: ClipboardMode): PaneTransfer | null {
+    if (!panes.otherPane) return null;
+    const source = activeController;
+    const target = controllerFor(panes.otherPane.id);
+    return {
+      mode,
+      paths: source.selectedEntries.map((entry) => entry.path),
+      destination: target.listingPath,
+      destinationIsFolder: target.isBrowsableFolder(),
+      sourceRemote: isRemoteController(source),
+      targetRemote: isRemoteController(target),
+    };
+  }
+
+  function canTransferSelection(mode: ClipboardMode): boolean {
+    const transfer = paneTransfer(mode);
+    return !paneTransferRunning && Boolean(transfer?.paths.length) && !paneTransferBlocked(transfer!);
+  }
+
+  async function transferSelection(mode: ClipboardMode) {
+    if (!canTransferSelection(mode)) return;
+    const transfer = paneTransfer(mode)!;
+    paneTransferRunning = true;
+    try {
+      markPasted(
+        await transferPaths(mode, transfer.paths, transfer.destination, transfer.sourceRemote, transfer.targetRemote),
+      );
+    } catch (error) {
+      await message(error instanceof Error ? error.message : String(error), {
+        title: mode === "copy" ? "Couldn’t copy" : "Couldn’t move",
+        kind: "error",
+      });
+    } finally {
+      paneTransferRunning = false;
+    }
+    refreshAllListings();
+  }
+
+  const PANE_ARROWS = { left: ArrowLeftIcon, right: ArrowRightIcon, up: ArrowUpIcon, down: ArrowDownIcon };
 
   let sidebarWidth = $state(192);
   const sidebarDefaultWidth = 192;
@@ -795,7 +859,7 @@
     return commands.available(row.command, keyboardContext(scope));
   }
 
-  const PALETTE_COMMANDS = ["app.shortcuts", "app.settings", "app.toggleKeyboardMode", "app.openTerminal", "preview.toggle", "view.list", "view.grid"];
+  const PALETTE_COMMANDS = ["app.shortcuts", "app.settings", "app.toggleKeyboardMode", "app.openTerminal", "preview.toggle", "view.list", "view.grid", "file.copyToOtherPane", "file.moveToOtherPane"];
 
   function shortcutFor(id: string): string {
     const keyPlatform = toKeyPlatform(platform);
@@ -892,6 +956,8 @@
         },
         newTabInOtherPane: () => panes.newTabInOtherPane(),
         toggleSecond: () => panes.togglePane(),
+        canTransferSelection,
+        transferSelection: (mode) => void transferSelection(mode),
       },
       tabs: {
         selectDigit: (digit) => panes.activeTabs.selectDigit(digit),
@@ -1328,10 +1394,27 @@
 
     {@const selectionCount = activeController.selectedEntries.length}
     <div class="selection-pill" data-open={selectionCount > 0} role="toolbar" aria-label="Selection actions" inert={selectionCount === 0}>
+      {#snippet paneTransferButton(mode: ClipboardMode, verb: string, command: string, Arrow: typeof ArrowRightIcon)}
+        {@const transfer = paneTransfer(mode)}
+        {@const blocked = transfer ? paneTransferBlocked(transfer) : null}
+        {@const label = `${verb} to ${panes.otherPane ? controllerFor(panes.otherPane.id).selected : "other pane"}`}
+        <button
+          type="button"
+          disabled={!canTransferSelection(mode)}
+          aria-label={label}
+          title={blocked ?? label}
+          onclick={() => void commands.run(command, keyboardContext("list"))}>{verb}<Arrow /></button>
+      {/snippet}
       <span class="selection-pill-count">{selectionCount} {selectionCount === 1 ? "item" : "items"}</span>
       <span class="selection-pill-sep"></span>
       <button type="button" onclick={() => void commands.run("file.copy", keyboardContext("list"))}><CopyIcon />Copy</button>
       <button type="button" onclick={() => void commands.run("file.cut", keyboardContext("list"))}><ScissorsIcon />Cut</button>
+      {#if panes.otherDirection}
+        {@const Arrow = PANE_ARROWS[panes.otherDirection]}
+        <span class="selection-pill-sep"></span>
+        {@render paneTransferButton("copy", "Copy", "file.copyToOtherPane", Arrow)}
+        {@render paneTransferButton("move", "Move", "file.moveToOtherPane", Arrow)}
+      {/if}
       <span class="selection-pill-sep"></span>
       <button type="button" aria-label="Move to Trash" title="Move to Trash" onclick={() => void commands.run("file.trash", keyboardContext("list"))}><Trash2Icon /></button>
     </div>

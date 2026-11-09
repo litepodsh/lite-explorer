@@ -6,6 +6,7 @@ import {
   createPanesState,
   moveTabBetweenPanes,
   otherPane,
+  otherPaneDirection,
   removePane,
   setActive,
   setLayout,
@@ -23,6 +24,21 @@ describe("createPanesState", () => {
     expect(state.layout).toBe("row");
     expect(state.panes[0].tabs.tabs[0].location).toEqual(desktop);
     expect(state.panes[0].tabs.tabs[0].id).toBe("t1");
+  });
+});
+
+describe("otherPaneDirection", () => {
+  test("is null with a single pane", () => {
+    expect(otherPaneDirection(createPanesState("p1", "t1", desktop))).toBeNull();
+  });
+
+  test("points at the other pane in both layouts", () => {
+    const fromSecond = addPane(createPanesState("p1", "t1", desktop), "p2", "t2");
+    const fromFirst = setActive(fromSecond, "p1");
+    expect(otherPaneDirection(fromFirst)).toBe("right");
+    expect(otherPaneDirection(fromSecond)).toBe("left");
+    expect(otherPaneDirection(setLayout(fromFirst, "column"))).toBe("down");
+    expect(otherPaneDirection(setLayout(fromSecond, "column"))).toBe("up");
   });
 });
 

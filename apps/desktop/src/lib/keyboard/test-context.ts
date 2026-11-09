@@ -48,6 +48,8 @@ export function fakeContext(calls: string[], overrides: ContextOverrides = {}): 
       activate: (index) => void calls.push(`pane ${index}`),
       newTabInOtherPane: () => void calls.push("tab other"),
       toggleSecond: () => void calls.push("toggle pane"),
+      canTransferSelection: () => true,
+      transferSelection: (mode) => void calls.push(`transfer ${mode}`),
     },
     tabs: {
       selectDigit: (digit) => record(calls, `tab ${digit}`) && digit <= 3,

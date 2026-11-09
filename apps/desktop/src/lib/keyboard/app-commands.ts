@@ -82,6 +82,18 @@ export function standardCommands(): AppCommand[] {
     { id: "file.copy", title: "Copy", run: (context) => context.list.enqueueSelected("copy") },
     { id: "file.cut", title: "Cut", run: (context) => context.list.enqueueSelected("move") },
     {
+      id: "file.copyToOtherPane",
+      title: "Copy to Other Pane",
+      when: (context) => !context.list.blocked() && context.panes.canTransferSelection("copy"),
+      run: (context) => context.panes.transferSelection("copy"),
+    },
+    {
+      id: "file.moveToOtherPane",
+      title: "Move to Other Pane",
+      when: (context) => !context.list.blocked() && context.panes.canTransferSelection("move"),
+      run: (context) => context.panes.transferSelection("move"),
+    },
+    {
       id: "file.paste",
       title: "Paste",
       when: (context) => context.list.canPaste(),

@@ -51,6 +51,8 @@ export type AppContext = {
     activate(index: number): void;
     newTabInOtherPane(): void;
     toggleSecond(): void;
+    canTransferSelection(mode: ClipboardMode): boolean;
+    transferSelection(mode: ClipboardMode): void;
   };
   tabs: {
     selectDigit(digit: number): boolean;

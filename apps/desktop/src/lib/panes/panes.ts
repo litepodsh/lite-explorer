@@ -42,6 +42,16 @@ export function otherPane(state: PanesState): Pane | null {
   return state.panes.find((pane) => pane.id !== state.activeId) ?? null;
 }
 
+export type PaneDirection = "left" | "right" | "up" | "down";
+
+/** Where the other pane sits on screen, seen from the active one. */
+export function otherPaneDirection(state: PanesState): PaneDirection | null {
+  if (!otherPane(state)) return null;
+  const first = state.panes[0].id === state.activeId;
+  if (state.layout === "row") return first ? "right" : "left";
+  return first ? "down" : "up";
+}
+
 export function setActive(state: PanesState, id: string): PanesState {
   if (id === state.activeId || !paneFor(state, id)) return state;
   return { ...state, activeId: id };

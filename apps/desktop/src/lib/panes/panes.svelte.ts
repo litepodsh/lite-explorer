@@ -22,6 +22,12 @@ export class PanesStore {
     this.#reactive.find((pane) => pane.id === this.#activeId) ?? this.#reactive[0],
   );
   activeTabs = $derived(this.activePane.tabs);
+  otherPane = $derived(
+    this.#reactive.length < 2
+      ? null
+      : (this.#reactive.find((pane) => pane.id !== this.#activeId) ?? null),
+  );
+  otherDirection = $derived(ops.otherPaneDirection(this.#pure));
 
   #makePane(id: string): ReactivePane {
     return { id, tabs: new TabsStore(() => settings.current.defaultViewMode), previewOpen: true };
