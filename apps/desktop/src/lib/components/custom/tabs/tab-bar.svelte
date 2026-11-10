@@ -29,7 +29,9 @@
 
   const DRAG_THRESHOLD = 4;
 
-  let open = $derived(tabs.length > 1);
+  // Always visible, even with a single tab, so the current location is shown.
+  const open = true;
+  let single = $derived(tabs.length === 1);
   let activeIndex = $derived(Math.max(0, tabs.findIndex((tab) => tab.id === activeId)));
   let flipDuration = $derived(prefersReducedMotion.current ? 0 : 200);
 
@@ -178,6 +180,8 @@
               <button
                 type="button"
                 class="tab-close"
+                class:hidden={single}
+                tabindex={single ? -1 : 0}
                 aria-label={`Close ${tab.location.name}`}
                 onpointerdown={(event) => event.stopPropagation()}
                 onclick={(event) => {
@@ -327,9 +331,12 @@
       opacity 120ms cubic-bezier(0.2, 0, 0, 1),
       background-color 120ms cubic-bezier(0.2, 0, 0, 1);
   }
-  .tab:hover .tab-close,
-  .tab-close:focus-visible {
+  .tab:hover .tab-close:not(.hidden),
+  .tab-close:not(.hidden):focus-visible {
     opacity: 1;
+  }
+  .tab-close.hidden {
+    pointer-events: none;
   }
   .tab-close:hover {
     background: color-mix(in srgb, var(--app-fg) 12%, transparent);
