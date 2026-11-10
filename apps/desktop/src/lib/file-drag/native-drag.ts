@@ -151,8 +151,17 @@ export function startNativeDrag(paths: string[], name: string, icon: DragIcon) {
   };
   // DoDragDrop pumps Windows messages, so leave the pointer-message handler first.
   setTimeout(() =>
-    startDrag(options).catch((error) =>
-      console.error("Couldn't start dragging out of the app", error),
-    ),
+    startDrag(options).catch((error) => reportDragFailure(error)),
   );
+}
+
+/**
+ * A failed drag-out is recoverable, so it never interrupts the user; it still has to reach
+ * Sentry, because the alternative (a native panic) kills the process before the Rust SDK
+ * can flush the event. Errors arrive as plain strings from the plugin.
+ */
+function reportDragFailure(error: unknown) {
+  console.error("Couldn't start dragging out of the app", error);
+  const sentry = (window as { Sentry?: { captureException: (error: unknown) => void } }).Sentry;
+  sentry?.captureException(error instanceof Error ? error : new Error(String(error)));
 }

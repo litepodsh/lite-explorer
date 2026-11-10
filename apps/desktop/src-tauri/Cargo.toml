@@ -214,3 +214,10 @@ gdk-pixbuf = "0.18"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-process = "2"
 tauri-plugin-updater = "2"
+
+# Windows drag from a network share used to abort the app: `drag` 2.1.1 canonicalizes
+# absolute paths into verbatim `\\?\` paths, which `ILCreateFromPathW` rejects, and the
+# failure reached an `unwrap()`. See `vendor/drag/README.md`; drop this patch when
+# upstream releases the fix (drag-rs#72).
+[patch.crates-io]
+drag = { path = "vendor/drag" }

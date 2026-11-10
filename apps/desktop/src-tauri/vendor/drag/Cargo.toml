@@ -1,0 +1,81 @@
+# Vendored copy of the `drag` crate 2.1.1 (Apache-2.0 OR MIT, CrabNebula Ltd.).
+#
+# `tauri-plugin-drag` 2.1.1 depends on it, and its Windows implementation panics
+# when a dragged path lives on a network share (or anywhere else the shell can't
+# turn into a PIDL): `dunce::canonicalize` returns a verbatim `\\?\` path and
+# `ILCreateFromPathW` rejects it, which reaches an `Option::unwrap()` and aborts
+# the app. See https://github.com/crabnebula-dev/drag-rs/issues/72 and
+# `vendor/drag/README.md` for the exact patch. Remove the `[patch.crates-io]`
+# entry in `src-tauri/Cargo.toml` once upstream ships the fix.
+
+[package]
+name = "drag"
+version = "2.1.1"
+description = "Start a drag operation out of a window"
+authors = ["CrabNebula Ltd."]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+
+[lib]
+name = "drag"
+path = "src/lib.rs"
+
+[features]
+serde = ["dep:serde"]
+
+[dependencies]
+raw-window-handle = "0.6"
+thiserror = "2.0.18"
+serde = { version = "1", features = ["derive"], optional = true }
+log = "0.4"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+objc2-foundation = { version = "0.3", features = [
+  "std",
+  "NSGeometry",
+  "NSString",
+  "NSURL",
+  "NSData",
+  "NSArray",
+  "NSDictionary",
+  "NSEnumerator",
+  "NSObject",
+] }
+objc2-app-kit = { version = "0.3", features = [
+  "std",
+  "NSEvent",
+  "NSImage",
+  "NSPasteboard",
+  "NSDragging",
+  "NSDraggingItem",
+  "NSDraggingSession",
+  "NSView",
+  "NSWindow",
+  "NSApplication",
+] }
+core-graphics = "0.24.0"
+
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
+gtk = { version = "0.18.1" }
+gdk = { version = "0.18.0" }
+gdkx11 = "0.18.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+dunce = "1.0.5"
+windows = { version = "0.52", features = [
+  "implement",
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Ole",
+  "Win32_System_Memory",
+  "Win32_System_SystemServices",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_Graphics_Imaging",
+  "Win32_Graphics_Gdi",
+] }
