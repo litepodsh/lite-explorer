@@ -252,8 +252,8 @@
     border-radius: 999px;
     background: var(--app-surface-raised);
     box-shadow:
-      0 0 0 1px var(--app-border),
-      0 1px 2px var(--app-overlay);
+      0 0 0 1.5px var(--app-accent),
+      0 1px 3px var(--app-overlay);
     pointer-events: none;
     transition:
       transform 240ms cubic-bezier(0.2, 0, 0, 1),
@@ -282,10 +282,10 @@
   }
   .tab.active {
     color: var(--app-fg);
-    font-weight: 600;
+    font-weight: 700;
   }
   .tab:focus-visible {
-    box-shadow: 0 0 0 2px var(--app-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 55%, transparent);
   }
   .tab.dragging {
     z-index: 2;

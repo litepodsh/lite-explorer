@@ -673,7 +673,11 @@
       listen("request-open", (event) => void activeController.openPath(event.payload as string)),
       listen("tab-new", () => panes.newTab()),
       listen("tab-new-other", () => panes.newTabInOtherPane()),
-      listen("tab-close", () => panes.panes.length > 1 ? panes.closeActivePane() : activeController.closeTab(activeController.tabs.activeId)),
+      listen("tab-close", () => {
+        // Close the focused tab; only a pane's last tab closes the pane itself.
+        if (panes.panes.length > 1 && activeController.tabs.tabs.length === 1) panes.closeActivePane();
+        else activeController.closeTab(activeController.tabs.activeId);
+      }),
       listen("tab-next", () => activeController.tabs.cycle(1)),
       listen("tab-prev", () => activeController.tabs.cycle(-1)),
       listen("pane-toggle", () => panes.togglePane()),
