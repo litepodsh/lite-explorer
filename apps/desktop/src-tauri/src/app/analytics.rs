@@ -282,7 +282,16 @@ pub fn init_sentry(gate: Arc<AtomicBool>, install_id: &str) -> sentry::ClientIni
             .values
             .iter()
             .any(|exception| exception.ty == "Canceled");
-        (enabled && !monaco_cancel).then_some(event)
+        // GTK only aborts when there is no display server at all (SSH, cron, broken
+        // .desktop launcher). Nothing in the app can fix that, and every headless run
+        // would report the same panic, so it never reaches Sentry.
+        let no_display = event.exception.values.iter().any(|exception| {
+            exception
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains("Failed to initialize GTK"))
+        });
+        (enabled && !monaco_cancel && !no_display).then_some(event)
     }));
     options.before_breadcrumb = Some(Arc::new(move |breadcrumb| {
         (gate.load(Ordering::Relaxed) && !cfg!(debug_assertions)).then_some(breadcrumb)
@@ -295,6 +304,30 @@ pub fn init_sentry(gate: Arc<AtomicBool>, install_id: &str) -> sentry::ClientIni
         }));
     });
     guard
+}
+
+/// Adds the panic site to the event Sentry is about to send. Release builds ship
+/// without a runtime-usable symbol table on Windows, so the in-process backtrace
+/// resolves every frame to the nearest exported C symbol (duckdb, aws-lc). The
+/// `file:line` from `PanicHookInfo` is then the only trustworthy location, and for a
+/// panic inside a dependency it names the crate that has to be patched.
+///
+/// Must run after `init_sentry`: the Sentry panic hook is already installed, this hook
+/// chains to it, and the tags land in the scope the chained hook captures.
+pub fn install_panic_context() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let thread = std::thread::current();
+        sentry::configure_scope(|scope| {
+            if let Some(location) = info.location() {
+                scope.set_tag("panic.file", location.file());
+                scope.set_tag("panic.line", location.line().to_string());
+                scope.set_extra("panic.column", location.column().to_string().into());
+            }
+            scope.set_tag("panic.thread", thread.name().unwrap_or("unnamed"));
+        });
+        previous(info);
+    }));
 }
 
 /// Registers the global `tracing` subscriber with the Sentry layer. Instrumented

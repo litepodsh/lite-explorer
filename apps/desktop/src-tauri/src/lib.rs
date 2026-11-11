@@ -28,6 +28,7 @@ pub fn run() {
     let analytics = app::analytics::Analytics::load();
     let sentry_client = app::analytics::init_sentry(analytics.gate(), &analytics.install_id());
     app::analytics::init_minidump(&sentry_client, analytics.enabled());
+    app::analytics::install_panic_context();
     app::analytics::init_tracing();
     app::analytics::capture_first_run(analytics.prefs().welcome_seen);
     let builder = media::register(tauri::Builder::default())
