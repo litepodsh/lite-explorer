@@ -7,9 +7,12 @@ type Matcher<T> = {
   toBe(expected: unknown): void;
   toEqual(expected: unknown): void;
   toMatchObject(expected: unknown): void;
+  toBeDefined(): void;
   toBeUndefined(): void;
   toBeNull(): void;
   toBeGreaterThan(expected: number): void;
+  toBeGreaterThanOrEqual(expected: number): void;
+  toHaveLength(expected: number): void;
   toContain(expected: unknown): void;
   toMatch(expected: string | RegExp): void;
 };
@@ -27,7 +30,8 @@ declare module "bun:test" {
 
   export interface Mock<T extends (...args: never[]) => unknown> {
     (...args: Parameters<T>): ReturnType<T>;
-    mock: { calls: Array<{ args: unknown[] }> };
+    // Bun records each call as its argument list, so `calls[i][j]` is argument `j`.
+    mock: { calls: Array<Parameters<T>> };
     mockReset(): void;
     mockResolvedValue(value: Awaited<ReturnType<T>>): void;
     mockRejectedValue(value: unknown): void;

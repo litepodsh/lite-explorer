@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 
-var invoke: ReturnType<typeof mock>;
+type ThumbnailArgs = { paths?: string[]; cachedOnly?: boolean; generation?: number };
+type Invoke = (cmd: string, args: ThumbnailArgs) => Promise<unknown>;
+
+var invoke: ReturnType<typeof mock<Invoke>>;
 mock.module("@tauri-apps/api/core", () => {
-  invoke = mock(() => Promise.resolve([]));
+  invoke = mock<Invoke>(() => Promise.resolve([]));
   return { invoke };
 });
 
