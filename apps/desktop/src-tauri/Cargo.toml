@@ -146,6 +146,12 @@ all = { level = "warn", priority = -1 }
 [profile.dev.package."*"]
 opt-level = 3
 
+# DuckDB's bundled C++ is thousands of files and takes minutes at opt-level 3, while it only
+# runs when a `.duckdb` file is previewed. Overrides the `*` rule above so debug builds stay
+# cheap; level 1 still queries fast enough for the preview.
+[profile.dev.package.libduckdb-sys]
+opt-level = 1
+
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
 codegen-units = 1
