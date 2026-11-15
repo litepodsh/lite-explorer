@@ -9,6 +9,8 @@ describe("resolveTheme", () => {
   });
 
   test("flips within the Explorer pair", () => {
+    expect(resolveTheme("litepod", "system", false)).toBe("litepod-light");
+    expect(resolveTheme("litepod-light", "system", true)).toBe("litepod");
     expect(resolveTheme("dark", "system", false)).toBe("explorer-light");
     expect(resolveTheme("explorer-light", "system", true)).toBe("dark");
   });

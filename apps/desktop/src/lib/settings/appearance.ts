@@ -4,12 +4,13 @@ type Appearance = Pick<Settings, "theme" | "themeMode" | "radius" | "elevation" 
 
 /** Light/dark pairs shown side by side in the theme picker. System mode flips within the chosen pair. */
 export const THEME_PAIRS: readonly { light: Theme; dark: Theme }[] = [
+  { light: "litepod-light", dark: "litepod" },
   { light: "explorer-light", dark: "dark" },
   { light: "off-white", dark: "off-black" },
   { light: "light", dark: "oled" },
 ];
 
-const LIGHT_THEMES: readonly Theme[] = ["explorer-light", "off-white", "light"];
+const LIGHT_THEMES: readonly Theme[] = ["litepod-light", "explorer-light", "off-white", "light"];
 
 export function isLightTheme(theme: Theme): boolean {
   return LIGHT_THEMES.includes(theme);

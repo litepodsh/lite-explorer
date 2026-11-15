@@ -1,32 +1,21 @@
 <script lang="ts">
-  import CheckIcon from "@lucide/svelte/icons/check";
-  import CopyIcon from "@lucide/svelte/icons/copy";
-  import FolderIcon from "@lucide/svelte/icons/folder";
-  import NetworkIcon from "@lucide/svelte/icons/network";
+  import GitBranchIcon from "@lucide/svelte/icons/git-branch";
+  import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
   import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
   import { Tween, prefersReducedMotion } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
   import { formatCount, formatSize } from "#lib/components/custom/preview/format.js";
   import type { DirectoryEntry } from "#lib/components/custom/file-list/list-item.svelte";
   import FpsMeter from "./fps-meter.svelte";
-  import { openCommandPaletteWith } from "#lib/state/command-palette.svelte.js";
-  import PencilIcon from "@lucide/svelte/icons/pencil";
-  import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
-  import { isRemotePath } from "#lib/remote/remote-locations.js";
-  import { isNetworkPath } from "#lib/remote/network-locations.js";
-  import { breadcrumbSegments, collapseSegments } from "./breadcrumb.js";
+  import { diskSpace } from "#lib/system/disk-space.svelte.js";
+  import { gitBranch } from "#lib/system/git-branch.js";
 
-  let { path = "", location = "", onNavigate, network = false, entries = [], selectedEntries = [], showFps = false, activity = null, keyboardMode = "standard", visual = false, pendingKeys = "", sizeScanning = false, sizeScanMessage = "", onCancelSizeScan } = $props<{
+  let { location = "", entries = [], selectedEntries = [], showFps = false, activity = null, keyboardMode = "standard", visual = false, pendingKeys = "", sizeScanning = false, sizeScanMessage = "", onCancelSizeScan } = $props<{
     sizeScanning?: boolean;
     sizeScanMessage?: string;
     onCancelSizeScan?: () => void;
-    /** The path as shown, like an `s3://bucket` URI or a share's server address. */
-    path?: string;
-    /** The internal path of the listing that `path` describes; breadcrumb segments open folders of it. */
+    /** The internal path of the listing; the branch and free space describe it. The path itself is in the toolbar. */
     location?: string;
-    onNavigate?: (path: string) => void;
-    /** The path is inside a network location, shown as its server address. */
-    network?: boolean;
     entries?: DirectoryEntry[];
     /** Selected entries; with any, the count and size describe them instead of the whole folder. */
     selectedEntries?: DirectoryEntry[];
@@ -39,9 +28,6 @@
     /** Keys of a chord being typed, like `g`. */
     pendingKeys?: string;
   }>();
-
-  let copied = $state(false);
-  let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
   const selecting = $derived(selectedEntries.length > 0);
   const targetCount = $derived(entries.length);
@@ -65,97 +51,36 @@
     bytes.target = targetBytes;
   });
 
-  const segments = $derived(breadcrumbSegments(location, path));
-  const crumbs = $derived(collapseSegments(segments));
-  // The palette completes local folders only; S3, SFTP/FTP and unmounted shares can't be typed there.
-  const editable = $derived(Boolean(location) && !isRemotePath(location) && !isNetworkPath(location));
+  let branch = $state<string | null>(null);
+  $effect(() => {
+    const path = location;
+    let current = true;
+    void gitBranch(path).then((name) => {
+      if (current) branch = name;
+    });
+    return () => (current = false);
+  });
 
-  function editPath() {
-    const separator = location.includes("\\") && !location.includes("/") ? "\\" : "/";
-    openCommandPaletteWith(/[\\/]$/.test(location) ? location : location + separator);
-  }
-
-  async function copyPath() {
-    if (!path) return;
-    // WebKit rejects clipboard writes without a fresh user activation.
-    try {
-      await navigator.clipboard.writeText(path);
-    } catch {
-      return;
-    }
-    copied = true;
-    clearTimeout(copiedTimer);
-    copiedTimer = setTimeout(() => (copied = false), 1500);
-  }
+  // Free space is read again when the folder changes and the last reading is stale.
+  $effect(() => {
+    if (location) void diskSpace.refresh();
+  });
+  const volume = $derived(diskSpace.volumeFor(location));
 </script>
 
-{#snippet crumb(segment: { label: string; path: string }, current: boolean)}
-  {#if current}
-    <span class="crumb crumb-current min-w-0 truncate select-text" aria-current="location">{segment.label}</span>
-  {:else}
-    <button type="button" class="crumb max-w-48 shrink-0 truncate" title={segment.path} onclick={() => onNavigate?.(segment.path)}>{segment.label}</button>
-    <span class="crumb-separator" aria-hidden="true">›</span>
-  {/if}
-{/snippet}
-
 <footer
-  class="group relative flex h-7 shrink-0 items-center gap-1.5 border-t border-[var(--app-border)] bg-[var(--app-bg)] px-3 text-[11px] text-[var(--app-fg-muted)]"
-  aria-label="Current path">
+  class="status-bar relative flex h-7 shrink-0 items-center gap-3 border-t border-[var(--app-border)] bg-[var(--app-bg)] px-3 text-[11px] text-[var(--app-fg-muted)]"
+  aria-label="Folder status">
   {#if sizeScanning}<span class="size-scan-track" aria-hidden="true"><span></span></span>{/if}
-  {#if network}
-    <NetworkIcon class="size-3.5 shrink-0 text-[var(--app-info)] stroke-[1.7]" />
-  {:else}
-    <FolderIcon class="size-3.5 shrink-0 text-[var(--app-info)] stroke-[1.7]" />
-  {/if}
-  {#if segments.length}
-    <nav class="flex min-w-0 items-center overflow-hidden" aria-label="Path" title={path}>
-      {#each crumbs.head as segment, index (segment.path)}
-        {@render crumb(segment, index === segments.length - 1)}
-      {/each}
-      {#if crumbs.hidden.length}
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger class="crumb shrink-0" aria-label="Show hidden folders">…</DropdownMenu.Trigger>
-          <DropdownMenu.Content side="top" class="w-auto max-w-80">
-            {#each crumbs.hidden as segment (segment.path)}
-              <DropdownMenu.Item onSelect={() => onNavigate?.(segment.path)}>
-                <FolderIcon class="text-[var(--app-info)]" /><span class="truncate">{segment.label}</span>
-              </DropdownMenu.Item>
-            {/each}
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-        <span class="crumb-separator" aria-hidden="true">›</span>
-      {/if}
-      {#each crumbs.tail as segment, index (segment.path)}
-        {@render crumb(segment, index === crumbs.tail.length - 1)}
-      {/each}
-    </nav>
-  {:else}
-    <span class="min-w-0 truncate">No location selected</span>
-  {/if}
-  {#if editable}
-    <button
-      class="grid size-5 shrink-0 place-items-center rounded border-0 bg-transparent text-[var(--app-fg-muted)] opacity-0 transition-opacity hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)] focus-visible:opacity-100 group-hover:opacity-100"
-      aria-label="Edit path"
-      title="Edit path"
-      onclick={editPath}>
-      <PencilIcon class="size-3.5" />
-    </button>
-  {/if}
-  {#if path}
-    <button
-      class="grid size-5 shrink-0 place-items-center rounded border-0 bg-transparent text-[var(--app-fg-muted)] opacity-0 transition-opacity hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)] focus-visible:opacity-100 group-hover:opacity-100 {copied ? 'opacity-100 text-green-400' : ''}"
-      aria-label={copied ? "Path copied" : "Copy path"}
-      title={copied ? "Copied" : "Copy path"}
-      onclick={copyPath}>
-      {#if copied}<CheckIcon class="size-3.5" />{:else}<CopyIcon class="size-3.5" />{/if}
-    </button>
-  {/if}
   {#if keyboardMode === "yazi" || visual || pendingKeys}
-    <span class="ml-2 inline-flex shrink-0 items-center gap-1">
+    <span class="inline-flex shrink-0 items-center gap-1">
       {#if keyboardMode === "yazi"}<span class="key-pill">YAZI</span>{/if}
       {#if visual}<span class="key-pill key-pill-visual">VISUAL</span>{/if}
       {#if pendingKeys}<span class="key-pill key-pill-pending" aria-live="polite">{pendingKeys} …</span>{/if}
     </span>
+  {/if}
+  {#if branch}
+    <span class="status-item min-w-0" title={`Git branch ${branch}`}><GitBranchIcon /><span class="truncate">{branch}</span></span>
   {/if}
   {#if sizeScanning || sizeScanMessage}
     <span class="size-scan-status ml-auto inline-flex min-w-0 items-center gap-1.5" role="status">
@@ -174,18 +99,23 @@
       <LoaderCircleIcon class="size-3 animate-spin text-[var(--app-accent)] motion-reduce:animate-none" />{activity}
     </span>
   {/if}
+  {#if volume}
+    <span
+      class="status-item {activity || sizeScanning || sizeScanMessage ? '' : 'ml-auto'}"
+      title={`${volume.name}: ${formatSize(volume.free_bytes)} free of ${formatSize(volume.total_bytes)}`}><HardDriveIcon />{formatSize(volume.free_bytes)} free</span>
+  {/if}
   {#if targetCount > 0}
     <span
-      class="{activity || sizeScanning || sizeScanMessage ? 'pl-3' : 'ml-auto'} shrink-0 tabular-nums text-[var(--app-fg-muted)]"
+      class="{activity || sizeScanning || sizeScanMessage || volume ? '' : 'ml-auto'} shrink-0 tabular-nums text-[var(--app-fg-muted)]"
       aria-live="polite"
       aria-label={`${selecting ? `${formatCount(selectedEntries.length)} of ` : ""}${formatCount(targetCount)} items${selecting ? " selected" : ""}${targetBytes > 0 ? `, ${sizesPartial ? "at least " : ""}${formatSize(targetBytes)}` : ""}`}>
-      {#if selecting}<span class="text-[var(--app-accent)]">{formatCount(Math.round(selectedTween.current))}</span> of {/if}{formatCount(Math.round(count.current))} item{targetCount === 1 ? "" : "s"}{#if selecting} selected{/if}{#if targetBytes > 0}<span
+      {#if selecting}<span class="text-[var(--app-accent)]">{formatCount(Math.round(selectedTween.current))}</span>{" of "}{/if}{formatCount(Math.round(count.current))} item{targetCount === 1 ? "" : "s"}{#if selecting}{" selected"}{/if}{#if targetBytes > 0}<span
           class="px-1 text-[var(--app-fg-faint)]">·</span
         >{sizesPartial ? "≥ " : ""}{formatSize(bytes.current)}{/if}
     </span>
   {/if}
   {#if showFps}
-    <span class={targetCount > 0 || activity || sizeScanning || sizeScanMessage ? "" : "ml-auto"}><FpsMeter /></span>
+    <span class={targetCount > 0 || volume || activity || sizeScanning || sizeScanMessage ? "" : "ml-auto"}><FpsMeter /></span>
   {/if}
 </footer>
 
@@ -212,29 +142,22 @@
     .size-scan-track span { width: 100%; opacity: 0.6; }
   }
 
-  footer :global(.crumb) {
-    padding: 0 4px;
-    border: 0;
-    border-radius: 4px;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    line-height: 18px;
+  .status-bar {
+    font-family: var(--app-font-mono);
+    font-size: 10.5px;
   }
-  footer :global(button.crumb:hover),
-  footer :global(button.crumb[data-state="open"]) {
-    background: var(--app-surface-raised);
-    color: var(--app-fg);
-  }
-  footer :global(button.crumb:focus-visible) {
-    outline: 1px solid var(--app-accent);
-  }
-  .crumb-current {
-    color: var(--app-fg);
-  }
-  .crumb-separator {
+  .status-item {
+    display: inline-flex;
     flex-shrink: 0;
-    color: var(--app-fg-faint);
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  .status-item :global(svg) {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    stroke-width: 1.8;
   }
 
   .key-pill {

@@ -11,7 +11,6 @@
   import ServerIcon from "@lucide/svelte/icons/server";
   import HouseIcon from "@lucide/svelte/icons/house";
   import UsersIcon from "@lucide/svelte/icons/users";
-  import SearchIcon from "@lucide/svelte/icons/search";
 
   import { OVERVIEW, sameLocation, type Location } from "#lib/tabs/tabs.js";
   export type { Location };
@@ -31,6 +30,10 @@
   import StarIcon from "@lucide/svelte/icons/star";
   import StarOffIcon from "@lucide/svelte/icons/star-off";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
+  import SettingsIcon from "@lucide/svelte/icons/settings";
+  import { invoke } from "@tauri-apps/api/core";
+  import { formatSize } from "#lib/components/custom/preview/format.js";
+  import { diskSpace } from "#lib/system/disk-space.svelte.js";
   import { drag } from "#lib/file-drag/drag.svelte.js";
   import { canFavorite, favoriteDropIndexAt, moveTo } from "#lib/favorites/favorites.js";
   import { trackPointerDrag } from "#lib/file-drag/pointer-drag.js";
@@ -63,7 +66,6 @@
     onRemoveFavorite,
     onReorderFavorites,
     statuses = {},
-    onOpenPalette,
     brand = false,
     ...restProps
   }: ComponentProps<typeof Sidebar.Root> & {
@@ -89,7 +91,6 @@
     onReorderFavorites?: (paths: string[]) => void;
     /** Connection state of network locations, by path. */
     statuses?: Record<string, LocationStatus>;
-    onOpenPalette?: () => void;
     /** Show the logo, name and sidebar toggle in the header (Windows and Linux). */
     brand?: boolean;
   } = $props();
@@ -127,6 +128,40 @@
 
   let volumes = $derived(volumeLocations(locations));
   let savedLocations = $derived(sidebarLocations(locations));
+
+  // Volumes show how full they are; the reading is shared with the status bar.
+  $effect(() => {
+    if (volumes.length) void diskSpace.refresh();
+  });
+
+  /** Short protocol label for a saved remote location, like `SMB` or `S3`. */
+  function protocolLabel(kind: string): string {
+    return kind === "webdav" ? "DAV" : kind.toUpperCase();
+  }
+
+  const QUICK_PLACES: { kind: "overview" | "recents" | "shared"; name: string; icon: typeof GaugeIcon }[] = [
+    { kind: "overview", name: "Overview", icon: GaugeIcon },
+    { kind: "recents", name: "Recents", icon: Clock3Icon },
+    { kind: "shared", name: "Shared", icon: UsersIcon },
+  ];
+
+  let trashBytes = $state<number | null>(null);
+  let trashReadAt = 0;
+
+  /** Trash size, read on start and again when the window regains focus after a minute. */
+  function readTrash() {
+    if (Date.now() - trashReadAt < 60_000) return;
+    trashReadAt = Date.now();
+    invoke<number | null>("trash_usage")
+      .then((bytes) => (trashBytes = bytes))
+      .catch(() => {});
+  }
+
+  onMount(() => {
+    readTrash();
+    window.addEventListener("focus", readTrash);
+    return () => window.removeEventListener("focus", readTrash);
+  });
 
   let externalDroppable = $derived(
     drag.entry !== null &&
@@ -286,30 +321,17 @@
   {/if}
   <Sidebar.Content class="finder-sidebar p-0">
     <nav class="finder-sources" aria-label="Finder sidebar" data-key-scope="sidebar" bind:this={sourcesNav} onfocusin={handleFocusIn}>
-      <button
-        data-sidebar-item
-        aria-label="Go to Folder"
-        title="Go to Folder (⇧⌘P)"
-        onclick={() => onOpenPalette?.()}
-        ><SearchIcon /> <span>Go to Folder…</span></button>
-      <button
-        data-sidebar-item
-        aria-label="Overview"
-        title="Overview"
-        class:active={selected.kind === "overview"}
-        onclick={() => onOpen?.({ name: "Overview", path: "", kind: "overview" })}><GaugeIcon /> <span>Overview</span></button>
-      <button
-        data-sidebar-item
-        aria-label="Recents"
-        title="Recents"
-        class:active={selected.kind === "recents"}
-        onclick={() => onOpen?.({ name: "Recents", path: "", kind: "recents" })}><Clock3Icon /> <span>Recents</span></button>
-      <button
-        data-sidebar-item
-        aria-label="Shared"
-        title="Shared"
-        class:active={selected.kind === "shared"}
-        onclick={() => onOpen?.({ name: "Shared", path: "", kind: "shared" })}><UsersIcon /> <span>Shared</span></button>
+      <div class="quick-places">
+        {#each QUICK_PLACES as place (place.kind)}
+          <button
+            class="quick-place"
+            data-sidebar-item
+            aria-label={place.name}
+            title={place.name}
+            class:active={selected.kind === place.kind}
+            onclick={() => onOpen?.({ name: place.name, path: "", kind: place.kind })}><place.icon /><span>{place.name}</span></button>
+        {/each}
+      </div>
       <div class="finder-section">
         <button
           type="button"
@@ -317,7 +339,7 @@
           data-sidebar-item
           aria-expanded={favoritesOpen}
           aria-controls="sidebar-favorites"
-          onclick={toggleFavorites}><ChevronDownIcon class={favoritesOpen ? "" : "closed"} /><span>Favorites</span></button>
+          onclick={toggleFavorites}><ChevronDownIcon class={favoritesOpen ? "" : "closed"} /><span>Favorites</span><small class="section-count">{favorites.length}</small></button>
       </div>
       <div id="sidebar-favorites" class="section-collapse" class:collapsed={!favoritesOpen} class:ready={sectionsReady} inert={!favoritesOpen}>
         <div class="section-collapse-inner">
@@ -372,17 +394,22 @@
             data-sidebar-item
             aria-expanded={volumesOpen}
             aria-controls="sidebar-volumes"
-            onclick={toggleVolumes}><ChevronDownIcon class={volumesOpen ? "" : "closed"} /><span>Volumes</span></button>
+            onclick={toggleVolumes}><ChevronDownIcon class={volumesOpen ? "" : "closed"} /><span>Volumes</span><small class="section-count">{volumes.length}</small></button>
         </div>
         <div id="sidebar-volumes" class="section-collapse" class:collapsed={!volumesOpen} class:ready={sectionsReady} inert={!volumesOpen}>
           <div class="section-collapse-inner">
             {#each volumes as location (location.path)}
-              <div class="location-row">
+              {@const volume = diskSpace.volumeFor(location.path)}
+              {@const used = volume && volume.total_bytes > 0 ? 1 - volume.free_bytes / volume.total_bytes : null}
+              <div class="location-row volume-row" class:has-trail={location.kind === "hfs-volume"}>
                 <button
                   aria-label={location.name} data-sidebar-item
-                  title={location.path}
+                  title={volume ? `${location.path} · ${formatSize(volume.free_bytes)} free of ${formatSize(volume.total_bytes)}` : location.path}
                   class:active={sameLocation(selected, location)}
-                  onclick={() => onOpen?.(location)}>{#if location.kind === "wsl-volume"}<LinuxIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span></button>
+                  onclick={() => onOpen?.(location)}>{#if location.kind === "wsl-volume"}<LinuxIcon />{:else}<HardDriveIcon />{/if}<span>{location.name}</span>{#if volume}<small class="row-meta">{formatSize(volume.free_bytes)}</small>{/if}</button>
+                {#if used !== null}
+                  <span class="volume-meter" class:full={used > 0.9} aria-hidden="true"><span style:width={`${Math.round(used * 100)}%`}></span></span>
+                {/if}
                 {#if location.kind === "hfs-volume"}
                   <button
                     class="location-trail"
@@ -402,7 +429,7 @@
           data-sidebar-item
           aria-expanded={locationsOpen}
           aria-controls="sidebar-locations"
-          onclick={toggleLocations}><ChevronDownIcon class={locationsOpen ? "" : "closed"} /><span>Locations</span></button>
+          onclick={toggleLocations}><ChevronDownIcon class={locationsOpen ? "" : "closed"} /><span>Locations</span><small class="section-count">{savedLocations.length}</small></button>
         {#if onAddLocation}
           <button
             class="section-add"
@@ -428,7 +455,7 @@
                     onclick={() => onOpen?.(location)}
                     >{#if status?.state === "connecting"}<LoaderCircleIcon class="location-spinner" />{:else if location.kind === "s3"}<CloudIcon />{:else if location.kind === "webdav"}<GlobeIcon />{:else if location.kind === "sftp" || location.kind === "ftp"}<ServerIcon />{:else}<NetworkIcon />{/if}<span
                       >{location.name}</span
-                    ></button>
+                    >{#if status?.state !== "error" && status?.state !== "locked"}<small class="row-badge">{protocolLabel(location.kind)}</small>{/if}</button>
                   {#if status?.state === "connected"}
                     <button
                       class="location-trail"
@@ -479,6 +506,11 @@
       </div>
     </nav>
   </Sidebar.Content>
-  <Sidebar.Footer class="hidden" />
+  <div class="sidebar-footer">
+    <button class="sidebar-footer-trash" title="Open the Trash" onclick={() => void invoke("open_trash").catch(() => {})}
+      ><Trash2Icon /><span>Trash</span>{#if trashBytes}<small class="row-meta">{formatSize(trashBytes)}</small>{/if}</button>
+    <button class="sidebar-footer-settings" aria-label="Settings" title="Settings" onclick={() => void invoke("open_settings").catch(() => {})}
+      ><SettingsIcon /></button>
+  </div>
   <Sidebar.Rail onResizeStart={resizeSidebar} />
 </Sidebar.Root>

@@ -6,17 +6,19 @@
   type Pair = { key: string; label: string; light: Option; dark: Option };
 
   const meta: Record<Theme, Omit<Option, "value">> = {
+    "litepod-light": { label: "Litepod Light", description: "Paper and orange", swatch: "litepod-light" },
+    "litepod": { label: "Litepod Dark", description: "Default", swatch: "litepod" },
     "explorer-light": { label: "Explorer Light", description: "Daylight default", swatch: "explorer-light" },
     "off-white": { label: "Off White", description: "Soft paper", swatch: "off-white" },
     "light": { label: "Light", description: "Clean daylight", swatch: "light" },
-    "dark": { label: "Explorer Dark", description: "Current look", swatch: "dark" },
+    "dark": { label: "Explorer Dark", description: "Classic look", swatch: "dark" },
     "off-black": { label: "Off Black", description: "Soft black", swatch: "off-black" },
     "oled": { label: "OLED Black", description: "Pure black and white", swatch: "oled" },
   };
 
   const pairs: Pair[] = THEME_PAIRS.map((pair, index) => ({
     key: `pair-${index}`,
-    label: index === 0 ? "Explorer" : index === 1 ? "Paper" : "Contrast",
+    label: ["Litepod", "Explorer", "Paper", "Contrast"][index] ?? "Theme",
     light: { value: pair.light, ...meta[pair.light] },
     dark: { value: pair.dark, ...meta[pair.dark] },
   }));
@@ -87,6 +89,8 @@
   button:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
   .swatch { position: relative; display: block; height: 42px; overflow: hidden; border: 1px solid rgb(127 127 127 / 28%); border-radius: calc(var(--app-radius) - 5px); background: var(--swatch-bg); box-shadow: inset 0 1px rgb(255 255 255 / 18%); }
   .swatch span { position: absolute; inset: 9px 7px 7px; border-radius: calc(var(--app-radius) - 8px); background: var(--swatch-surface); box-shadow: 0 5px 10px -6px var(--swatch-shadow); }
+  .litepod-light { --swatch-bg: #fafafa; --swatch-surface: #fff; --swatch-shadow: #d4410b; }
+  .litepod { --swatch-bg: #000; --swatch-surface: #1a1a1a; --swatch-shadow: #ff6a1f; }
   .explorer-light { --swatch-bg: #fafaf9; --swatch-surface: #fff; --swatch-shadow: #57534e; }
   .off-white { --swatch-bg: #f4f1ed; --swatch-surface: #fff; --swatch-shadow: #655a4e; }
   .light { --swatch-bg: #f7f7f8; --swatch-surface: #fff; --swatch-shadow: #4f5761; }

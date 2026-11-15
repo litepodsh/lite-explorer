@@ -32,7 +32,7 @@ describe("defaultSettings", () => {
     expect(defaultSettings({ dev: false }).terminalApp).toBe("system");
     expect(defaultSettings({ dev: false }).terminalCommand).toBe("");
     expect(defaultSettings({ dev: false }).previewOpenByDefault).toBe(false);
-    expect(defaultSettings({ dev: false }).theme).toBe("dark");
+    expect(defaultSettings({ dev: false }).theme).toBe("litepod");
     expect(defaultSettings({ dev: false }).themeMode).toBe("manual");
     expect(defaultSettings({ dev: false }).radius).toBe("soft");
   });
@@ -91,7 +91,7 @@ describe("parseSettings", () => {
     expect(settings.texture).toBe("paper");
 
     const invalid = parseSettings(JSON.stringify({ theme: "black" }), defaults);
-    expect(invalid.settings.theme).toBe("dark");
+    expect(invalid.settings.theme).toBe("litepod");
     expect(invalid.problems).toEqual(["Invalid setting “theme”; using the default"]);
   });
 

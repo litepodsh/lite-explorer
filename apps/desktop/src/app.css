@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn-svelte/tailwind.css";
+@import "@fontsource-variable/geist/wght.css";
+@import "@fontsource/commit-mono/400.css";
+@import "@fontsource/commit-mono/500.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -24,6 +27,13 @@
   --app-overlay: rgb(0 0 0 / 35%);
   --app-shadow: 0 8px 24px -12px rgb(0 0 0 / 35%);
   --app-radius: 12px;
+  /* Type and relief. Litepod swaps in Geist, Commit Mono and bevelled controls; the others keep the system look. */
+  --app-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  --app-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --app-label: var(--app-fg-muted);
+  --app-folder: var(--app-info);
+  --app-bevel: rgb(255 255 255 / 0%);
+  --app-emboss: rgb(0 0 0 / 0%);
   /* Semantic status colors. Light themes override with darker values for contrast. */
   --app-menu-shadow: 0 10px 30px -10px rgb(0 0 0 / 55%);
   --app-info: #60a5fa;
@@ -166,6 +176,63 @@
   --app-danger-fg: #ffc1c2;
   --app-overlay: rgb(0 0 0 / 70%);
   --app-shadow: none;
+}
+
+/* Litepod: the litepod.sh palette. Pure black, one orange, Geist and Commit Mono, bevelled controls. */
+:root[data-theme="litepod"] {
+  --app-bg: #000;
+  --app-sidebar: #0a0a0a;
+  --app-surface: #111;
+  --app-surface-raised: #1a1a1a;
+  --app-input: #0a0a0a;
+  --app-fg: #fff;
+  --app-fg-muted: #b0b0b0;
+  --app-fg-faint: #6b6b6b;
+  --app-border: #ffffff17;
+  --app-accent: #ff6a1f;
+  --app-accent-fg: #140700;
+  --app-danger: #ff5c5f;
+  --app-danger-fg: #ffa3a5;
+  --app-overlay: rgb(0 0 0 / 60%);
+  --app-shadow: 0 10px 28px -12px rgb(0 0 0 / 70%);
+  --app-menu-shadow: 0 12px 32px -10px rgb(0 0 0 / 80%);
+  --app-info: #8fb8ff;
+  --app-success: #5fbf8f;
+  --app-warning: #d9a441;
+  --app-font: "Geist Variable", Geist, -apple-system, BlinkMacSystemFont, sans-serif;
+  --app-font-mono: "Commit Mono", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --app-label: #ff6a1f;
+  --app-folder: #b0b0b0;
+  --app-bevel: #ffffff12;
+  --app-emboss: #0006;
+  --app-hover: color-mix(in srgb, var(--app-fg) 7%, transparent);
+}
+:root[data-theme="litepod-light"] {
+  --app-bg: #fafafa;
+  --app-sidebar: #f0f0f0;
+  --app-surface: #fff;
+  --app-surface-raised: #fff;
+  --app-input: #ececec;
+  --app-fg: #0f0f0f;
+  --app-fg-muted: #5e5e5e;
+  --app-fg-faint: #9a9a9a;
+  --app-border: #0f0f0f1c;
+  --app-accent: #d4410b;
+  --app-accent-fg: #fff;
+  --app-danger: #c8343a;
+  --app-danger-fg: #a92c31;
+  --app-overlay: rgb(15 15 15 / 16%);
+  --app-shadow: 0 12px 28px -20px rgb(15 15 15 / 30%);
+  --app-menu-shadow: 0 10px 30px -12px rgb(15 15 15 / 30%);
+  --app-info: #1f6fc7;
+  --app-success: #24704c;
+  --app-warning: #8a6410;
+  --app-font: "Geist Variable", Geist, -apple-system, BlinkMacSystemFont, sans-serif;
+  --app-font-mono: "Commit Mono", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --app-label: #b83a00;
+  --app-folder: #5e5e5e;
+  --app-bevel: #ffffffd9;
+  --app-emboss: #0f0f0f14;
 }
 
 /* Shared visual controls */
@@ -338,7 +405,8 @@
 }
 
 @theme inline {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  --font-sans: var(--app-font);
+  --font-mono: var(--app-font-mono);
   --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -407,6 +475,7 @@
   color-scheme: dark;
 }
 
+html[data-theme="litepod-light"],
 html[data-theme="explorer-light"],
 html[data-theme="off-white"],
 html[data-theme="light"] {
@@ -816,17 +885,25 @@ html[data-reduce-effects="true"] * {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 21px 0 6px;
+  margin: 18px 0 4px;
   padding-right: 4px;
 }
 .finder-sources .section-toggle {
-  gap: 3px;
+  gap: 6px;
   width: auto;
   height: 20px;
   padding: 0 10px 0 5px;
-  color: var(--app-fg-muted);
-  font-size: 11px;
-  font-weight: 600;
+  color: var(--app-label);
+  font-family: var(--app-font-mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.finder-sources .section-toggle .section-count {
+  color: var(--app-fg-faint);
+  font-size: 10px;
+  letter-spacing: 0;
 }
 .finder-sources .section-toggle:hover {
   color: var(--app-fg);
@@ -836,12 +913,20 @@ html[data-reduce-effects="true"] * {
   outline-offset: 1px;
 }
 .finder-sources .section-toggle svg {
+  order: 3;
   width: 12px;
   height: 12px;
+  opacity: 0;
   transition: transform 160ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 .finder-sources .section-toggle svg.closed {
   transform: rotate(-90deg);
+}
+/* The chevron only shows on hover, or while the section is folded so it can be reopened. */
+.finder-section:hover .section-toggle svg,
+.finder-sources .section-toggle:focus-visible svg,
+.finder-sources .section-toggle svg.closed {
+  opacity: 1;
 }
 .section-collapse {
   display: grid;
@@ -989,6 +1074,153 @@ html[data-reduce-effects="true"] * {
 .finder-sources i.gray {
   background: var(--app-fg-muted);
 }
+/* Sidebar: quick places as tiles, row metadata, volume meters and a footer for the Trash. */
+.finder-sources .quick-places {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.finder-sources button.quick-place {
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  height: 54px;
+  padding: 0 4px;
+  border-radius: calc(var(--app-radius) - 3px);
+  background: var(--app-surface-raised);
+  box-shadow:
+    inset 0 1px 0 var(--app-bevel),
+    0 1px 2px var(--app-emboss),
+    0 0 0 1px var(--app-border);
+  color: var(--app-fg-muted);
+  font-size: 10.5px;
+  text-align: center;
+}
+.finder-sources button.quick-place > span {
+  flex: none;
+  max-width: 100%;
+}
+.finder-sources button.quick-place svg {
+  width: 16px;
+  height: 16px;
+  color: var(--app-fg);
+}
+.finder-sources button.quick-place:hover {
+  color: var(--app-fg);
+}
+.finder-sources button.quick-place.active {
+  background: color-mix(in srgb, var(--app-accent) 14%, var(--app-surface-raised));
+  box-shadow:
+    inset 0 1px 0 var(--app-bevel),
+    0 0 0 1px color-mix(in srgb, var(--app-accent) 45%, transparent);
+  color: var(--app-fg);
+}
+.finder-sources button.quick-place.active svg {
+  color: var(--app-accent);
+}
+.finder-sources .row-meta,
+.finder-sources .row-badge,
+.sidebar-footer .row-meta {
+  flex: none;
+  color: var(--app-fg-faint);
+  font-family: var(--app-font-mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.finder-sources .row-badge {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--app-surface-raised);
+  box-shadow: 0 0 0 1px var(--app-border);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  line-height: 15px;
+}
+.finder-sources .location-row.has-trail > button:first-child {
+  padding-right: 30px;
+}
+.finder-sources .volume-row {
+  padding-bottom: 6px;
+}
+.finder-sources .volume-meter {
+  display: block;
+  height: 3px;
+  margin: -2px 10px 0 37px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--app-surface-raised);
+  box-shadow: inset 0 1px 1px var(--app-emboss), 0 0 0 1px var(--app-border);
+}
+.finder-sources .volume-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--app-fg-muted);
+}
+.finder-sources .volume-row:first-child .volume-meter > span {
+  background: var(--app-accent);
+}
+.finder-sources .volume-meter.full > span {
+  background: var(--app-danger);
+}
+.sidebar-footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 10px;
+  border-top: 1px solid var(--app-border);
+  box-shadow: inset 0 1px 0 var(--app-bevel);
+}
+.sidebar-footer button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  border: 0;
+  border-radius: calc(var(--app-radius) - 5px);
+  background: transparent;
+  color: var(--app-fg);
+  font: inherit;
+  font-size: 13px;
+}
+.sidebar-footer button:hover {
+  background: var(--app-surface-raised);
+}
+.sidebar-footer svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+}
+.sidebar-footer .sidebar-footer-trash {
+  flex: 1;
+  min-width: 0;
+  padding: 0 10px;
+}
+.sidebar-footer .sidebar-footer-trash > span {
+  flex: 1;
+  text-align: left;
+}
+.sidebar-footer .sidebar-footer-settings {
+  justify-content: center;
+  width: 30px;
+  padding: 0;
+  background: var(--app-surface-raised);
+  box-shadow:
+    inset 0 1px 0 var(--app-bevel),
+    0 1px 2px var(--app-emboss),
+    0 0 0 1px var(--app-border);
+  color: var(--app-fg-muted);
+}
+.sidebar-footer .sidebar-footer-settings:hover {
+  color: var(--app-fg);
+}
+.sidebar-collapsed .sidebar-footer {
+  display: none;
+}
 .finder-content {
   container: finder-content / inline-size;
   min-width: 0;
@@ -1116,7 +1348,8 @@ html[data-reduce-effects="true"] * {
   z-index: 20;
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  column-gap: 10px;
   align-items: center;
   height: var(--toolbar-height);
   padding: 0 16px;
@@ -1329,6 +1562,16 @@ html[data-reduce-effects="true"] * {
   color: var(--app-fg);
   font: inherit;
   font-size: 13px;
+}
+.finder-search-kbd {
+  flex: none;
+  margin-right: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--app-surface-raised);
+  box-shadow: inset 0 1px 0 var(--app-bevel), 0 0 0 1px var(--app-border);
+  color: var(--app-fg-faint);
+  font: 500 10.5px/16px var(--app-font-mono);
 }
 .finder-search input::placeholder {
   color: var(--app-fg-muted);
@@ -1544,6 +1787,9 @@ html[data-reduce-effects="true"] * {
   }
   .finder-toolbar .finder-search:not(.expanded) svg.finder-search-icon {
     pointer-events: none;
+  }
+  .finder-search-kbd {
+    display: none;
   }
 }
 @container finder-content (max-width: 900px) {
@@ -2158,4 +2404,42 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
   .selection-pill button {
     transition: none;
   }
+}
+
+/* Litepod details: monospaced metadata, bevelled controls and an orange selection. The tokens
+   (`--app-font-mono`, `--app-bevel`, `--app-emboss`) make the same rules quiet in other themes. */
+.list-header {
+  font-family: var(--app-font-mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+}
+.file-row .file-meta {
+  font-family: var(--app-font-mono);
+  font-size: 11.5px;
+}
+:root[data-theme^="litepod"] .finder-window {
+  --glass-fill: var(--app-input);
+  --glass-edge: inset 0 1px 2px var(--app-emboss), 0 1px 0 var(--app-bevel), 0 0 0 1px var(--app-border);
+}
+:root[data-theme^="litepod"] .finder-toolbar button[aria-pressed="true"],
+:root[data-theme^="litepod"] .finder-search-modes button.active {
+  box-shadow: inset 0 1px 0 var(--app-bevel), 0 1px 2px var(--app-emboss), 0 0 0 1px var(--app-border);
+}
+:root[data-theme^="litepod"] .finder-sources button.active:not(.quick-place) {
+  background: color-mix(in srgb, var(--app-accent) 14%, transparent);
+  box-shadow: inset 2px 0 0 var(--app-accent);
+  color: var(--app-fg);
+}
+:root[data-theme^="litepod"] .finder-sources button.active:not(.quick-place) svg {
+  color: var(--app-accent);
+}
+:root[data-theme^="litepod"] .file-row[data-selected] {
+  background: color-mix(in srgb, var(--app-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 38%, transparent);
+}
+:root[data-theme^="litepod"] .file-row[data-selected][data-join-prev],
+:root[data-theme^="litepod"] .file-row[data-selected][data-join-next] {
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--app-accent) 38%, transparent),
+    inset -1px 0 0 color-mix(in srgb, var(--app-accent) 38%, transparent);
 }

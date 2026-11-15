@@ -601,10 +601,7 @@
     {keyboardMode}
     {pendingKeys}
     visual={Boolean(controller.visual)}
-    path={statusPath ? controller.displayPath(statusPath) : ""}
     location={statusPath}
-    onNavigate={(path) => controller.openBreadcrumb(path)}
-    network={Boolean(statusPath && networkStatus.ownerOf(statusPath))}
     entries={controller.tabs.active.location.kind === "recents"
       ? controller.recentEntries
       : controller.tabs.active.location.kind === "overview"

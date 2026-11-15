@@ -6,6 +6,7 @@
   let input: HTMLInputElement;
   let focused = $state(false);
   const expanded = $derived(focused || !!controller.searchQuery);
+  const shortcut = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform) ? "⌘F" : "Ctrl F";
   export function focus() { input?.focus(); input?.select(); }
   function keydown(event: KeyboardEvent) { if (event.key === "Escape") { event.preventDefault(); controller.clearSearch(); input.blur(); } }
   // Keep focus in the input so clicking a control does not collapse the search before the click lands.
@@ -15,6 +16,7 @@
 <div class:expanded class="finder-search" role="search">
   <SearchIcon class="finder-search-icon" />
   <input bind:this={input} value={controller.searchQuery} onfocus={() => (focused = true)} onblur={() => (focused = false)} oninput={(e) => controller.setSearchQuery(e.currentTarget.value)} onkeydown={keydown} aria-label="Search this folder" placeholder={controller.searchMode === "content" ? "Search file contents" : "Search"} spellcheck="false" autocomplete="off" />
+  {#if !expanded}<kbd class="finder-search-kbd" aria-hidden="true">{shortcut}</kbd>{/if}
   {#if controller.searchQuery}<button type="button" class="finder-search-clear" aria-label="Clear search" onmousedown={keepFocus} onclick={() => controller.clearSearch()}><XIcon /></button>{/if}
   {#if expanded}
     <div class="finder-search-modes" class:content={controller.searchMode === "content"} role="group" aria-label="Search mode">

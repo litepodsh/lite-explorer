@@ -240,6 +240,7 @@ pub fn run() {
             explorer::file_transfer::move_items,
             explorer::file_transfer::delete_items,
             system::volumes::disk_overview,
+            system::git::git_branch,
             system::volumes::eject_volume,
             system::folder_usage::folder_usage,
             system::folder_usage::scan_folder_usage,

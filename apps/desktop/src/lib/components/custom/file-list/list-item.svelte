@@ -215,12 +215,12 @@
       {#if usesNativeIcon(entry)}<DownloadIndicator path={entry.path} name={entry.name} snapshot={downloadSnapshot} stale={downloadStale} />{/if}
     </div>
     {:else if column === "type"}
-    <div role="gridcell" class:column-source={draggedColumn === column} class="px-2 text-xs text-[var(--app-fg-muted)]">{entryType(entry)}</div>
+    <div role="gridcell" class:column-source={draggedColumn === column} class="file-meta px-2 text-xs text-[var(--app-fg-muted)]">{entryType(entry)}</div>
     {:else if column === "size"}
-    <div role="gridcell" class:column-source={draggedColumn === column} class="px-2 text-right text-xs tabular-nums text-[var(--app-fg-muted)]">{@render sizeLabel()}</div>
+    <div role="gridcell" class:column-source={draggedColumn === column} class="file-meta px-2 text-right text-xs tabular-nums text-[var(--app-fg-muted)]">{@render sizeLabel()}</div>
     {:else}
     {@const date = column === "date" ? entry.created : entry.modified}
-    <div role="gridcell" class:column-source={draggedColumn === column} class="truncate px-2 text-right text-xs tabular-nums text-[var(--app-fg-muted)]" title={date == null ? "Unavailable" : new Date(date).toLocaleString()}>{date == null ? "—" : formatDate(date)}</div>
+    <div role="gridcell" class:column-source={draggedColumn === column} class="file-meta truncate px-2 text-right text-xs tabular-nums text-[var(--app-fg-muted)]" title={date == null ? "Unavailable" : new Date(date).toLocaleString()}>{date == null ? "—" : formatDate(date)}</div>
     {/if}
     {/each}
   </div>

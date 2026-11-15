@@ -11,7 +11,6 @@
   import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
-  import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import Columns2Icon from "@lucide/svelte/icons/columns-2";
   import Grid2X2Icon from "@lucide/svelte/icons/grid-2x2";
   import ListIcon from "@lucide/svelte/icons/list";
@@ -25,6 +24,7 @@
   import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
   import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
   import FinderSearch from "#lib/components/custom/finder-search.svelte";
+  import PathBar from "#lib/components/custom/path-bar/path-bar.svelte";
   import AppSidebar from "#lib/components/custom/sidebar/app-sidebar.svelte";
   import { isVolumeLocation } from "#lib/components/custom/sidebar/sidebar-sections.js";
   import { addFavorite, fetchFavorites, removeFavorite, reorderFavorites } from "#lib/favorites/favorites.js";
@@ -47,7 +47,7 @@
   import { FilePaneController } from "#lib/file-pane/controller.svelte.js";
   import { PanesStore } from "#lib/panes/panes.svelte.js";
   import { paneTransferBlocked, type PaneTransfer } from "#lib/panes/pane-transfer.js";
-  import { downloadRemoteItems, removeRemoteLocation, uploadRemoteFiles } from "#lib/remote/remote-locations.js";
+  import { downloadRemoteItems, isRemotePath, removeRemoteLocation, uploadRemoteFiles } from "#lib/remote/remote-locations.js";
   import { formatLocationUrl } from "#lib/remote/location-url.js";
   import {
     describeError,
@@ -140,6 +140,8 @@
   }
 
   let activeController = $derived(controllerFor(panes.activeId));
+  /** The folder the toolbar path bar shows; Overview has none. */
+  let headerPath = $derived(activeController.tabs.active.location.kind === "overview" ? "" : activeController.listingPath);
 
   /** The selection, or the focused row when nothing is selected. */
   function quickLookTargetsFor(controller: FilePaneController) {
@@ -1182,7 +1184,6 @@
     onResizeEnd={() => sidebarResizing = false}
     onToggle={toggleSidebar}
     variant="sidebar"
-    onOpenPalette={openCommandPalette}
     brand={hasTitleBar} />
   {#if !hasTitleBar}
     <button
@@ -1257,8 +1258,15 @@
           <button aria-label="Forward" disabled={!activeController.canForward} onclick={() => activeController.goForward()}><ArrowRightIcon /></button>
         </div>
       </div>
-      <button class="location-title" aria-label="Go to folder" onclick={() => openCommandPaletteWith(withTrailingSlash(activeController.listingPath))}
-        ><span class="location-title-text">{activeController.selected}</span><ChevronDownIcon /></button>
+      <PathBar
+        location={activeController.tabs.active.location}
+        path={headerPath}
+        display={headerPath ? activeController.displayPath(headerPath) : ""}
+        label={activeController.selected}
+        network={Boolean(headerPath && networkStatus.ownerOf(headerPath))}
+        editable={Boolean(headerPath) && !isRemotePath(headerPath) && !isNetworkPath(headerPath)}
+        onNavigate={(path) => activeController.openBreadcrumb(path)}
+        onEdit={() => openCommandPaletteWith(withTrailingSlash(activeController.listingPath))} />
       <div class="toolbar-actions">
         {#if activeController.tabs.active.location.kind !== "overview"}
           <div class="toolbar-group">
