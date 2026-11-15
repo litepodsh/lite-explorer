@@ -18,7 +18,8 @@ export function isLightTheme(theme: Theme): boolean {
 
 function pairMember(theme: Theme, prefersDark: boolean): Theme {
   const pair = THEME_PAIRS.find((entry) => entry.light === theme || entry.dark === theme);
-  return pair ? (prefersDark ? pair.dark : pair.light) : prefersDark ? "dark" : "light";
+  const fallback = THEME_PAIRS[0];
+  return (pair ?? fallback)[prefersDark ? "dark" : "light"];
 }
 
 export function resolveTheme(theme: Theme, mode: ThemeMode, prefersDark: boolean): Theme {

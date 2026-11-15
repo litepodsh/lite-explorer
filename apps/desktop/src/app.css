@@ -186,6 +186,7 @@
 }
 
 /* Litepod: the litepod.sh palette. Pure black, one orange, Geist and Commit Mono, bevelled controls. */
+:root:not([data-theme]),
 :root[data-theme="litepod"] {
   --app-bg: #000;
   --app-sidebar: #0a0a0a;
