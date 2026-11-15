@@ -6,7 +6,6 @@
   import MinusIcon from "@lucide/svelte/icons/minus";
   import PlusIcon from "@lucide/svelte/icons/plus";
   import PanelLeftIcon from "@lucide/svelte/icons/panel-left";
-  import MoveHorizontalIcon from "@lucide/svelte/icons/move-horizontal";
   import MaximizeIcon from "@lucide/svelte/icons/maximize-2";
   import FileIcon from "@lucide/svelte/icons/file";
   import LockIcon from "@lucide/svelte/icons/lock";
@@ -308,7 +307,7 @@
   {#if thumbsOpen && status === "ready" && pdf}
     <div
       bind:this={railEl}
-      class="flex w-[148px] shrink-0 flex-col items-center gap-3 overflow-y-auto border-r border-[var(--app-border)] bg-[#1b1918] px-3 py-4"
+      class="flex w-[148px] shrink-0 flex-col items-center gap-3 overflow-y-auto border-r border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-4"
       aria-label="Pages"
     >
       {#key pdf}
@@ -396,53 +395,47 @@
 
     {#if status === "ready"}
       <div
-        class="pdf-toolbar absolute bottom-4 left-1/2 z-20 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-0.5 overflow-x-auto whitespace-nowrap rounded-full px-1.5 py-1"
+        class="pdf-toolbar absolute bottom-4 left-1/2 z-20 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-0.5 overflow-x-auto whitespace-nowrap rounded-full px-1 py-1"
         role="toolbar"
         aria-label="PDF controls"
       >
         <button
           type="button"
-          class="pdf-tool {thumbsOpen ? 'bg-[var(--app-hover-strong)] text-[var(--app-fg)]' : ''}"
+          class="pdf-tool"
           aria-label="Toggle page thumbnails"
           aria-pressed={thumbsOpen}
           onclick={() => (thumbsOpen = !thumbsOpen)}><PanelLeftIcon class="size-[15px] stroke-[1.7]" /></button
         >
-        <span class="mx-0.5 h-4 w-px shrink-0 bg-[var(--app-border-strong)]"></span>
+        <span class="pdf-divider"></span>
         <button type="button" class="pdf-tool" aria-label="Previous page" disabled={currentPage <= 1} onclick={() => goToPage(currentPage - 2)}
           ><ChevronLeftIcon class="size-[15px] stroke-[1.7]" /></button
         >
-        <div class="flex shrink-0 items-center gap-1 whitespace-nowrap px-1 text-[11px] tabular-nums text-[var(--app-fg-muted)]">
+        <div class="flex shrink-0 items-center gap-1 whitespace-nowrap px-0.5 text-[11px] tabular-nums text-[var(--app-fg-muted)]">
           <input
             value={currentPage}
             onchange={commitPageInput}
             aria-label="Page number"
-            class="h-6 w-6 shrink-0 rounded-md border-0 bg-[var(--app-hover)] text-center text-[11px] text-[var(--app-fg)] outline-none transition-shadow duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] focus:shadow-[0_0_0_3px_rgb(10_155_255/0.18)]" />
-          <span class="shrink-0 text-[11px] text-[var(--app-fg-muted)]">/ {numPages}</span>
+            class="pdf-page-input" />
+          <span class="shrink-0 font-[var(--app-font-mono)] text-[11px] text-[var(--app-fg-muted)]">/ {numPages}</span>
         </div>
         <button type="button" class="pdf-tool" aria-label="Next page" disabled={currentPage >= numPages} onclick={() => goToPage(currentPage)}
           ><ChevronRightIcon class="size-[15px] stroke-[1.7]" /></button
         >
-        <span class="mx-0.5 h-4 w-px shrink-0 bg-[var(--app-border-strong)]"></span>
+        <span class="pdf-divider"></span>
         <button type="button" class="pdf-tool" aria-label="Zoom out" onclick={() => stepZoom(-1)}><MinusIcon class="size-[15px] stroke-[1.7]" /></button
         >
         <button
           type="button"
-          class="min-w-11 rounded-full border-0 bg-transparent px-1 text-center text-[12px] tabular-nums text-[var(--app-fg-muted)] transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.08] hover:text-[var(--app-fg)]"
+          class="pdf-tool pdf-zoom"
+          aria-pressed={fitWidth}
           aria-label="Fit width"
           title="Fit width"
           onclick={toggleFitWidth}>{zoomPercent}%</button
         >
         <button type="button" class="pdf-tool" aria-label="Zoom in" onclick={() => stepZoom(1)}><PlusIcon class="size-[15px] stroke-[1.7]" /></button
         >
-        <button
-          type="button"
-          class="pdf-tool {fitWidth ? 'bg-[var(--app-hover-strong)] text-[var(--app-fg)]' : ''}"
-          aria-label="Fit width"
-          aria-pressed={fitWidth}
-          onclick={toggleFitWidth}><MoveHorizontalIcon class="size-[15px] stroke-[1.7]" /></button
-        >
         {#if onMaximize}
-          <span class="mx-0.5 h-4 w-px shrink-0 bg-[var(--app-border-strong)]"></span>
+          <span class="pdf-divider"></span>
           <button
             type="button"
             class="pdf-tool"
@@ -478,14 +471,15 @@
 </div>
 
 <style>
+  /* Raised like the app's other controls, so it follows the theme instead of a fixed dark glass. */
   .pdf-toolbar {
-    background: rgb(45 42 40 / 0.82);
+    background: color-mix(in srgb, var(--app-surface-raised) 86%, transparent);
     box-shadow:
-      inset 0 0 0 1px rgb(255 255 255 / 0.09),
-      inset 0 1px 0 rgb(255 255 255 / 0.08),
-      0 16px 40px -16px rgb(0 0 0 / 0.7);
-    -webkit-backdrop-filter: blur(24px);
-    backdrop-filter: blur(24px);
+      var(--app-raise),
+      0 18px 40px -18px rgb(0 0 0 / 0.45);
+    color: var(--app-fg-muted);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    backdrop-filter: blur(24px) saturate(1.4);
   }
   @media (prefers-reduced-transparency: reduce) {
     .pdf-toolbar {
@@ -494,12 +488,19 @@
       backdrop-filter: none;
     }
   }
+  .pdf-divider {
+    flex: none;
+    width: 1px;
+    height: 16px;
+    margin: 0 2px;
+    background: var(--app-border);
+  }
   .pdf-tool {
     display: grid;
     place-items: center;
     flex: none;
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     padding: 0;
     border: 0;
     border-radius: 999px;
@@ -508,17 +509,52 @@
     transition:
       background-color 200ms cubic-bezier(0.32, 0.72, 0, 1),
       color 200ms cubic-bezier(0.32, 0.72, 0, 1),
+      box-shadow 200ms cubic-bezier(0.32, 0.72, 0, 1),
       transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
   }
+  .pdf-tool.pdf-zoom {
+    width: auto;
+    min-width: 38px;
+    padding: 0 4px;
+    font-family: var(--app-font-mono);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
   .pdf-tool:hover:not(:disabled) {
-    background: rgb(255 255 255 / 0.09);
+    background: var(--app-hover-strong);
     color: var(--app-fg);
+  }
+  /* Pressed toggles sink into the bar, like the app's other pressed buttons. */
+  .pdf-tool[aria-pressed="true"] {
+    background: var(--app-well-fill);
+    box-shadow: var(--app-well);
+    color: var(--app-accent);
   }
   .pdf-tool:active:not(:disabled) {
     transform: scale(0.93);
   }
   .pdf-tool:disabled {
     color: var(--app-fg-faint);
+    opacity: 0.6;
+  }
+  .pdf-page-input {
+    width: 26px;
+    height: 22px;
+    flex: none;
+    border: 0;
+    border-radius: 6px;
+    background: var(--app-well-fill);
+    box-shadow: var(--app-well);
+    color: var(--app-fg);
+    font-family: var(--app-font-mono);
+    font-size: 11px;
+    text-align: center;
+    outline: none;
+  }
+  .pdf-page-input:focus {
+    box-shadow:
+      var(--app-well),
+      0 0 0 2px color-mix(in srgb, var(--app-accent) 45%, transparent);
   }
   @media (prefers-reduced-motion: reduce) {
     .pdf-tool {

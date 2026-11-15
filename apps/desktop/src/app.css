@@ -2247,6 +2247,15 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
   width: var(--preview-width);
   min-height: 0;
 }
+/* Preview text can be selected and copied; the chrome around it stays put. */
+.preview-dock .preview-panel {
+  -webkit-user-select: text;
+  user-select: text;
+}
+.preview-dock :is(.preview-kicker, .preview-toggle, .preview-info-row > :first-child, button) {
+  -webkit-user-select: none;
+  user-select: none;
+}
 .preview-dock-inner > aside {
   flex: 1;
   background: transparent;

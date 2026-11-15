@@ -9,6 +9,12 @@
   import FolderIcon from "@lucide/svelte/icons/folder";
   import ShieldCheck from "@lucide/svelte/icons/shield-check";
   import ShieldAlert from "@lucide/svelte/icons/shield-alert";
+  import CopyIcon from "@lucide/svelte/icons/copy";
+  import TextCursorIcon from "@lucide/svelte/icons/text-cursor";
+  import ClipboardCopyIcon from "@lucide/svelte/icons/clipboard-copy";
+  import Link2Icon from "@lucide/svelte/icons/link-2";
+  import FileTextIcon from "@lucide/svelte/icons/file-text";
+  import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
   import type { DirectoryEntry } from "#lib/components/custom/file-list/list-item.svelte";
   import CodeView from "./code-view.svelte";
   import CsvView from "./csv-view.svelte";
@@ -91,6 +97,8 @@
   let pdfView = $state<ReturnType<PdfViewComponent> | null>(null);
   let mediaView = $state<ReturnType<typeof MediaView> | null>(null);
   let findBar = $state<ReturnType<typeof FindBar> | null>(null);
+  let stageEl = $state<HTMLElement | null>(null);
+  let menuSelection = $state("");
   let token = 0;
 
   // Content may show the previous file while a request is pending; file
@@ -192,7 +200,54 @@
     htmlZoom = Math.min(MAX_HTML_ZOOM, Math.max(MIN_HTML_ZOOM, Math.round((htmlZoom + amount) * 100) / 100));
   }
 
+  /** Text selected inside the stage: Monaco's own selection, or the page's for rendered views. */
+  function selectedText(): string {
+    const fromEditor = codeView?.selectedText() ?? "";
+    if (fromEditor) return fromEditor;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !stageEl?.contains(selection.anchorNode)) return "";
+    return selection.toString();
+  }
+
+  /** Selects the preview's text only, never the whole window. */
+  function selectAllText() {
+    if (codeView?.selectAll()) return;
+    const root = contentRoot ?? stageEl;
+    const selection = window.getSelection();
+    if (!root || !selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(root);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  async function copyText(text: string) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // WebKit rejects clipboard writes without a fresh user activation.
+    }
+  }
+
+  function inThisPreview(target: EventTarget | null): boolean {
+    const scope = target instanceof Element ? target.closest("[data-key-scope='preview']") : null;
+    return Boolean(scope && stageEl && scope.contains(stageEl));
+  }
+
   function handleKeydown(event: KeyboardEvent) {
+    if (
+      !event.defaultPrevented &&
+      event.key.toLowerCase() === "a" &&
+      (event.metaKey || event.ctrlKey) &&
+      !event.shiftKey &&
+      !event.altKey &&
+      inThisPreview(event.target)
+    ) {
+      event.preventDefault();
+      selectAllText();
+      return;
+    }
     if ((event.metaKey || event.ctrlKey) && !event.altKey) {
       const next = fontSizeForShortcut(fontSize, event.key);
       if (next !== null) {
@@ -221,6 +276,8 @@
   </div>
 {/snippet}
 
+<ContextMenu.Root onOpenChange={(open) => { if (open) menuSelection = selectedText(); }}>
+<ContextMenu.Trigger class="flex h-full min-h-0 min-w-0 flex-col select-text">
 <aside class="preview-panel flex h-full min-w-0 flex-col" aria-label="Preview">
   <header class="preview-head">
     <span class="preview-kicker">{preview && !pending ? kindLabel(preview.name, preview.kind) : entry.is_directory ? "Folder" : "File"}</span>
@@ -230,6 +287,7 @@
     </div>
   </header>
   <div
+    bind:this={stageEl}
     class="preview-stage relative flex min-h-0 flex-col overflow-hidden transition-opacity duration-150 {slow
       ? 'opacity-60'
       : ''}"
@@ -435,3 +493,23 @@
   </div>
   <FileInfo {preview} {defaultApp} {pending} />
 </aside>
+</ContextMenu.Trigger>
+<ContextMenu.Content class="w-56">
+  <ContextMenu.Item disabled={!menuSelection} onSelect={() => copyText(menuSelection)}>
+    <CopyIcon />Copy<ContextMenu.Shortcut>⌘C</ContextMenu.Shortcut>
+  </ContextMenu.Item>
+  <ContextMenu.Item disabled={!preview?.content} onSelect={selectAllText}>
+    <TextCursorIcon />Select All<ContextMenu.Shortcut>⌘A</ContextMenu.Shortcut>
+  </ContextMenu.Item>
+  <ContextMenu.Separator />
+  <ContextMenu.Item disabled={!preview?.content} onSelect={() => copyText(preview?.content ?? "")}>
+    <ClipboardCopyIcon />Copy All Text
+  </ContextMenu.Item>
+  <ContextMenu.Item onSelect={() => copyText(entry.path)}>
+    <Link2Icon />Copy Path
+  </ContextMenu.Item>
+  <ContextMenu.Item onSelect={() => copyText(entry.name)}>
+    <FileTextIcon />Copy Name
+  </ContextMenu.Item>
+</ContextMenu.Content>
+</ContextMenu.Root>

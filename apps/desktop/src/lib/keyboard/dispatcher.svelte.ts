@@ -43,6 +43,8 @@ export class KeyboardDispatcher<C> {
 
   handle = (event: KeyboardEvent) => {
     if (event.defaultPrevented) return;
+    // Copying selected text (a preview, a dialog) is the system's copy, not the file transfer clipboard.
+    if (copiesSelectedText(event)) return;
     const token = eventToken(event);
     if (!token) return;
     const scope = scopeFromFacts(readScopeFacts(event.target, this.options.modalOpen()));
@@ -116,4 +118,16 @@ export class KeyboardDispatcher<C> {
     if (result instanceof Promise)
       result.catch((error: unknown) => this.options.onError(command.title, error));
   }
+}
+
+/** Mod+C with text selected in the region the key came from. */
+function copiesSelectedText(event: KeyboardEvent): boolean {
+  if (event.key.toLowerCase() !== "c" || !(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) {
+    return false;
+  }
+  const selection = typeof window === "undefined" ? null : window.getSelection();
+  if (!selection || selection.isCollapsed || !selection.toString()) return false;
+  const target = event.target instanceof Element ? event.target : null;
+  const region = target?.closest("[data-key-scope]");
+  return Boolean(region && selection.anchorNode && region.contains(selection.anchorNode));
 }

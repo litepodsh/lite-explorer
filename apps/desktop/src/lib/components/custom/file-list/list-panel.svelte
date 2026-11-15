@@ -801,7 +801,7 @@
   </Resizable.Pane>
 </Resizable.PaneGroup>
 {#if previewEntry}
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_static_element_interactions -->
   <div
     class="preview-dock"
     data-open={previewShown}
@@ -809,7 +809,8 @@
     style={`--preview-ms: ${PREVIEW_ANIMATION_MS}ms; --preview-width: ${previewWidth}px`}
     data-key-scope="preview"
     data-pane-id={paneId}
-    tabindex="0">
+    tabindex="0"
+    oncontextmenu={(event) => event.stopPropagation()}>
     <div class="preview-dock-handle" role="separator" aria-orientation="vertical" aria-label="Resize preview" onpointerdown={startPreviewResize}></div>
     <div class="preview-dock-inner">
       {#if previewEntry === SUMMARY}
