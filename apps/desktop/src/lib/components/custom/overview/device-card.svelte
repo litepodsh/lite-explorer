@@ -49,19 +49,19 @@
   }
 </script>
 
-<article class="overflow-hidden rounded-[var(--app-radius)] border border-[var(--app-border)] bg-[var(--app-surface)]">
-  <header class="flex items-center gap-3 border-b border-[var(--app-border)] px-4 py-3.5">
-    <LaptopIcon class="size-7 shrink-0 stroke-[1.4] text-[var(--app-info)]" />
+<article class="ov-card">
+  <header class="ov-card-head">
+    <span class="ov-icon"><LaptopIcon /></span>
     <div class="min-w-0">
-      <h2 class="flex flex-wrap items-baseline gap-x-2 text-[15px] font-semibold text-[var(--app-fg)]">
+      <h2 class="flex flex-wrap items-baseline gap-x-2 ov-title">
         <span class="truncate">{device.name}</span>
-        <span class="text-xs font-normal text-[var(--app-fg-muted)]">This device</span>
+        <span class="ov-kicker">This device</span>
       </h2>
-      <p class="mt-0.5 text-xs text-[var(--app-fg-muted)]">{volumes.length} volume{volumes.length === 1 ? "" : "s"}</p>
+      <p class="ov-sub">{volumes.length} volume{volumes.length === 1 ? "" : "s"}</p>
     </div>
     <div class="ml-auto grid shrink-0 justify-items-end gap-1 text-right">
       {#if device.chip}<strong class="text-[13px] font-medium text-[var(--app-fg)]">{device.chip}</strong>{/if}
-      <div class="flex gap-3 text-xs tabular-nums text-[var(--app-fg-muted)]">
+      <div class="ov-num flex gap-3 text-[11px] tabular-nums text-[var(--app-fg-muted)]">
         <span class="inline-flex items-center gap-1" title="CPU cores"><CpuIcon class="size-3.5" />{device.cores}</span>
         {#if memory}
           <span class="inline-flex items-center gap-1" title="Memory"><MemoryStickIcon class="size-3.5" />{memory}</span>
@@ -73,22 +73,22 @@
   <div class="grid gap-3 p-3">
     {#each volumes as volume (volume.mount_point)}
       {@const split = diskBreakdown(volume, volume.is_primary ? homeBytes : null)}
-      <section class="grid gap-3.5 rounded-[calc(var(--app-radius)-3px)] border border-[var(--app-border)] bg-[var(--app-input)] p-3.5">
+      <section class="ov-well grid gap-3.5 p-3.5">
         <div class="flex items-center gap-3">
-          <HardDriveIcon class="size-7 shrink-0 stroke-[1.4] text-[var(--app-fg-muted)]" />
+          <HardDriveIcon class="size-6 shrink-0 stroke-[1.5] text-[var(--app-fg-muted)]" />
           <div class="min-w-0">
             <p class="truncate text-[13px] font-medium text-[var(--app-fg)]" title={volume.mount_point}>{volume.name}</p>
             <div class="mt-1 flex gap-1.5">
               {#if volume.file_system}
-                <span class="rounded-sm border border-[var(--app-border)] px-1.5 text-[11px] text-[var(--app-fg-muted)]">{volume.file_system}</span>
+                <span class="ov-tag">{volume.file_system}</span>
               {/if}
-              <span class="rounded-sm border border-[var(--app-border)] px-1.5 text-[11px] text-[var(--app-fg-muted)]"
+              <span class="ov-tag"
                 >{volume.is_primary ? "Primary" : "External"}</span>
             </div>
           </div>
           <div class="ml-auto shrink-0 text-right tabular-nums">
-            <p class="text-[13px] font-medium text-[var(--app-fg)]">{formatSize(volume.total_bytes)}</p>
-            <p class="text-xs text-[var(--app-fg-muted)]">{formatSize(split.free)} free</p>
+            <p class="ov-num text-[13px] font-medium text-[var(--app-fg)]">{formatSize(volume.total_bytes)}</p>
+            <p class="ov-num text-[11px] text-[var(--app-fg-muted)]">{formatSize(split.free)} free</p>
           </div>
         </div>
         <UsageBar
@@ -97,7 +97,7 @@
           activeId={activeSegment ?? undefined}
           onHover={(id) => (activeSegment = id)}
           label={`${volume.name}: ${formatSize(split.used)} used of ${formatSize(volume.total_bytes)}`} />
-        <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-xs tabular-nums text-[var(--app-fg-muted)]">
+        <div class="ov-legend flex flex-wrap gap-x-4 gap-y-1.5 text-xs tabular-nums text-[var(--app-fg-muted)]">
           {#if volume.is_primary && homeBytes !== null}
             <span class="inline-flex items-center gap-1.5 {legendClass('home')}"
               ><i class="size-2 rounded-full" style:background={HOME_COLOR}></i>Your home folder

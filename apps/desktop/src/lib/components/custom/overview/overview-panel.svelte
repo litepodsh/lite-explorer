@@ -76,17 +76,15 @@
 </script>
 
 {#snippet stat(Icon: typeof HardDriveIcon, value: string, unit: string, label: string, sub: string, highlight = "")}
-  <div class="grid grid-cols-[34px_minmax(0,1fr)] gap-x-3 px-1 py-1.5">
-    <Icon class="mt-1.5 size-[26px] stroke-[1.5] {highlight ? 'text-[var(--app-accent)]' : 'text-[var(--app-fg-muted)]'}" />
-    <div class="min-w-0">
-      <p class="text-[30px] leading-[1.1] font-semibold tracking-[-0.02em] tabular-nums text-[var(--app-fg)]">
-        {value}{#if unit}<small class="ml-1 text-[15px] font-medium tracking-normal text-[var(--app-fg-muted)]">{unit}</small>{/if}
-      </p>
-      <p class="mt-1.5 text-[13px] text-[var(--app-fg)]">{label}</p>
-      <p class="mt-0.5 truncate text-xs tabular-nums text-[var(--app-fg-muted)]">
-        {#if highlight}<b class="font-medium text-[var(--app-accent)]">{highlight}</b>{/if} {sub}
-      </p>
+  <div class="ov-stat">
+    <div class="flex items-center justify-between gap-2">
+      <span class="ov-kicker">{label}</span>
+      <Icon class="size-4 shrink-0 stroke-[1.7] {highlight ? 'text-[var(--app-accent)]' : 'text-[var(--app-fg-faint)]'}" />
     </div>
+    <p class="ov-stat-value">{value}{#if unit}<small>{unit}</small>{/if}</p>
+    <p class="ov-num truncate text-[11px] text-[var(--app-fg-muted)]">
+      {#if highlight}<b class="font-medium text-[var(--app-accent)]">{highlight}</b>{/if} {sub}
+    </p>
   </div>
 {/snippet}
 
@@ -97,7 +95,7 @@
     {:else if !overview || !primary || !split}
       <div class="grid grid-cols-2 gap-2 @3xl:grid-cols-4" aria-hidden="true">
         {#each [0, 1, 2, 3] as item (item)}
-          <div class="grid gap-2 px-1 py-1.5 pl-[46px]">
+          <div class="ov-stat">
             <span class="h-8 w-28 animate-pulse rounded bg-[var(--app-surface)] motion-reduce:animate-none"></span>
             <span class="h-3 w-20 rounded bg-[var(--app-surface)]"></span>
           </div>
@@ -107,7 +105,7 @@
       {@const capacity = sizeParts(primary.total_bytes)}
       {@const free = sizeParts(split.free)}
       {@const home = homeBytes === null ? null : sizeParts(homeBytes)}
-      <div class="grid grid-cols-2 gap-2 @3xl:grid-cols-4">
+      <div class="grid grid-cols-2 gap-3 @3xl:grid-cols-4">
         {@render stat(
           HardDriveIcon,
           capacity.value,

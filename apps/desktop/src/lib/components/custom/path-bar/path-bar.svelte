@@ -134,11 +134,8 @@
     height: 34px;
     padding: 0 6px 0 12px;
     border-radius: 999px;
-    background: var(--app-input);
-    box-shadow:
-      inset 0 1px 2px var(--app-emboss),
-      0 1px 0 var(--app-bevel),
-      0 0 0 1px var(--app-border);
+    background: var(--app-well-fill);
+    box-shadow: var(--app-well);
     color: var(--app-fg-muted);
     font-family: var(--app-font-mono);
     font-size: 12px;

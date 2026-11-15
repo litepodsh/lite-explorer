@@ -34,6 +34,13 @@
   --app-folder: var(--app-info);
   --app-bevel: rgb(255 255 255 / 0%);
   --app-emboss: rgb(0 0 0 / 0%);
+  /* Relief. Raised for buttons, tiles and cards; well for fields, tracks and meters. Other themes
+     keep a plain hairline; Litepod gives them a lit top edge and an inner shadow. */
+  --app-raise-fill: var(--app-surface-raised);
+  --app-raise: 0 0 0 1px var(--app-border);
+  --app-well-fill: var(--app-input);
+  --app-well: inset 0 0 0 1px var(--app-border);
+  --app-card: 0 0 0 1px var(--app-border);
   /* Semantic status colors. Light themes override with darker values for contrast. */
   --app-menu-shadow: 0 10px 30px -10px rgb(0 0 0 / 55%);
   --app-info: #60a5fa;
@@ -206,6 +213,11 @@
   --app-bevel: #ffffff12;
   --app-emboss: #0006;
   --app-hover: color-mix(in srgb, var(--app-fg) 7%, transparent);
+  --app-raise-fill: linear-gradient(180deg, #1f1f1f, #151515);
+  --app-raise: inset 0 1px 0 #ffffff17, 0 1px 2px #000a, 0 0 0 1px #ffffff12;
+  --app-well-fill: #0d0d0d;
+  --app-well: inset 0 1px 3px #000, inset 0 0 0 1px #ffffff14, 0 1px 0 #ffffff0a;
+  --app-card: inset 0 1px 0 #ffffff10, 0 0 0 1px #ffffff12, 0 14px 30px -20px #000;
 }
 :root[data-theme="litepod-light"] {
   --app-bg: #fafafa;
@@ -233,6 +245,11 @@
   --app-folder: #5e5e5e;
   --app-bevel: #ffffffd9;
   --app-emboss: #0f0f0f14;
+  --app-raise-fill: linear-gradient(180deg, #fff, #f5f5f5);
+  --app-raise: inset 0 1px 0 #fff, 0 1px 2px #0f0f0f1f, 0 0 0 1px #0f0f0f1a;
+  --app-well-fill: #eaeaea;
+  --app-well: inset 0 1px 2px #0f0f0f21, inset 0 0 0 1px #0f0f0f10, 0 1px 0 #fff;
+  --app-card: inset 0 1px 0 #fff, 0 0 0 1px #0f0f0f14, 0 14px 30px -22px #0f0f0f47;
 }
 
 /* Shared visual controls */
@@ -1088,11 +1105,8 @@ html[data-reduce-effects="true"] * {
   height: 54px;
   padding: 0 4px;
   border-radius: calc(var(--app-radius) - 3px);
-  background: var(--app-surface-raised);
-  box-shadow:
-    inset 0 1px 0 var(--app-bevel),
-    0 1px 2px var(--app-emboss),
-    0 0 0 1px var(--app-border);
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-raise);
   color: var(--app-fg-muted);
   font-size: 10.5px;
   text-align: center;
@@ -1107,12 +1121,17 @@ html[data-reduce-effects="true"] * {
   color: var(--app-fg);
 }
 .finder-sources button.quick-place:hover {
+  background: var(--app-raise-fill);
   color: var(--app-fg);
 }
+.finder-sources button.quick-place:active {
+  box-shadow: var(--app-well);
+  background: var(--app-well-fill);
+}
 .finder-sources button.quick-place.active {
-  background: color-mix(in srgb, var(--app-accent) 14%, var(--app-surface-raised));
+  background: color-mix(in srgb, var(--app-accent) 12%, var(--app-well-fill));
   box-shadow:
-    inset 0 1px 0 var(--app-bevel),
+    var(--app-well),
     0 0 0 1px color-mix(in srgb, var(--app-accent) 45%, transparent);
   color: var(--app-fg);
 }
@@ -1131,8 +1150,8 @@ html[data-reduce-effects="true"] * {
 .finder-sources .row-badge {
   padding: 0 5px;
   border-radius: 4px;
-  background: var(--app-surface-raised);
-  box-shadow: 0 0 0 1px var(--app-border);
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well);
   font-size: 9.5px;
   letter-spacing: 0.04em;
   line-height: 15px;
@@ -1149,8 +1168,8 @@ html[data-reduce-effects="true"] * {
   margin: -2px 10px 0 37px;
   overflow: hidden;
   border-radius: 2px;
-  background: var(--app-surface-raised);
-  box-shadow: inset 0 1px 1px var(--app-emboss), 0 0 0 1px var(--app-border);
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well);
 }
 .finder-sources .volume-meter > span {
   display: block;
@@ -1208,14 +1227,12 @@ html[data-reduce-effects="true"] * {
   justify-content: center;
   width: 30px;
   padding: 0;
-  background: var(--app-surface-raised);
-  box-shadow:
-    inset 0 1px 0 var(--app-bevel),
-    0 1px 2px var(--app-emboss),
-    0 0 0 1px var(--app-border);
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-raise);
   color: var(--app-fg-muted);
 }
 .sidebar-footer .sidebar-footer-settings:hover {
+  background: var(--app-raise-fill);
   color: var(--app-fg);
 }
 .sidebar-collapsed .sidebar-footer {
@@ -1568,8 +1585,8 @@ html[data-reduce-effects="true"] * {
   margin-right: 4px;
   padding: 1px 6px;
   border-radius: 6px;
-  background: var(--app-surface-raised);
-  box-shadow: inset 0 1px 0 var(--app-bevel), 0 0 0 1px var(--app-border);
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-raise);
   color: var(--app-fg-faint);
   font: 500 10.5px/16px var(--app-font-mono);
 }
@@ -2419,12 +2436,68 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
   font-size: 11.5px;
 }
 :root[data-theme^="litepod"] .finder-window {
-  --glass-fill: var(--app-input);
-  --glass-edge: inset 0 1px 2px var(--app-emboss), 0 1px 0 var(--app-bevel), 0 0 0 1px var(--app-border);
+  --glass-fill: var(--app-well-fill);
+  --glass-edge: var(--app-well);
 }
+/* Inside a well, a button lifts on hover and stays raised while pressed, like a key. */
+:root[data-theme^="litepod"] .finder-toolbar button:hover:not(:disabled),
 :root[data-theme^="litepod"] .finder-toolbar button[aria-pressed="true"],
 :root[data-theme^="litepod"] .finder-search-modes button.active {
-  box-shadow: inset 0 1px 0 var(--app-bevel), 0 1px 2px var(--app-emboss), 0 0 0 1px var(--app-border);
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-raise);
+}
+:root[data-theme^="litepod"] .finder-toolbar .path-bar button:hover:not(:disabled) {
+  background: var(--app-hover-strong);
+  box-shadow: none;
+}
+:root[data-theme^="litepod"] .finder-search.expanded {
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well), 0 0 0 1px color-mix(in srgb, var(--app-accent) 45%, transparent), 0 10px 30px -12px var(--app-overlay);
+}
+:root[data-theme^="litepod"] .sidebar-trigger,
+:root[data-theme^="litepod"] .sidebar-trigger-open {
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-raise);
+}
+:root[data-theme^="litepod"] .selection-pill {
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-raise), var(--app-menu-shadow);
+}
+:root[data-theme^="litepod"] .selection-pill button:hover {
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well);
+}
+/* Activity drawer: the filter is a well with a raised selection; progress runs in a groove. */
+:root[data-theme^="litepod"] .activity-drawer .filters {
+  border-radius: 999px;
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well);
+}
+:root[data-theme^="litepod"] .activity-drawer .filters button {
+  border-radius: 999px;
+}
+:root[data-theme^="litepod"] .activity-drawer .filters button.on,
+:root[data-theme^="litepod"] .activity-drawer .collapse {
+  border-color: transparent;
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-raise);
+}
+:root[data-theme^="litepod"] .activity-drawer .bar {
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well);
+}
+/* Text fields in dialogs and settings sit in the same well as the toolbar. */
+:root[data-theme^="litepod"] [data-slot="input"],
+:root[data-theme^="litepod"] [role="dialog"] input:is([type="text"], [type="search"], [type="password"], [type="url"], :not([type])),
+:root[data-theme^="litepod"] [role="dialog"] textarea {
+  border-color: transparent;
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well);
+}
+:root[data-theme^="litepod"] [data-slot="input"]:focus-visible,
+:root[data-theme^="litepod"] [role="dialog"] input:focus-visible,
+:root[data-theme^="litepod"] [role="dialog"] textarea:focus-visible {
+  box-shadow: var(--app-well), 0 0 0 2px color-mix(in srgb, var(--app-accent) 55%, transparent);
 }
 :root[data-theme^="litepod"] .finder-sources button.active:not(.quick-place) {
   background: color-mix(in srgb, var(--app-accent) 14%, transparent);
@@ -2442,4 +2515,171 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
 :root[data-theme^="litepod"] .file-row[data-selected][data-join-next] {
   box-shadow: inset 1px 0 0 color-mix(in srgb, var(--app-accent) 38%, transparent),
     inset -1px 0 0 color-mix(in srgb, var(--app-accent) 38%, transparent);
+}
+
+/* Overview: raised cards on the page, wells for what they measure, monospaced figures. */
+.ov-stat {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px 13px;
+  border-radius: var(--app-radius);
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-card);
+}
+.ov-stat-value {
+  color: var(--app-fg);
+  font-size: 28px;
+  font-weight: 560;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+.ov-stat-value small {
+  margin-left: 4px;
+  color: var(--app-fg-muted);
+  font-family: var(--app-font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.ov-kicker {
+  overflow: hidden;
+  color: var(--app-label);
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ov-num,
+.ov-legend {
+  font-family: var(--app-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.ov-legend {
+  font-size: 11px;
+}
+.ov-card {
+  overflow: hidden;
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  box-shadow: var(--app-card);
+}
+.ov-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--app-border);
+  box-shadow: 0 1px 0 var(--app-bevel);
+}
+.ov-title {
+  color: var(--app-fg);
+  font-size: 14px;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+}
+.ov-sub {
+  margin-top: 2px;
+  color: var(--app-fg-muted);
+  font-family: var(--app-font-mono);
+  font-size: 11px;
+}
+.ov-icon {
+  display: grid;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: calc(var(--app-radius) - 2px);
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-raise);
+  color: var(--app-accent);
+}
+.ov-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.7;
+}
+.ov-well {
+  border-radius: calc(var(--app-radius) - 2px);
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well);
+}
+.ov-tag {
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-raise);
+  color: var(--app-fg-muted);
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  line-height: 17px;
+  text-transform: uppercase;
+}
+.ov-btn {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  height: 28px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-raise-fill);
+  box-shadow: var(--app-raise);
+  color: var(--app-fg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  transition: transform 140ms cubic-bezier(0.32, 0.72, 0, 1), filter 140ms ease;
+}
+.ov-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.ov-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+.ov-btn:active:not(:disabled) {
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well);
+  transform: translateY(0.5px);
+}
+.ov-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.ov-btn:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+.ov-btn-primary {
+  background: var(--app-accent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%), 0 1px 2px var(--app-emboss);
+  color: var(--app-accent-fg);
+}
+.ov-btn-icon {
+  justify-content: center;
+  width: 28px;
+  padding: 0;
+  color: var(--app-fg-muted);
+}
+.overview-panel .ov-card .usage-bar-joined {
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well);
+}
+.overview-panel .ov-card .usage-bar:not(.usage-bar-joined) .usage-bar-rest {
+  background: var(--app-well-fill);
+  box-shadow: var(--app-well);
+}
+/* Zebra rows stay a whisper so the hairlines and the orange selection carry the list. */
+:root[data-theme^="litepod"] .file-row[data-zebra] {
+  background: color-mix(in srgb, var(--app-fg) 2.5%, transparent);
 }

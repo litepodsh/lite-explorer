@@ -115,15 +115,15 @@
   }
 </script>
 
-<article class="overflow-hidden rounded-[var(--app-radius)] border border-[var(--app-border)] bg-[var(--app-surface)]">
-  <header class="flex items-center gap-3 border-b border-[var(--app-border)] px-4 py-3.5">
-    <Trash2Icon class="size-7 shrink-0 stroke-[1.4] text-[var(--app-warning)]" />
+<article class="ov-card">
+  <header class="ov-card-head">
+    <span class="ov-icon"><Trash2Icon /></span>
     <div class="min-w-0">
-      <h2 class="text-[15px] font-semibold text-[var(--app-fg)]">Trash</h2>
-      <p class="mt-0.5 truncate text-xs text-[var(--app-fg-muted)]">Files you’ve deleted</p>
+      <h2 class="ov-title">Trash</h2>
+      <p class="ov-sub truncate">Files you’ve deleted</p>
     </div>
     <button
-      class="ml-auto flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--app-border)] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)] disabled:cursor-not-allowed disabled:opacity-40"
+      class="ov-btn ml-auto"
       onclick={openTrash}
       disabled={opening || (size !== null && size === 0)}
       title="Open the trash so you can empty it manually">
@@ -136,7 +136,7 @@
       {/if}
     </button>
     <button
-      class="flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--app-border)] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)] disabled:cursor-not-allowed disabled:opacity-40"
+      class="ov-btn"
       onclick={empty}
       disabled={emptying || size === null || size === 0}
       title={size === 0 ? "Trash is already empty" : "Empty the trash"}>
@@ -161,13 +161,13 @@
         {#if showPermissionButton}
           <div class="flex flex-wrap items-center gap-2">
             <button
-              class="flex w-fit items-center gap-1.5 rounded-md border border-[var(--app-accent)] bg-[color-mix(in_srgb,var(--app-accent)_10%,transparent)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-accent)] hover:bg-[color-mix(in_srgb,var(--app-accent)_20%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)] disabled:opacity-40"
+              class="ov-btn ov-btn-primary"
               onclick={requestAccess}
               disabled={detecting}>
               {detecting ? "Checking…" : "Request access"}
             </button>
             <button
-              class="flex w-fit items-center gap-1.5 rounded-md border border-[var(--app-border)] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--app-fg)] hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)]"
+              class="ov-btn"
               onclick={openSettings}>
               Open System Settings
             </button>

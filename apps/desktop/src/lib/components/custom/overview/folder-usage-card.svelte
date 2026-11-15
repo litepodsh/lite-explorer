@@ -40,21 +40,21 @@
   const largest = $derived(summary.top[0]?.bytes ?? 0);
 </script>
 
-<article class="overflow-hidden rounded-[var(--app-radius)] border border-[var(--app-border)] bg-[var(--app-surface)]">
-  <header class="flex items-center gap-3 border-b border-[var(--app-border)] px-4 py-3.5">
-    <HouseIcon class="size-7 shrink-0 stroke-[1.4] text-[var(--app-info)]" />
+<article class="ov-card">
+  <header class="ov-card-head">
+    <span class="ov-icon"><HouseIcon /></span>
     <div class="min-w-0">
-      <h2 class="text-[15px] font-semibold text-[var(--app-fg)]">What’s using your home folder</h2>
-      <p class="mt-0.5 truncate text-xs text-[var(--app-fg-muted)]">{rootName || "Home"}</p>
+      <h2 class="ov-title">What’s using your home folder</h2>
+      <p class="ov-sub truncate">{rootName || "Home"}</p>
     </div>
-    <div class="ml-auto flex shrink-0 items-center gap-2 text-xs tabular-nums text-[var(--app-fg-muted)]" aria-live="polite">
+    <div class="ov-num ml-auto flex shrink-0 items-center gap-2 text-[11px] tabular-nums text-[var(--app-fg-muted)]" aria-live="polite">
       {#if scanning}
         <LoaderCircleIcon class="size-3.5 animate-spin text-[var(--app-accent)] motion-reduce:animate-none" />
         <span title={currentFolder ?? undefined}>Refreshing… {formatSize(scannedBytes)}</span>
       {:else}
         {#if usage?.scanned_at}<span>Updated {formatAge(usage.scanned_at, nowSeconds)}</span>{/if}
         <button
-          class="grid size-7 place-items-center rounded-md border-0 bg-transparent text-[var(--app-fg-muted)] hover:bg-[var(--app-surface-raised)] hover:text-[var(--app-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)]"
+          class="ov-btn ov-btn-icon"
           aria-label="Refresh folder sizes"
           title="Refresh folder sizes"
           onclick={onRefresh}><RefreshCwIcon class="size-3.5" /></button>
@@ -73,7 +73,7 @@
           class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-1.5 rounded-[calc(var(--app-radius)-5px)] border-0 bg-transparent px-2.5 py-2 text-left hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)]"
           title={entry.path}
           onclick={() => onOpen(entry)}>
-          <FolderIcon class="size-4 stroke-[1.8] {entry.is_hidden ? 'text-[var(--app-fg-faint)]' : 'text-[var(--app-info)]'}" />
+          <FolderIcon class="size-4 stroke-[1.8] {entry.is_hidden ? 'text-[var(--app-fg-faint)]' : 'text-[var(--app-folder)]'}" />
           <span class="truncate text-[13px] {entry.is_hidden ? 'text-[var(--app-fg-muted)]' : 'text-[var(--app-fg)]'}">{entry.name}</span>
           <span class="text-right font-mono text-xs tabular-nums text-[var(--app-fg)]">{formatSize(entry.bytes)}</span>
           <UsageBar
