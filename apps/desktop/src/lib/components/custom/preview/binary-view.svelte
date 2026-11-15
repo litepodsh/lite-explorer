@@ -38,9 +38,26 @@
   });
 </script>
 
-<div class="relative h-full w-full overflow-auto bg-black">
-  <div class="sticky top-0 z-10 border-b border-[#0a3d1f] bg-black/80 px-3 py-1">
-    <p class="text-[11px] text-[#1f8f4d]">binary &mdash; {name}</p>
-  </div>
-  <pre class="select-none whitespace-pre break-all p-3 text-[12px] leading-[1.15] tracking-tight text-[#22c55e]">{bits}</pre>
+<div class="relative h-full w-full overflow-hidden" aria-label={`Binary file ${name}`}>
+  <pre class="binary-bits select-none whitespace-pre break-all p-3 text-[11px] leading-[1.2] tracking-tight" aria-hidden="true">{bits}</pre>
+  <p class="binary-label">Binary · no preview</p>
 </div>
+
+<style>
+  .binary-bits {
+    color: color-mix(in srgb, var(--app-fg) 14%, transparent);
+    font-family: var(--app-font-mono);
+    mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+  }
+  .binary-label {
+    position: absolute;
+    inset: 50% 0 auto;
+    color: var(--app-fg-muted);
+    font-family: var(--app-font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-transform: uppercase;
+    transform: translateY(-50%);
+  }
+</style>

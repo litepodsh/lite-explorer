@@ -6,37 +6,45 @@
 
   // While `pending`, `preview` belongs to the previous file: its rows stay in the
   // layout (hidden) so the panel height does not jump between selections.
-  type Props = { name: string; preview: FilePreview | null; defaultApp?: OpenWithApp | null; pending?: boolean };
-  let { name, preview, defaultApp = null, pending = false }: Props = $props();
+  type Props = { preview: FilePreview | null; defaultApp?: OpenWithApp | null; pending?: boolean };
+  let { preview, defaultApp = null, pending = false }: Props = $props();
 </script>
 
-<section class="shrink-0 px-4 pt-3 pb-4" aria-label="File information">
-  <h2 class="truncate text-[15px] font-semibold text-[var(--app-fg)]" title={name}>{name}</h2>
-  {#if preview}
-    <div class={pending ? "invisible" : ""} aria-hidden={pending}>
-      <p class="mt-0.5 text-[13px] text-[var(--app-fg-muted)]">
-        {kindLabel(preview.name, preview.kind)}{preview.kind === "directory" ? "" : ` - ${formatSize(preview.size)}`}
-      </p>
-      {#if preview.created !== null || preview.modified !== null || defaultApp}
-        <h3 class="mt-4 mb-1.5 text-[13px] font-semibold text-[var(--app-fg)]">Information</h3>
-        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12px]">
-          {#if preview.created !== null}
-            <dt class="text-[var(--app-fg-muted)]">Created</dt>
-            <dd class="m-0 text-right text-[var(--app-fg)]">{formatDate(preview.created)}</dd>
-          {/if}
-          {#if preview.modified !== null}
-            <dt class="text-[var(--app-fg-muted)]">Modified</dt>
-            <dd class="m-0 text-right text-[var(--app-fg)]">{formatDate(preview.modified)}</dd>
-          {/if}
-          {#if defaultApp}
-            <dt class="text-[var(--app-fg-muted)]">Opens with</dt>
-            <dd class="m-0 flex min-w-0 items-center justify-end gap-1.5 text-[var(--app-fg)]" title={defaultApp.path}>
-              {#if defaultApp.icon}<img src={defaultApp.icon} alt="" class="size-4 shrink-0" draggable="false" />{/if}
-              <span class="truncate">{defaultApp.name}</span>
-            </dd>
-          {/if}
-        </dl>
+{#if preview}
+  <section class="preview-info" class:invisible={pending} aria-hidden={pending} aria-label="File information">
+    <span class="preview-kicker">Information</span>
+    <dl>
+      <div class="preview-info-row">
+        <dt>Kind</dt>
+        <dd>{kindLabel(preview.name, preview.kind)}</dd>
+      </div>
+      {#if preview.kind !== "directory"}
+        <div class="preview-info-row">
+          <dt>Size</dt>
+          <dd>{formatSize(preview.size)}</dd>
+        </div>
       {/if}
-    </div>
-  {/if}
-</section>
+      {#if preview.created !== null}
+        <div class="preview-info-row">
+          <dt>Created</dt>
+          <dd>{formatDate(preview.created)}</dd>
+        </div>
+      {/if}
+      {#if preview.modified !== null}
+        <div class="preview-info-row">
+          <dt>Modified</dt>
+          <dd>{formatDate(preview.modified)}</dd>
+        </div>
+      {/if}
+      {#if defaultApp}
+        <div class="preview-info-row">
+          <dt>Opens with</dt>
+          <dd class="preview-info-app" title={defaultApp.path}>
+            {#if defaultApp.icon}<img src={defaultApp.icon} alt="" draggable="false" />{/if}
+            <span>{defaultApp.name}</span>
+          </dd>
+        </div>
+      {/if}
+    </dl>
+  </section>
+{/if}

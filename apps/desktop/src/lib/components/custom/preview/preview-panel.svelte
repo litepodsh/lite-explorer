@@ -58,6 +58,8 @@
   import { analyzeHtmlSafety } from "./html-safety.js";
   import type { FilePreview } from "./types.js";
   import { fetchDefaultApp, type OpenWithApp } from "#lib/file-ops/open.js";
+  import { kindLabel } from "./languages.js";
+  import { formatSize } from "./format.js";
   import { isRemotePath } from "#lib/remote/remote-locations.js";
 
   type Props = { entry: DirectoryEntry };
@@ -104,6 +106,11 @@
       (previewIsHtml && viewMode === "render") ||
       (previewIsCsv && viewMode === "render") ||
       (previewIsData && viewMode === "render"),
+  );
+  // Folders, binaries, errors and empty files have nothing to scroll: a short stage leaves room for the details.
+  const compactStage = $derived(
+    Boolean(error) || !preview || preview.kind === "directory" || preview.kind === "binary" ||
+      (preview.kind === "text" && !preview.content),
   );
   const htmlSafety = $derived(
     previewIsHtml && preview?.content ? analyzeHtmlSafety(preview.content) : null,
@@ -214,21 +221,29 @@
   </div>
 {/snippet}
 
-<aside class="flex h-full min-w-0 flex-col bg-[var(--app-bg)]" aria-label="Preview">
+<aside class="preview-panel flex h-full min-w-0 flex-col" aria-label="Preview">
+  <header class="preview-head">
+    <span class="preview-kicker">{preview && !pending ? kindLabel(preview.name, preview.kind) : entry.is_directory ? "Folder" : "File"}</span>
+    <div class="preview-head-row">
+      <h2 class="preview-title" title={entry.name}>{entry.name}</h2>
+      {#if preview && !pending && preview.kind !== "directory"}<span class="preview-size">{formatSize(preview.size)}</span>{/if}
+    </div>
+  </header>
   <div
-    class="relative m-3 mb-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--app-radius)] bg-[var(--app-input)] transition-opacity duration-150 {slow
+    class="preview-stage relative flex min-h-0 flex-col overflow-hidden transition-opacity duration-150 {slow
       ? 'opacity-60'
-      : ''}">
+      : ''}"
+    class:compact={compactStage}>
     {#if error}
-      <div class="grid flex-1 place-content-center justify-items-center gap-1 px-4 text-center">
-        <FileIcon class="mb-2 size-12 stroke-[1.2] text-[var(--app-fg-faint)]" />
-        <p class="text-[15px] font-semibold text-[var(--app-fg)]">Can’t preview this file</p>
-        <p class="text-[12px] break-all text-[var(--app-fg-muted)]">{error}</p>
+      <div class="preview-placeholder">
+        <span class="preview-glyph"><FileIcon /></span>
+        <p class="preview-placeholder-title">Can’t preview this file</p>
+        <p class="preview-placeholder-text break-all">{error}</p>
       </div>
     {:else if !preview}
       <div class="flex-1"></div>
     {:else if preview.kind === "directory"}
-      <div class="grid flex-1 place-items-center"><FolderIcon class="size-20 stroke-[1.2] text-[var(--app-info)]" /></div>
+      <div class="preview-placeholder"><span class="preview-glyph accent"><FolderIcon /></span></div>
     {:else if preview.kind === "archive"}
       <ArchiveView path={previewPath} name={preview.name} />
     {:else if preview.kind === "binary"}
@@ -337,10 +352,13 @@
     {:else if preview.kind === "arrow"}
       <ArrowView path={previewPath} name={preview.name} />
     {:else if !preview.content}
-      <div class="grid flex-1 place-items-center text-[13px] text-[var(--app-fg-muted)]">Empty file</div>
+      <div class="preview-placeholder">
+        <span class="preview-glyph"><FileIcon /></span>
+        <p class="preview-placeholder-text">Empty file</p>
+      </div>
     {:else}
       {#if preview.truncated && !(previewIsData && showRendered)}
-        <p class="shrink-0 border-b border-[var(--app-border)] px-3 py-1 text-[11px] text-[var(--app-fg-muted)]">
+        <p class="preview-notice">
           Large file - showing first 2 MB
         </p>
       {/if}
@@ -372,7 +390,7 @@
       {/if}
       {#if showViewToggle}
         <div
-          class="absolute right-2 bottom-2 z-10 flex items-center gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-0.5 text-[11px]"
+          class="preview-toggle absolute right-2 bottom-2 z-10 flex items-center gap-1 text-[11px]"
           role="group"
           aria-label="Preview view">
           {#if htmlSafety}
@@ -404,20 +422,16 @@
               onclick={() => adjustHtmlZoom(0.1)}>+</button>
           {/if}
           <button
-            class="rounded border-0 px-2 py-0.5 {viewMode === 'render'
-              ? 'bg-[var(--app-surface-raised)] text-[var(--app-fg)]'
-              : 'bg-transparent text-[var(--app-fg-muted)] hover:text-[var(--app-fg)]'}"
+            class="preview-toggle-option"
             aria-pressed={viewMode === "render"}
             onclick={() => setViewMode("render")}>{previewIsData ? "Tree" : previewIsCsv ? "Table" : "Render"}</button>
           <button
-            class="rounded border-0 px-2 py-0.5 {viewMode === 'code'
-              ? 'bg-[var(--app-surface-raised)] text-[var(--app-fg)]'
-              : 'bg-transparent text-[var(--app-fg-muted)] hover:text-[var(--app-fg)]'}"
+            class="preview-toggle-option"
             aria-pressed={viewMode === "code"}
             onclick={() => setViewMode("code")}>Code</button>
         </div>
       {/if}
     {/if}
   </div>
-  <FileInfo name={entry.name} {preview} {defaultApp} {pending} />
+  <FileInfo {preview} {defaultApp} {pending} />
 </aside>
