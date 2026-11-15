@@ -2220,76 +2220,66 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
   border-radius: 0;
   box-shadow: inset 1px 0 var(--app-border);
 }
-.preview-float {
-  position: absolute;
+/* Preview column: docked to the right of the list and pushing it, so no column is covered. The
+   width animates from zero; the content keeps its final width so it does not reflow while it opens. */
+.preview-dock {
+  position: relative;
   z-index: 15;
-  top: calc(var(--toolbar-overlap, 0px) + 10px);
-  right: 12px;
-  bottom: 12px;
-  max-width: calc(100% - 24px);
-  min-width: 260px;
   display: flex;
-  flex-direction: column;
+  flex: none;
+  width: 0;
+  min-width: 0;
   overflow: hidden;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--app-surface) 82%, transparent);
-  box-shadow:
-    0 0 0 1px var(--app-border-strong),
-    inset 0 1px 0 var(--app-inset-highlight),
-    var(--app-menu-shadow);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  backdrop-filter: blur(24px) saturate(160%);
-  opacity: 0;
-  transform: translateX(16px) scale(0.98);
-  transform-origin: right center;
+  padding-top: var(--content-overlap, 0px);
+  background: var(--app-surface);
+  box-shadow: inset 1px 0 0 var(--app-border);
   pointer-events: none;
-  transition:
-    opacity var(--preview-ms, 200ms) cubic-bezier(0.32, 0.72, 0, 1),
-    transform var(--preview-ms, 200ms) cubic-bezier(0.32, 0.72, 0, 1);
+  transition: width var(--preview-ms, 200ms) cubic-bezier(0.32, 0.72, 0, 1);
 }
-.preview-float[data-open="true"] {
-  opacity: 1;
-  transform: none;
+.preview-dock[data-open="true"] {
+  width: var(--preview-width);
   pointer-events: auto;
 }
-.preview-float-handle {
-  position: absolute;
-  z-index: 2;
-  inset: 0 auto 0 0;
-  width: 10px;
-  cursor: col-resize;
-  touch-action: none;
+.preview-dock-inner {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: var(--preview-width);
+  min-height: 0;
 }
-.preview-float-handle::after {
-  position: absolute;
-  top: 50%;
-  left: 3px;
-  width: 3px;
-  height: 36px;
-  border-radius: 2px;
-  background: var(--app-fg-faint);
-  content: "";
-  opacity: 0;
-  transform: translateY(-50%);
-  transition: opacity 150ms;
-}
-.preview-float:hover .preview-float-handle::after,
-.preview-float[data-resizing="true"] .preview-float-handle::after {
-  opacity: 0.7;
-}
-.preview-float[data-resizing="true"] {
-  transition: none;
-  user-select: none;
-}
-.preview-float > aside {
+.preview-dock-inner > aside {
   flex: 1;
   background: transparent;
 }
-:root[data-theme^="litepod"] .preview-float {
-  background: var(--app-surface);
-  box-shadow: var(--app-card), var(--app-menu-shadow);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
+.preview-dock-handle {
+  position: absolute;
+  z-index: 2;
+  inset: 0 auto 0 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.preview-dock-handle::after {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--app-accent);
+  content: "";
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.preview-dock-handle:hover::after,
+.preview-dock[data-resizing="true"] .preview-dock-handle::after {
+  opacity: 1;
+}
+.preview-dock[data-resizing="true"] {
+  transition: none;
+  user-select: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .preview-dock {
+    transition: none;
+  }
 }
 
 /* Preview: a kicker and title on top, a recessed stage sized to its content, details in grooves. */
@@ -2462,11 +2452,6 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
 .preview-info-app span {
   overflow: hidden;
   text-overflow: ellipsis;
-}
-@media (prefers-reduced-motion: reduce) {
-  .preview-float {
-    transition: none;
-  }
 }
 
 /* Polish: springier hover and press on tiles, rows and sidebar items. */

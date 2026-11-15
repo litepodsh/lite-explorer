@@ -381,8 +381,8 @@
     drag.favoriteDropAt = null;
   }
 
-  // The preview floats over the list as a card: it fades and lifts in when a preview is requested
-  // and out when it clears. `previewEntry` lags the request so the card keeps its content while
+  // The preview is a column docked to the right of the list: it slides open when a preview is
+  // requested and closed when it clears, pushing the list instead of covering its columns. `previewEntry` lags the request so the card keeps its content while
   // the close transition runs. Preview is driven by `previewPath` (not the selection) so a
   // right-click can highlight without previewing.
   const PREVIEW_ANIMATION_MS = 200;
@@ -391,18 +391,21 @@
   let previewShown = $state(false);
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // The floating card is resized from its left edge; the width persists across sessions.
-  const PREVIEW_WIDTH_KEY = "lite-explorer:preview-width";
+  // The column is resized from its left edge; the width persists across sessions. The key changed
+  // with the docked layout, so widths dragged for the old floating card do not carry over.
+  const PREVIEW_WIDTH_KEY = "lite-explorer:preview-dock-width";
   const PREVIEW_MIN_W = 260;
+  const PREVIEW_DEFAULT_W = 340;
+  const PREVIEW_MAX_W = 640;
   let previewWidth = $state(readPreviewWidth());
   let previewResizing = $state(false);
 
   function readPreviewWidth(): number {
     try {
       const saved = Number(localStorage.getItem(PREVIEW_WIDTH_KEY));
-      return Number.isFinite(saved) && saved >= PREVIEW_MIN_W ? saved : 380;
+      return Number.isFinite(saved) && saved >= PREVIEW_MIN_W ? Math.min(saved, PREVIEW_MAX_W) : PREVIEW_DEFAULT_W;
     } catch {
-      return 380;
+      return PREVIEW_DEFAULT_W;
     }
   }
 
@@ -415,8 +418,9 @@
     previewResizing = true;
     const move = (e: PointerEvent) => {
       const box = host.getBoundingClientRect();
-      const max = Math.max(PREVIEW_MIN_W, box.width * 0.75);
-      previewWidth = Math.round(Math.min(max, Math.max(PREVIEW_MIN_W, box.right - 12 - e.clientX)));
+      // The list keeps at least half of the pane.
+      const max = Math.max(PREVIEW_MIN_W, Math.min(PREVIEW_MAX_W, box.width * 0.5));
+      previewWidth = Math.round(Math.min(max, Math.max(PREVIEW_MIN_W, box.right - e.clientX)));
     };
     const end = () => {
       previewResizing = false;
@@ -799,20 +803,22 @@
 {#if previewEntry}
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <div
-    class="preview-float"
+    class="preview-dock"
     data-open={previewShown}
     data-resizing={previewResizing}
-    style={`--preview-ms: ${PREVIEW_ANIMATION_MS}ms; width: ${previewWidth}px`}
+    style={`--preview-ms: ${PREVIEW_ANIMATION_MS}ms; --preview-width: ${previewWidth}px`}
     data-key-scope="preview"
     data-pane-id={paneId}
     tabindex="0">
-    <div class="preview-float-handle" role="separator" aria-orientation="vertical" aria-label="Resize preview" onpointerdown={startPreviewResize}></div>
-    {#if previewEntry === SUMMARY}
-      <SelectionSummary entries={selectedVisible} />
-    {:else if lazyPreview.component}
-      {@const PreviewPanel = lazyPreview.component}
-      <PreviewPanel entry={previewEntry} />
-    {/if}
+    <div class="preview-dock-handle" role="separator" aria-orientation="vertical" aria-label="Resize preview" onpointerdown={startPreviewResize}></div>
+    <div class="preview-dock-inner">
+      {#if previewEntry === SUMMARY}
+        <SelectionSummary entries={selectedVisible} />
+      {:else if lazyPreview.component}
+        {@const PreviewPanel = lazyPreview.component}
+        <PreviewPanel entry={previewEntry} />
+      {/if}
+    </div>
   </div>
 {/if}
 </div>
