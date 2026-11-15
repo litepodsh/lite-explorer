@@ -217,7 +217,7 @@
   --app-raise: inset 0 1px 0 #ffffff17, 0 1px 2px #000a, 0 0 0 1px #ffffff12;
   --app-well-fill: #0d0d0d;
   --app-well: inset 0 1px 3px #000, inset 0 0 0 1px #ffffff14, 0 1px 0 #ffffff0a;
-  --app-card: inset 0 1px 0 #ffffff10, 0 0 0 1px #ffffff12, 0 14px 30px -20px #000;
+  --app-card: inset 0 0 0 1px #ffffff1a;
 }
 :root[data-theme="litepod-light"] {
   --app-bg: #fafafa;
@@ -249,7 +249,7 @@
   --app-raise: inset 0 1px 0 #fff, 0 1px 2px #0f0f0f1f, 0 0 0 1px #0f0f0f1a;
   --app-well-fill: #eaeaea;
   --app-well: inset 0 1px 2px #0f0f0f21, inset 0 0 0 1px #0f0f0f10, 0 1px 0 #fff;
-  --app-card: inset 0 1px 0 #fff, 0 0 0 1px #0f0f0f14, 0 14px 30px -22px #0f0f0f47;
+  --app-card: inset 0 0 0 1px #0f0f0f1a;
 }
 
 /* Shared visual controls */
@@ -2517,27 +2517,28 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
     inset -1px 0 0 color-mix(in srgb, var(--app-accent) 38%, transparent);
 }
 
-/* Overview: raised cards on the page, wells for what they measure, monospaced figures. */
+/* Overview, built like the litepod.sh cards: flat surfaces with a 1px ink ring and 16px corners,
+   a mono kicker over a tight title, and rows split by grooves instead of nested panels. */
 .ov-stat {
   display: grid;
   align-content: start;
-  gap: 6px;
+  gap: 10px;
   min-width: 0;
-  padding: 14px 16px 13px;
-  border-radius: var(--app-radius);
-  background: var(--app-raise-fill);
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--app-surface);
   box-shadow: var(--app-card);
 }
 .ov-stat-value {
   color: var(--app-fg);
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 560;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
+  letter-spacing: -0.045em;
+  line-height: 1;
 }
 .ov-stat-value small {
-  margin-left: 4px;
+  margin-left: 5px;
   color: var(--app-fg-muted);
   font-family: var(--app-font-mono);
   font-size: 12px;
@@ -2545,6 +2546,10 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
   letter-spacing: 0;
 }
 .ov-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   overflow: hidden;
   color: var(--app-label);
   font-family: var(--app-font-mono);
@@ -2555,6 +2560,12 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
   text-transform: uppercase;
   white-space: nowrap;
 }
+.ov-kicker svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
 .ov-num,
 .ov-legend {
   font-family: var(--app-font-mono);
@@ -2563,52 +2574,61 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
 .ov-legend {
   font-size: 11px;
 }
+/* Legend dots get a hairline, so the free-space dot shows on a card of the same color. */
+.ov-legend i {
+  box-shadow: inset 0 0 0 1px var(--app-border-strong);
+}
 .ov-card {
   overflow: hidden;
-  border-radius: var(--app-radius);
+  border-radius: 16px;
   background: var(--app-surface);
   box-shadow: var(--app-card);
 }
 .ov-card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--app-border);
-  box-shadow: 0 1px 0 var(--app-bevel);
+  padding: 20px 22px 16px;
+}
+.ov-card-head > .min-w-0 {
+  display: grid;
+  gap: 6px;
 }
 .ov-title {
   color: var(--app-fg);
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 560;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
 }
 .ov-sub {
-  margin-top: 2px;
   color: var(--app-fg-muted);
   font-family: var(--app-font-mono);
   font-size: 11px;
 }
-.ov-icon {
-  display: grid;
-  flex: none;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: calc(var(--app-radius) - 2px);
-  background: var(--app-raise-fill);
-  box-shadow: var(--app-raise);
-  color: var(--app-accent);
+.ov-section,
+.ov-row {
+  border-top: 1px solid var(--app-border);
 }
-.ov-icon svg {
-  width: 17px;
-  height: 17px;
-  stroke-width: 1.7;
+.ov-section {
+  padding: 16px 22px 18px;
 }
-.ov-well {
-  border-radius: calc(var(--app-radius) - 2px);
-  background: var(--app-well-fill);
-  box-shadow: var(--app-well);
+.ov-row {
+  width: 100%;
+  padding: 12px 22px;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  background: transparent;
+  font: inherit;
+  transition: background-color 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+button.ov-row:hover {
+  background: color-mix(in srgb, var(--app-fg) 4%, transparent);
+}
+button.ov-row:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -2px;
 }
 .ov-tag {
   padding: 0 6px;
@@ -2661,9 +2681,17 @@ html[data-keyboard] [data-sidebar-item]:focus-visible {
   outline-offset: 2px;
 }
 .ov-btn-primary {
-  background: var(--app-accent);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%), 0 1px 2px var(--app-emboss);
+  background: linear-gradient(180deg, color-mix(in oklch, var(--app-accent) 88%, white), var(--app-accent));
+  box-shadow:
+    inset 1px 1px 0 #ffffff38,
+    inset -1px -1px 0 #00000024,
+    0 1px 2px var(--app-emboss),
+    0 12px 24px -12px color-mix(in oklch, var(--app-accent) 70%, transparent);
   color: var(--app-accent-fg);
+}
+.ov-btn-primary:active:not(:disabled) {
+  background: var(--app-accent);
+  box-shadow: inset 0 1px 2px #0000002e;
 }
 .ov-btn-icon {
   justify-content: center;

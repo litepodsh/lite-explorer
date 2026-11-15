@@ -51,12 +51,9 @@
 
 <article class="ov-card">
   <header class="ov-card-head">
-    <span class="ov-icon"><LaptopIcon /></span>
     <div class="min-w-0">
-      <h2 class="flex flex-wrap items-baseline gap-x-2 ov-title">
-        <span class="truncate">{device.name}</span>
-        <span class="ov-kicker">This device</span>
-      </h2>
+      <span class="ov-kicker"><LaptopIcon />This device</span>
+      <h2 class="ov-title truncate">{device.name}</h2>
       <p class="ov-sub">{volumes.length} volume{volumes.length === 1 ? "" : "s"}</p>
     </div>
     <div class="ml-auto grid shrink-0 justify-items-end gap-1 text-right">
@@ -70,10 +67,10 @@
     </div>
   </header>
 
-  <div class="grid gap-3 p-3">
+  <div class="grid">
     {#each volumes as volume (volume.mount_point)}
       {@const split = diskBreakdown(volume, volume.is_primary ? homeBytes : null)}
-      <section class="ov-well grid gap-3.5 p-3.5">
+      <section class="ov-section grid gap-3.5">
         <div class="flex items-center gap-3">
           <HardDriveIcon class="size-6 shrink-0 stroke-[1.5] text-[var(--app-fg-muted)]" />
           <div class="min-w-0">
@@ -116,7 +113,7 @@
         </div>
       </section>
     {:else}
-      <p class="px-1 py-2 text-xs text-[var(--app-fg-muted)]">No volumes found.</p>
+      <p class="ov-row text-xs text-[var(--app-fg-muted)]">No volumes found.</p>
     {/each}
   </div>
 </article>

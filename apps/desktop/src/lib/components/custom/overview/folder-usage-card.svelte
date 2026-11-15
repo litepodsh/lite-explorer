@@ -42,9 +42,9 @@
 
 <article class="ov-card">
   <header class="ov-card-head">
-    <span class="ov-icon"><HouseIcon /></span>
     <div class="min-w-0">
-      <h2 class="ov-title">What’s using your home folder</h2>
+      <span class="ov-kicker"><HouseIcon />Home folder</span>
+      <h2 class="ov-title">What’s using your space</h2>
       <p class="ov-sub truncate">{rootName || "Home"}</p>
     </div>
     <div class="ov-num ml-auto flex shrink-0 items-center gap-2 text-[11px] tabular-nums text-[var(--app-fg-muted)]" aria-live="polite">
@@ -62,15 +62,15 @@
     </div>
   </header>
 
-  <div class="grid p-1.5">
+  <div class="grid">
     {#if error}
-      <p class="px-2.5 py-2 text-xs text-[var(--app-danger)]">{error}</p>
+      <p class="ov-row text-xs text-[var(--app-danger)]">{error}</p>
     {/if}
     {#if hasData}
       {#each summary.top as entry, index (entry.path)}
         <button
           animate:flip={{ duration: 320 }}
-          class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-1.5 rounded-[calc(var(--app-radius)-5px)] border-0 bg-transparent px-2.5 py-2 text-left hover:bg-[var(--app-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--app-accent)]"
+          class="ov-row grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-2 text-left"
           title={entry.path}
           onclick={() => onOpen(entry)}>
           <FolderIcon class="size-4 stroke-[1.8] {entry.is_hidden ? 'text-[var(--app-fg-faint)]' : 'text-[var(--app-folder)]'}" />
@@ -86,7 +86,7 @@
         </button>
       {/each}
       {#if summary.restBytes > 0}
-        <div class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-1.5 px-2.5 py-2">
+        <div class="ov-row grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-2">
           <EllipsisIcon class="size-4 text-[var(--app-fg-faint)]" />
           <span class="truncate text-[13px] text-[var(--app-fg-muted)]"
             >Other files and folders{summary.restHasHidden ? ", including hidden" : ""}</span>
@@ -101,9 +101,9 @@
         </div>
       {/if}
     {:else if scanning}
-      <p class="px-2.5 pt-2 pb-1 text-xs text-[var(--app-fg-muted)]">Measuring your home folder for the first time. This can take a minute.</p>
+      <p class="ov-row text-xs text-[var(--app-fg-muted)]">Measuring your home folder for the first time. This can take a minute.</p>
       {#each [72, 58, 44, 40, 26, 14] as width (width)}
-        <div class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-2 px-2.5 py-2.5" aria-hidden="true">
+        <div class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 gap-y-2 ov-row" aria-hidden="true">
           <span class="size-4 rounded bg-[var(--app-surface-raised)]"></span>
           <span class="h-2.5 animate-pulse rounded bg-[var(--app-surface-raised)] motion-reduce:animate-none" style:width="{width}%"></span>
           <span class="ml-auto h-2.5 w-12 animate-pulse rounded bg-[var(--app-surface-raised)] motion-reduce:animate-none"></span>
@@ -111,7 +111,7 @@
         </div>
       {/each}
     {:else if !error}
-      <p class="px-2.5 py-3 text-xs text-[var(--app-fg-muted)]">No folder sizes yet. Refresh to measure your home folder.</p>
+      <p class="ov-row text-xs text-[var(--app-fg-muted)]">No folder sizes yet. Refresh to measure your home folder.</p>
     {/if}
   </div>
 </article>

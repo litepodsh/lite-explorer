@@ -117,10 +117,9 @@
 
 <article class="ov-card">
   <header class="ov-card-head">
-    <span class="ov-icon"><Trash2Icon /></span>
     <div class="min-w-0">
-      <h2 class="ov-title">Trash</h2>
-      <p class="ov-sub truncate">Files you’ve deleted</p>
+      <span class="ov-kicker"><Trash2Icon />Trash</span>
+      <h2 class="ov-title">Files you’ve deleted</h2>
     </div>
     <button
       class="ov-btn ml-auto"
@@ -150,11 +149,11 @@
     </button>
   </header>
 
-  <div class="grid p-1.5">
+  <div class="grid">
     {#if error}
-      <p class="px-2.5 py-2 text-xs text-[var(--app-danger)]">{error}</p>
+      <p class="ov-row text-xs text-[var(--app-danger)]">{error}</p>
     {:else if size === null}
-      <div class="grid gap-2 px-2.5 py-3">
+      <div class="ov-row grid gap-2">
         <p class="text-xs text-[var(--app-fg-muted)]">
           {scanning ? "Measuring your trash…" : unavailableHint}
         </p>
@@ -175,7 +174,7 @@
         {/if}
       </div>
     {:else}
-      <div class="grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5 px-2.5 py-3">
+      <div class="ov-row grid grid-cols-[18px_minmax(0,1fr)_76px] items-center gap-x-2.5">
         <Trash2Icon class="size-4 stroke-[1.8] {size > 0 ? 'text-[var(--app-warning)]' : 'text-[var(--app-fg-faint)]'}" />
         <span class="truncate text-[13px] text-[var(--app-fg)]">
           {size > 0 ? "Taking up space" : "Empty"}
