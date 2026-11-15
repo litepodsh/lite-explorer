@@ -29,9 +29,9 @@
 
   const DRAG_THRESHOLD = 4;
 
-  // Always visible, even with a single tab, so the current location is shown.
+  // The bar stays, but the tab strip only shows once there is a second tab to switch to.
   const open = true;
-  let single = $derived(tabs.length === 1);
+  let multiple = $derived(tabs.length > 1);
   let activeIndex = $derived(Math.max(0, tabs.findIndex((tab) => tab.id === activeId)));
   let flipDuration = $derived(prefersReducedMotion.current ? 0 : 200);
 
@@ -144,55 +144,55 @@
 
 <div class="tab-bar" class:open inert={!open} data-pane-tab-bar={paneId}>
   <div class="tab-bar-inner">
-    <div class="tab-bar-row">
-      <div class="tab-track">
-        <div
-          class="tab-strip"
-          role="tablist"
-          aria-label="Tabs"
-          tabindex="-1"
-          style:--tab-count={tabs.length}
-          onclickcapture={onStripClickCapture}>
-          <span
-            class="tab-indicator"
-            class:dragging={drag?.id === activeId && drag.moved}
-            style:transform={indicatorTransform()}
-            aria-hidden="true"></span>
-          {#each tabs as tab (tab.id)}
-            <div
-              {@attach trackTab(tab.id)}
-              animate:flip={{ duration: drag?.id === tab.id ? 0 : flipDuration, easing: quintOut }}
-              class="tab"
-              class:active={tab.id === activeId}
-              class:dragging={drag?.id === tab.id && drag.moved}
-              style:transform={tabTransform(tab.id)}
-              role="tab"
-              tabindex={tab.id === activeId ? 0 : -1}
-              aria-selected={tab.id === activeId}
-              title={tab.location.path || tab.location.name}
-              onpointerdown={(event) => startDrag(event, tab.id)}
-              onkeydown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onSelect(tab.id);
-                }
-              }}>
-              <button
-                type="button"
-                class="tab-close"
-                class:hidden={single}
-                tabindex={single ? -1 : 0}
-                aria-label={`Close ${tab.location.name}`}
-                onpointerdown={(event) => event.stopPropagation()}
-                onclick={(event) => {
-                  event.stopPropagation();
-                  onClose(tab.id);
-                }}><XIcon /></button>
-              <span class="tab-label">{tab.location.name}</span>
-            </div>
-          {/each}
+    <div class="tab-bar-row" class:lone={!multiple}>
+      {#if multiple}
+        <div class="tab-track">
+          <div
+            class="tab-strip"
+            role="tablist"
+            aria-label="Tabs"
+            tabindex="-1"
+            style:--tab-count={tabs.length}
+            onclickcapture={onStripClickCapture}>
+            <span
+              class="tab-indicator"
+              class:dragging={drag?.id === activeId && drag.moved}
+              style:transform={indicatorTransform()}
+              aria-hidden="true"></span>
+            {#each tabs as tab (tab.id)}
+              <div
+                {@attach trackTab(tab.id)}
+                animate:flip={{ duration: drag?.id === tab.id ? 0 : flipDuration, easing: quintOut }}
+                class="tab"
+                class:active={tab.id === activeId}
+                class:dragging={drag?.id === tab.id && drag.moved}
+                style:transform={tabTransform(tab.id)}
+                role="tab"
+                tabindex={tab.id === activeId ? 0 : -1}
+                aria-selected={tab.id === activeId}
+                title={tab.location.path || tab.location.name}
+                onpointerdown={(event) => startDrag(event, tab.id)}
+                onkeydown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelect(tab.id);
+                  }
+                }}>
+                <button
+                  type="button"
+                  class="tab-close"
+                  aria-label={`Close ${tab.location.name}`}
+                  onpointerdown={(event) => event.stopPropagation()}
+                  onclick={(event) => {
+                    event.stopPropagation();
+                    onClose(tab.id);
+                  }}><XIcon /></button>
+                <span class="tab-label">{tab.location.name}</span>
+              </div>
+            {/each}
+          </div>
         </div>
-      </div>
+      {/if}
       <button type="button" class="tab-new" aria-label="New Tab" title="New Tab" onclick={onNew}
         ><PlusIcon /></button>
     </div>
@@ -223,6 +223,10 @@
     gap: 6px;
     padding-bottom: 8px;
   }
+  /* With a single tab the strip is hidden; the + keeps its place at the end of the row. */
+  .tab-bar-row.lone {
+    justify-content: flex-end;
+  }
   .tab-track {
     flex: 1;
     min-width: 0;
@@ -232,6 +236,13 @@
     border-radius: 999px;
     background: color-mix(in srgb, var(--app-input) 55%, var(--app-border));
     box-shadow: inset 0 0 0 1px var(--app-border);
+    animation: track-enter 180ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  @keyframes track-enter {
+    from {
+      opacity: 0;
+      transform: scaleX(0.96);
+    }
   }
   .tab-track::-webkit-scrollbar {
     display: none;
@@ -331,12 +342,9 @@
       opacity 120ms cubic-bezier(0.2, 0, 0, 1),
       background-color 120ms cubic-bezier(0.2, 0, 0, 1);
   }
-  .tab:hover .tab-close:not(.hidden),
-  .tab-close:not(.hidden):focus-visible {
+  .tab:hover .tab-close,
+  .tab-close:focus-visible {
     opacity: 1;
-  }
-  .tab-close.hidden {
-    pointer-events: none;
   }
   .tab-close:hover {
     background: color-mix(in srgb, var(--app-fg) 12%, transparent);
@@ -382,6 +390,9 @@
       transition: none;
     }
     .tab-label {
+      animation: none;
+    }
+    .tab-track {
       animation: none;
     }
   }

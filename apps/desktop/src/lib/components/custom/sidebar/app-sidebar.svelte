@@ -401,7 +401,7 @@
             {#each volumes as location (location.path)}
               {@const volume = diskSpace.volumeFor(location.path)}
               {@const used = volume && volume.total_bytes > 0 ? 1 - volume.free_bytes / volume.total_bytes : null}
-              <div class="location-row volume-row" class:has-trail={location.kind === "hfs-volume"}>
+              <div class="location-row volume-row pb-2" class:has-trail={location.kind === "hfs-volume"}>
                 <button
                   aria-label={location.name} data-sidebar-item
                   title={volume ? `${location.path} · ${formatSize(volume.free_bytes)} free of ${formatSize(volume.total_bytes)}` : location.path}
