@@ -29,6 +29,7 @@
     "@pierre/trees": "1.0.0-beta.6",
     "@shikijs/langs": "4.4.3",
     "@shikijs/monaco": "4.4.3",
+    "@shikijs/themes": "4.4.3",
     "@tanstack/svelte-virtual": "^3.13.38",
     "@tauri-apps/api": "^2.12.1",
     "@tauri-apps/plugin-dialog": "^2.8.1",
@@ -40,6 +41,7 @@
     "marked": "^18.0.13",
     "monaco-editor": "0.56.0",
     "pdfjs-dist": "^6.3.289",
+    "prettier": "^3.10.1",
     "shiki": "4.4.3",
     "temporal-polyfill": "^1.0.5",
     "three": "^0.186.0"

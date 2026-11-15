@@ -9,6 +9,7 @@
         "@pierre/trees": "1.0.0-beta.6",
         "@shikijs/langs": "4.4.3",
         "@shikijs/monaco": "4.4.3",
+        "@shikijs/themes": "4.4.3",
         "@tanstack/svelte-virtual": "^3.13.38",
         "@tauri-apps/api": "^2.12.1",
         "@tauri-apps/plugin-dialog": "^2.8.1",
@@ -20,6 +21,7 @@
         "marked": "^18.0.13",
         "monaco-editor": "0.56.0",
         "pdfjs-dist": "^6.3.289",
+        "prettier": "^3.10.1",
         "shiki": "4.4.3",
         "temporal-polyfill": "^1.0.5",
         "three": "^0.186.0",
@@ -668,6 +670,8 @@
     "preact": ["preact@11.0.0-beta.0", "", {}, "sha512-IcODoASASYwJ9kxz7+MJeiJhvLriwSb4y4mHIyxdgaRZp6kPUud7xytrk/6GZw8U3y6EFJaRb5wi9SrEK+8+lg=="],
 
     "preact-render-to-string": ["preact-render-to-string@6.6.5", "", { "peerDependencies": { "preact": ">=10 || >= 11.0.0-0" } }, "sha512-O6MHzYNIKYaiSX3bOw0gGZfEbOmlIDtDfWwN1JJdc/T3ihzRT6tGGSEWE088dWrEDGa1u7101q+6fzQnO9XCPA=="],
+
+    "prettier": ["prettier@3.10.1", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-70vp3ZUYoPlFbF9uiTdXHUUCGEIp7d4+6p+8DYbkm2jP7x/3i/paXVF6dopSI3zd/CEitrZN1rc4i85xWmmXlg=="],
 
     "property-expr": ["property-expr@2.0.6", "", {}, "sha512-SVtmxhRE/CGkn3eZY1T6pC8Nln6Fr/lu1mKSgRud0eC73whjGfoAogbn78LkD8aFL0zz3bAFerKSnOl7NlErBA=="],
 

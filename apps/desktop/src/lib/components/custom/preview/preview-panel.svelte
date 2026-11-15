@@ -62,6 +62,7 @@
   import { fontSizeForShortcut, lineHeightFor, parseFontSize } from "./font-size.js";
   import { isCsvName, isDataName, isHtmlName, isMarkdownName, isMediaKind, languageFor } from "./languages.js";
   import { analyzeHtmlSafety } from "./html-safety.js";
+  import { formatHtml } from "./format-html.js";
   import type { FilePreview } from "./types.js";
   import { fetchDefaultApp, type OpenWithApp } from "#lib/file-ops/open.js";
   import { kindLabel } from "./languages.js";
@@ -99,6 +100,8 @@
   let findBar = $state<ReturnType<typeof FindBar> | null>(null);
   let stageEl = $state<HTMLElement | null>(null);
   let menuSelection = $state("");
+  /** Pretty printed HTML for the code view, keyed by the source it came from. */
+  let prettyHtml = $state.raw<{ source: string; text: string } | null>(null);
   let token = 0;
 
   // Content may show the previous file while a request is pending; file
@@ -123,6 +126,21 @@
   const htmlSafety = $derived(
     previewIsHtml && preview?.content ? analyzeHtmlSafety(preview.content) : null,
   );
+
+  $effect(() => {
+    const source = preview?.content;
+    if (!previewIsHtml || showRendered || !source || preview?.truncated) return;
+    if (prettyHtml?.source === source) return;
+    let cancelled = false;
+    void formatHtml(source).then((text) => {
+      if (!cancelled && text) prettyHtml = { source, text };
+    });
+    return () => { cancelled = true; };
+  });
+  const codeText = $derived(
+    previewIsHtml && prettyHtml && prettyHtml.source === preview?.content ? prettyHtml.text : (preview?.content ?? ""),
+  );
+  const codeIsPretty = $derived(codeText !== (preview?.content ?? ""));
 
   $effect(() => {
     const kind = preview?.kind;
@@ -435,9 +453,9 @@
         {:else}
           <CodeView
             bind:this={codeView}
-            value={preview.content ?? ""}
+            value={codeText}
             language={languageFor(preview.name)}
-            modelKey={previewPath}
+            modelKey={codeIsPretty ? `${previewPath}#pretty` : previewPath}
             modified={preview.modified}
             csv={previewIsCsv}
             {fontSize} />

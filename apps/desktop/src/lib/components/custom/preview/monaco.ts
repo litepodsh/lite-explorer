@@ -16,6 +16,9 @@ export type CachedModel = {
 // Token colors come from VS Code's "Dark 2026" theme (theme-defaults, MIT),
 // merged with its includes; only the editor background uses the app palette.
 export const PREVIEW_THEME = "dark-2026";
+// Light presets use GitHub's light token colors (MIT) so code keeps its highlighting there too.
+export const PREVIEW_LIGHT_THEME = "github-light-default";
+const LIGHT_EDITOR_BACKGROUND = "#f7f7f7";
 const MODEL_CACHE_SIZE = 20;
 
 type EditorEntryPoints = Pick<typeof Monaco.editor, "setTheme" | "create">;
@@ -32,7 +35,7 @@ const models = new LruCache<string, CachedModel>(MODEL_CACHE_SIZE, (_key, entry)
 /** Monaco's light base theme matches the light app presets; all others use Shiki's dark theme. */
 export function previewTheme(): string {
   const theme = document.documentElement.dataset.theme as Theme | undefined;
-  return theme && isLightTheme(theme) ? "vs" : PREVIEW_THEME;
+  return theme && isLightTheme(theme) ? PREVIEW_LIGHT_THEME : PREVIEW_THEME;
 }
 
 export function loadMonaco(): Promise<MonacoApi> {
@@ -44,13 +47,14 @@ export function loadMonaco(): Promise<MonacoApi> {
 }
 
 async function importMonaco(): Promise<MonacoApi> {
-  const [monaco, worker, shikiCore, shikiEngine, shikiMonaco, darkTheme] = await Promise.all([
+  const [monaco, worker, shikiCore, shikiEngine, shikiMonaco, darkTheme, lightTheme] = await Promise.all([
     import("monaco-editor/editor/editor.api"),
     import("monaco-editor/editor/editor.worker?worker"),
     import("shiki/core"),
     import("shiki/engine/javascript"),
     import("@shikijs/monaco"),
     import("./themes/dark-2026.json"),
+    import("@shikijs/themes/github-light-default"),
     import("monaco-editor/editor/contrib/find/browser/findController"),
   ]);
   const EditorWorker = worker.default;
@@ -58,7 +62,7 @@ async function importMonaco(): Promise<MonacoApi> {
 
   for (const id of Object.keys(GRAMMAR_LOADERS)) monaco.languages.register({ id });
   highlighter = await shikiCore.createHighlighterCore({
-    themes: [darkTheme.default as ThemeRegistration],
+    themes: [darkTheme.default as ThemeRegistration, lightEditorTheme(lightTheme.default as ThemeRegistration)],
     langs: [],
     engine: shikiEngine.createJavaScriptRegexEngine({ forgiving: true }),
   });
@@ -66,6 +70,18 @@ async function importMonaco(): Promise<MonacoApi> {
   applyHighlighter();
   monaco.editor.setTheme(previewTheme());
   return monaco;
+}
+
+/** The light theme's editor surface sits on the preview stage's tone instead of pure white. */
+function lightEditorTheme(theme: ThemeRegistration): ThemeRegistration {
+  return {
+    ...theme,
+    colors: {
+      ...theme.colors,
+      "editor.background": LIGHT_EDITOR_BACKGROUND,
+      "editorGutter.background": LIGHT_EDITOR_BACKGROUND,
+    },
+  };
 }
 
 // shikiToMonaco wraps editor.setTheme and editor.create each time it runs and
