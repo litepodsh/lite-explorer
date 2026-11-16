@@ -125,7 +125,8 @@ fn zipped_text<R: Read + Seek>(reader: R, kind: DocumentKind) -> Result<String, 
         let Ok(part) = zip.by_index(index) else {
             continue;
         };
-        if !is_text_part(kind, part.name()) {
+        let part_name = part.name().map(|name| name.into_owned()).unwrap_or_default();
+        if !is_text_part(kind, &part_name) {
             continue;
         }
         let mut xml = Vec::new();

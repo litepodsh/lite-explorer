@@ -93,7 +93,7 @@ pub(crate) fn parse_comic(path: &str, base: String) -> Result<ComicPreview, Stri
         if entry.is_dir() {
             continue;
         }
-        let name = entry.name().to_string();
+        let name = entry.name().map(|name| name.into_owned()).unwrap_or_default();
         if is_image(&name) {
             pages.push(name);
         }

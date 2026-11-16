@@ -429,7 +429,8 @@ pub(crate) fn for_each_zip_entry<R: Read + io::Seek>(
     let mut zip = ZipArchive::new(reader).map_err(to_string)?;
     for index in 0..zip.len() {
         let mut entry = zip.by_index(index).map_err(to_string)?;
-        let (path, safe) = normalize(entry.name());
+        let entry_name = entry.name().map(|name| name.into_owned()).unwrap_or_default();
+        let (path, safe) = normalize(&entry_name);
         if path.is_empty() {
             continue;
         }

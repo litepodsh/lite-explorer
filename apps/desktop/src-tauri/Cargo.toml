@@ -52,14 +52,14 @@ percent-encoding = "2"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "rt", "sync", "time"] }
 tokio-util = "0.7"
 uuid = { version = "1", features = ["v4", "v7"] }
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 tar = "0.4"
 flate2 = { version = "1", features = ["zlib-rs"] }
 trash = "5.2.9"
 dunce = "1"
 mdns-sd = { version = "0.21", default-features = false, features = ["async"] }
 if-addrs = "0.15"
-russh = { version = "0.63", features = ["des"] }
+russh = { version = "0.65", features = ["des"] }
 russh-sftp = "3"
 suppaftp = { version = "12", features = ["deprecated", "tokio-rustls-aws-lc-rs"] }
 sha2 = "0.11.0"

@@ -38,8 +38,16 @@ jobs:
             runner: ubuntu-22.04
             rust-targets: ""
             args: ""
+          - name: Linux (ARM64)
+            runner: ubuntu-22.04-arm
+            rust-targets: ""
+            args: ""
           - name: Windows (x86_64)
             runner: windows-latest
+            rust-targets: ""
+            args: ""
+          - name: Windows (ARM64)
+            runner: windows-11-arm
             rust-targets: ""
             args: ""
     steps:
@@ -57,7 +65,7 @@ jobs:
       # Windows. Linux gets it from apt above. The Apple Silicon target does not need it, but the
       # Intel one is cross-built on an Apple Silicon runner, so macOS always installs it.
       - name: Install NASM for aws-lc
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && runner.arch == 'X64'
         uses: ilammy/setup-nasm@v1
 
       - name: Install NASM for rav1d
@@ -92,8 +100,16 @@ jobs:
         run: bun run tauri build --no-bundle ${{ matrix.args }}
 
   test:
-    name: Test (Linux)
-    runs-on: ubuntu-22.04
+    name: Test (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: ubuntu-22.04
+          - name: Linux ARM64
+            runner: ubuntu-22.04-arm
     steps:
       - uses: actions/checkout@v4
 
@@ -109,7 +125,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri -> target
-          key: ci-test-${{ runner.os }}
+          key: ci-test-${{ matrix.runner }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -151,6 +167,35 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri -> target
           key: ci-test-macos
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: bun install --frozen-lockfile
+
+      - name: Tests TypeScript
+        working-directory: ${{ env.APP_DIR }}
+        run: bun run test:ts
+
+      - name: Tests Rust
+        working-directory: ${{ env.APP_DIR }}
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+  test-windows-arm:
+    name: Test (Windows ARM64)
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          key: ci-test-windows-arm
 
       - uses: oven-sh/setup-bun@v2
         with:
