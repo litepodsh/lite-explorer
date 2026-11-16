@@ -10,7 +10,7 @@ Built with Tauri, SvelteKit, and TypeScript.
 
 **English** · [Español](README.es.md)
 
-![Lite Explorer overview](assets/preview-overview.png)
+![Lite Explorer overview](assets/preview-overview.webp)
 
 </div>
 
@@ -52,7 +52,7 @@ is using your home folder, and your Trash.
 
 <div align="center">
 
-![Lite Explorer recents](assets/preview-recents.png)
+![Lite Explorer file list with the preview panel](assets/preview-files.webp)
 
 </div>
 

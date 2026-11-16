@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist/wght.css";
+@import "@fontsource/commit-mono/400.css";
+@import "@fontsource/commit-mono/500.css";
 
 /* Theme is driven by [data-theme] on <html>, set before paint in Layout.astro. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -11,87 +14,95 @@
 :root {
   color-scheme: dark;
 
-  --bg: #242220;
-  --bg-deep: #1c1b1a;
-  --sidebar: #292725;
-  --surface: #2d2a27;
-  --surface-raised: #35322f;
+  /* Litepod: black canvas, orange signal, raised controls and recessed wells. */
+  --bg: #000;
+  --bg-deep: #0a0a0a;
+  --sidebar: #0a0a0a;
+  --surface: #111;
+  --surface-raised: #1a1a1a;
 
-  --fg: #f2f1f0;
-  --fg-soft: #e8e5e2;
-  --muted: #a8a4a1;
-  --muted-dim: #8d8986;
-  --muted-faint: #67635f;
+  --fg: #fff;
+  --fg-soft: #e6e6e6;
+  --muted: #b0b0b0;
+  --muted-dim: #8a8a8a;
+  --muted-faint: #6b6b6b;
 
-  --border: #3a3734;
-  --border-strong: #494541;
+  --border: #ffffff17;
+  --border-strong: #ffffff29;
 
-  --accent: #0a9bff;
-  --accent-ink: #04121f;
-  --primary: oklch(0.508 0.118 165.612);
+  --accent: #ff6a1f;
+  --accent-ink: #140700;
+  --primary: #ff6a1f;
+  --label: #ff6a1f;
 
-  --nav-backdrop: rgb(36 34 32 / 0.72);
+  --nav-backdrop: rgb(0 0 0 / 0.72);
   --overlay-1: rgb(255 255 255 / 0.06);
   --overlay-2: rgb(255 255 255 / 0.12);
-  --hairline: rgb(255 255 255 / 0.07);
-  --panel-fill: linear-gradient(to bottom, rgb(255 255 255 / 0.025), transparent);
-  --panel-fill-hover: linear-gradient(to bottom, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.015));
-  --glass-fill: linear-gradient(to bottom, rgb(255 255 255 / 7%), rgb(255 255 255 / 3%));
-  --glass-fill-hover: linear-gradient(to bottom, rgb(255 255 255 / 12%), rgb(255 255 255 / 7%));
-  --glass-edge:
-    inset 0 1px 0 rgb(255 255 255 / 9%), inset 0 0 0 1px rgb(255 255 255 / 6%),
-    0 6px 16px -8px rgb(0 0 0 / 40%);
+  --hairline: #ffffff12;
+  --panel-fill: #111;
+  --panel-fill-hover: #141414;
+  --glass-fill: linear-gradient(180deg, #1f1f1f, #151515);
+  --glass-fill-hover: linear-gradient(180deg, #262626, #1a1a1a);
+  --glass-edge: inset 0 1px 0 #ffffff17, 0 1px 2px #000a, 0 0 0 1px #ffffff12;
   --glass-blur: blur(18px) saturate(160%);
-  --shadow-key:
-    inset 0 1px 0 rgb(255 255 255 / 0.09), inset 0 0 0 1px rgb(255 255 255 / 0.06),
-    0 2px 4px rgb(0 0 0 / 0.25);
+  --well-fill: #0d0d0d;
+  --well: inset 0 1px 3px #000, inset 0 0 0 1px #ffffff14, 0 1px 0 #ffffff0a;
+  --card-ring: inset 0 0 0 1px #ffffff1a;
+  --emboss: #0006;
+  --shadow-key: inset 0 1px 0 #ffffff17, 0 1px 2px #000a, 0 0 0 1px #ffffff12;
   --shadow-window:
-    0 0 0 1px rgb(255 255 255 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 40px 90px -30px rgb(0 0 0 / 0.8), 0 10px 30px -14px rgb(0 0 0 / 0.6);
-  --shadow-accent: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 8px 22px -10px rgb(10 155 255 / 0.7);
-  --grain-opacity: 0.5;
+    0 0 0 1px #ffffff17, inset 0 1px 0 #ffffff0f, 0 40px 90px -30px rgb(0 0 0 / 0.9),
+    0 10px 30px -14px rgb(0 0 0 / 0.7);
+  --shadow-accent:
+    inset 1px 1px 0 #ffffff38, inset -1px -1px 0 #00000024, 0 1px 2px #0006,
+    0 12px 24px -12px rgb(255 106 31 / 0.7);
+  --grain-opacity: 0.4;
 }
 
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #f5f3f1;
+  --bg: #fafafa;
   --bg-deep: #ffffff;
-  --sidebar: #efece9;
+  --sidebar: #f0f0f0;
   --surface: #ffffff;
-  --surface-raised: #f0edea;
+  --surface-raised: #ffffff;
 
-  --fg: #1f1d1c;
-  --fg-soft: #33302e;
-  --muted: #6b6763;
-  --muted-dim: #8a8681;
-  --muted-faint: #aaa5a1;
+  --fg: #0f0f0f;
+  --fg-soft: #262626;
+  --muted: #5e5e5e;
+  --muted-dim: #7a7a7a;
+  --muted-faint: #9a9a9a;
 
-  --border: #e3dfda;
-  --border-strong: #cec8c2;
+  --border: #0f0f0f1c;
+  --border-strong: #0f0f0f2e;
 
-  --accent: #0a84ff;
+  --accent: #d4410b;
   --accent-ink: #ffffff;
-  --primary: oklch(0.52 0.12 165);
+  --primary: #d4410b;
+  --label: #b83a00;
 
-  --nav-backdrop: rgb(252 251 250 / 0.72);
+  --nav-backdrop: rgb(250 250 250 / 0.72);
   --overlay-1: rgb(0 0 0 / 0.05);
   --overlay-2: rgb(0 0 0 / 0.09);
-  --hairline: rgb(0 0 0 / 0.08);
-  --panel-fill: linear-gradient(to bottom, rgb(255 255 255 / 0.9), rgb(255 255 255 / 0.5));
-  --panel-fill-hover: linear-gradient(to bottom, #ffffff, #fbfaf9);
-  --glass-fill: linear-gradient(to bottom, rgb(255 255 255 / 0.75), rgb(255 255 255 / 0.5));
-  --glass-fill-hover: linear-gradient(to bottom, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0.7));
-  --glass-edge:
-    inset 0 1px 0 rgb(255 255 255 / 0.95), inset 0 0 0 1px rgb(0 0 0 / 0.06),
-    0 6px 16px -8px rgb(0 0 0 / 0.18);
-  --shadow-key:
-    inset 0 1px 0 rgb(255 255 255), inset 0 0 0 1px rgb(0 0 0 / 0.06), 0 2px 4px rgb(0 0 0 / 0.12);
+  --hairline: #0f0f0f14;
+  --panel-fill: #ffffff;
+  --panel-fill-hover: #ffffff;
+  --glass-fill: linear-gradient(180deg, #fff, #f5f5f5);
+  --glass-fill-hover: linear-gradient(180deg, #fff, #fafafa);
+  --glass-edge: inset 0 1px 0 #fff, 0 1px 2px #0f0f0f1f, 0 0 0 1px #0f0f0f1a;
+  --well-fill: #eaeaea;
+  --well: inset 0 1px 2px #0f0f0f21, inset 0 0 0 1px #0f0f0f10, 0 1px 0 #fff;
+  --card-ring: inset 0 0 0 1px #0f0f0f1a;
+  --emboss: #0f0f0f14;
+  --shadow-key: inset 0 1px 0 #fff, 0 1px 2px #0f0f0f1f, 0 0 0 1px #0f0f0f1a;
   --shadow-window:
-    0 0 0 1px rgb(0 0 0 / 0.08), inset 0 1px 0 rgb(255 255 255),
-    0 40px 90px -30px rgb(0 0 0 / 0.25), 0 10px 30px -14px rgb(0 0 0 / 0.18);
-  --shadow-accent: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 8px 22px -10px rgb(10 132 255 / 0.55);
-  --grain-opacity: 0.35;
+    0 0 0 1px #0f0f0f1a, inset 0 1px 0 #fff, 0 40px 90px -30px rgb(0 0 0 / 0.25),
+    0 10px 30px -14px rgb(0 0 0 / 0.18);
+  --shadow-accent:
+    inset 1px 1px 0 #ffffff4d, inset -1px -1px 0 #00000024, 0 1px 2px #0f0f0f14,
+    0 12px 24px -12px rgb(212 65 11 / 0.55);
+  --grain-opacity: 0.3;
 }
 
 /* Expose the semantic tokens to Tailwind utilities (bg-background, text-muted…). */
@@ -114,6 +125,7 @@
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-primary: var(--primary);
+  --color-label: var(--label);
 
   --radius-sm: 0.45rem;
   --radius-md: 0.6rem;
@@ -122,9 +134,9 @@
   --radius-2xl: 1.35rem;
   --radius-3xl: 1.65rem;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: "Geist Variable", Geist, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Geist Variable", Geist, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "Commit Mono", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   --ease-glass: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -201,8 +213,8 @@
   h4 {
     margin: 0;
     font-family: var(--font-display);
-    font-weight: 600;
-    letter-spacing: -0.02em;
+    font-weight: 560;
+    letter-spacing: -0.035em;
     line-height: 1.08;
     text-wrap: balance;
   }
@@ -241,6 +253,13 @@
   /* Raised surface with a top highlight — cards and key caps. */
   .card-surface {
     background: var(--panel-fill);
+    box-shadow: var(--card-ring);
+  }
+
+  /* Recessed well, like the app's inputs and path bar. */
+  .well {
+    background: var(--well-fill);
+    box-shadow: var(--well);
   }
 
   .card-surface:hover {

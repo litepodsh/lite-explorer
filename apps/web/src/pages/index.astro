@@ -32,8 +32,8 @@ const schema = [
 		inLanguage: 'en',
 		image: abs(site.ogImage),
 		screenshot: [
-			{ '@type': 'ImageObject', url: abs('/preview-overview.png'), caption: 'Overview screen: disk capacity, volumes and home folder usage' },
-			{ '@type': 'ImageObject', url: abs('/preview-recents.png'), caption: 'Recents view' },
+			{ '@type': 'ImageObject', url: abs('/preview-overview.webp'), caption: 'Overview screen: disk capacity, volumes and home folder usage' },
+			{ '@type': 'ImageObject', url: abs('/preview-files.webp'), caption: 'File list with the preview panel showing a Markdown file' },
 		],
 		featureList,
 		offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD', availability: 'https://schema.org/InStock' },
@@ -104,9 +104,9 @@ const inner = 'mx-auto w-full max-w-[1080px]';
 					<div class="reveal mt-12" style="--reveal-delay: 100ms">
 						<WindowFrame
 							title={site.name}
-							src="/preview-overview.png"
-							width={2638}
-							height={1670}
+							src="/preview-overview.webp"
+							width={2880}
+							height={1800}
 							alt={site.ogImageAlt}
 						/>
 					</div>
@@ -200,9 +200,11 @@ const inner = 'mx-auto w-full max-w-[1080px]';
 						</div>
 						<div class="reveal" style="--reveal-delay: 100ms">
 							<WindowFrame
-								title="Recents"
-								src="/preview-recents.png"
-								alt="Lite Explorer Recents view listing recently opened files and folders"
+								title="lite-explorer"
+								src="/preview-files.webp"
+								width={2880}
+								height={1800}
+								alt="Lite Explorer file list with the preview panel rendering a README"
 							/>
 						</div>
 					</div>

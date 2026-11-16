@@ -10,7 +10,7 @@ Hecho con Tauri, SvelteKit y TypeScript.
 
 [English](README.md) · **Español**
 
-![Vista general de Lite Explorer](assets/preview-overview.png)
+![Vista general de Lite Explorer](assets/preview-overview.webp)
 
 </div>
 
@@ -52,7 +52,7 @@ montados, qué ocupa tu carpeta personal y tu Papelera.
 
 <div align="center">
 
-![Recientes en Lite Explorer](assets/preview-recents.png)
+![Lista de archivos de Lite Explorer con el panel de vista previa](assets/preview-files.webp)
 
 </div>
 

@@ -15,7 +15,7 @@ const { icon, title, subtitle, as: Heading = 'h3', class: className, ...rest } =
 ---
 
 <article
-	class={cn('overflow-hidden rounded-[18px] border border-border bg-surface shadow-[0_12px_28px_-22px_rgb(0_0_0/0.5)]', className)}
+	class={cn('overflow-hidden rounded-2xl bg-surface shadow-[var(--card-ring)]', className)}
 	{...rest}
 >
 	<header class="flex items-center gap-3.5 border-b border-border px-5 py-4">
