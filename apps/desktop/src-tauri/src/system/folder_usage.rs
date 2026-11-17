@@ -384,6 +384,8 @@ mod tests {
         assert_eq!(entry_events, 3);
         assert_eq!(names.len(), 3);
         assert!(size("single") >= 64_000);
+        // Windows metadata exposes no link count or file id, so only Unix dedupes hard links.
+        #[cfg(unix)]
         assert_eq!(
             size("linked"),
             size("single"),

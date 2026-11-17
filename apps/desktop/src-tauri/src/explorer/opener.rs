@@ -322,10 +322,66 @@ fn linux_app_info(app: gio::AppInfo) -> Option<AppInfo> {
     })
 }
 
+/// Opens `path` with its default app. Async so a slow launch (Excel, Word…) never blocks
+/// the UI thread, which is where synchronous Tauri commands run.
 #[tauri::command]
-pub fn open_path(path: String) -> Result<(), String> {
+pub async fn open_path(path: String) -> Result<(), String> {
     let path = validate_readable(Path::new(&path))?;
-    open_target(path.to_string_lossy().into_owned())
+    off_main_thread(move || {
+        #[cfg(target_os = "windows")]
+        {
+            shell_open(&path)
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            open_target(path.to_string_lossy().into_owned())
+        }
+    })
+    .await
+}
+
+/// Opens a file through the Windows shell, like a double-click in File Explorer.
+/// `explorer.exe <file>` can stay alive until the app finishes its DDE handshake (Excel),
+/// and its exit code is meaningless, so failures went unnoticed; ShellExecuteExW reports them.
+#[cfg(target_os = "windows")]
+fn shell_open(path: &Path) -> Result<(), String> {
+    use std::{ffi::OsStr, iter, os::windows::ffi::OsStrExt};
+    use windows_sys::Win32::Foundation::ERROR_CANCELLED;
+    use windows_sys::Win32::System::Com::{
+        CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE,
+    };
+    use windows_sys::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOASYNC, SHELLEXECUTEINFOW};
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+    let wide = |value: &OsStr| -> Vec<u16> { value.encode_wide().chain(iter::once(0)).collect() };
+    let file = wide(path.as_os_str());
+    let directory = path.parent().map(|parent| wide(parent.as_os_str()));
+
+    unsafe {
+        // The shell needs COM on the calling thread; DDE-based apps need it single-threaded.
+        let com = CoInitializeEx(
+            std::ptr::null(),
+            COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE,
+        );
+        let mut info: SHELLEXECUTEINFOW = std::mem::zeroed();
+        info.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
+        info.fMask = SEE_MASK_NOASYNC;
+        info.lpFile = file.as_ptr();
+        info.lpDirectory = directory
+            .as_ref()
+            .map_or(std::ptr::null(), |directory| directory.as_ptr());
+        info.nShow = SW_SHOWNORMAL;
+        let opened = ShellExecuteExW(&mut info) != 0;
+        let error = std::io::Error::last_os_error();
+        if com >= 0 {
+            CoUninitialize();
+        }
+        if opened || error.raw_os_error() == Some(ERROR_CANCELLED as i32) {
+            Ok(())
+        } else {
+            Err(format!("Could not open {}: {error}", path.display()))
+        }
+    }
 }
 
 fn open_target(path: String) -> Result<(), String> {
@@ -349,12 +405,22 @@ fn open_target(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn open_external_url(url: String) -> Result<(), String> {
+pub async fn open_external_url(url: String) -> Result<(), String> {
     let url = tauri::Url::parse(&url).map_err(|_| "Invalid external URL")?;
     if !matches!(url.scheme(), "http" | "https") {
         return Err("Invalid external URL".into());
     }
-    open_target(url.into())
+    off_main_thread(move || open_target(url.into())).await
+}
+
+/// Runs a blocking launcher off the UI thread: `explorer.exe` can take seconds to exit, and a
+/// synchronous command waiting on it freezes every window of the app.
+async fn off_main_thread(
+    task: impl FnOnce() -> Result<(), String> + Send + 'static,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(task)
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 /// A terminal the app can launch, reported to the settings UI.
@@ -802,7 +868,11 @@ pub fn open_app_terminal_with_uri(uri: &str) -> Result<(), String> {
 
 /// Reveals `path` in the system file manager, selecting it when the OS supports it.
 #[tauri::command]
-pub fn reveal_path(path: String) -> Result<(), String> {
+pub async fn reveal_path(path: String) -> Result<(), String> {
+    off_main_thread(move || reveal(path)).await
+}
+
+fn reveal(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let status = Command::new("open").arg("-R").arg(&path).status();
     #[cfg(target_os = "windows")]

@@ -86,7 +86,7 @@ mod tests {
 
     #[test]
     fn accepts_an_absolute_real_child_name() {
-        let root = std::env::temp_dir().canonicalize().unwrap();
+        let root = dunce::canonicalize(std::env::temp_dir()).unwrap();
         assert_eq!(
             child_path(&root, "report.txt").unwrap(),
             root.join("report.txt")
